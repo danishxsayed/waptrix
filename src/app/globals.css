@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@theme {
+  --color-background: #080A0F;
+  --color-surface: #0E1117;
+  --color-card: #161B26;
+  --color-border: #273042;
+  --color-text-primary: #E2E8F0;
+  --color-text-muted: #8896AB;
+  --color-jade: #10B981;
+  --color-jade-hover: #34D399;
+  --color-danger: #F43F5E;
+  --color-warning: #F59E0B;
+  --color-info: #0EA5E9;
+
+  --font-syne: "Syne", sans-serif;
+  --font-dm-sans: "DM Sans", sans-serif;
+}
+
+:root {
+  --background: #080A0F;
+  --foreground: #E2E8F0;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-dm-sans);
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-syne);
+}
+
+/* Custom Component Classes */
+@layer components {
+  .btn-primary {
+    @apply bg-jade text-background px-4 py-2 rounded-lg font-semibold transition-all hover:bg-jade-hover hover:shadow-[0_0_20px_rgba(16,185,129,0.3)];
+  }
+  
+  .btn-secondary {
+    @apply bg-card border border-border text-text-primary px-4 py-2 rounded-lg font-semibold transition-all hover:bg-surface;
+  }
+
+  .glass-card {
+    @apply bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6;
+  }
+
+  .input-field {
+    @apply bg-surface border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-jade/50 transition-all;
+  }
+
+  .badge-jade {
+    @apply bg-jade/10 text-jade px-2 py-0.5 rounded-full text-xs font-semibold border border-jade/20;
+  }
+}
