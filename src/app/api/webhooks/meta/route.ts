@@ -23,7 +23,7 @@ export async function GET(request: Request) {
   const token = searchParams.get('hub.verify_token');
   const challenge = searchParams.get('hub.challenge');
 
-  if (mode === 'subscribe' && token === process.env.META_VERIFY_TOKEN) {
+  if (mode === 'subscribe' && token === process.env.NEXT_PUBLIC_META_VERIFY_TOKEN) {
     return new NextResponse(challenge, { status: 200 });
   }
   return new NextResponse('Forbidden', { status: 403 });

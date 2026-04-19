@@ -17,7 +17,7 @@ export const metaApi = {
   async exchangeCodeForToken(code: string) {
     const response = await axios.get(`${GRAPH_URL}/oauth/access_token`, {
       params: {
-        client_id: process.env.META_APP_ID,
+        client_id: process.env.NEXT_PUBLIC_META_APP_ID,
         client_secret: process.env.META_APP_SECRET,
         code,
       },
@@ -32,7 +32,7 @@ export const metaApi = {
     const response = await axios.get(`${GRAPH_URL}/debug_token`, {
       params: {
         input_token: inputToken,
-        access_token: `${process.env.META_APP_ID}|${process.env.META_APP_SECRET}`,
+        access_token: `${process.env.NEXT_PUBLIC_META_APP_ID}|${process.env.META_APP_SECRET}`,
       },
     });
     return response.data;

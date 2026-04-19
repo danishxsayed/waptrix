@@ -231,11 +231,11 @@ export default function SettingsPage() {
               <input 
                 type="text" 
                 readOnly 
-                value="https://api.waptrix.saas/api/webhooks/meta" 
+                value={`${process.env.NEXT_PUBLIC_APP_URL || 'https://waptrix.in'}/api/webhooks/meta`} 
                 className="input-field flex-1 text-sm bg-surface font-mono" 
               />
               <button 
-                onClick={() => copyToClipboard("https://api.waptrix.saas/api/webhooks/meta")}
+                onClick={() => copyToClipboard(`${process.env.NEXT_PUBLIC_APP_URL || 'https://waptrix.in'}/api/webhooks/meta`)}
                 className="btn-secondary p-2.5 flex items-center gap-2 text-xs"
               >
                 {copied ? <CheckCircle2 className="w-4 h-4 text-jade" /> : <Copy className="w-4 h-4" />}
@@ -255,11 +255,11 @@ export default function SettingsPage() {
               <input 
                 type="password" 
                 readOnly 
-                value="waptrix_v_882930219" 
+                value={process.env.NEXT_PUBLIC_META_VERIFY_TOKEN || 'waptrix_v_882930219'} 
                 className="input-field flex-1 text-sm bg-surface font-mono" 
               />
               <button 
-                onClick={() => copyToClipboard("waptrix_v_882930219")}
+                onClick={() => copyToClipboard(process.env.NEXT_PUBLIC_META_VERIFY_TOKEN || 'waptrix_v_882930219')}
                 className="btn-secondary p-2.5 flex items-center gap-2 text-xs"
               >
                 {copied ? <CheckCircle2 className="w-4 h-4 text-jade" /> : <Copy className="w-4 h-4" />}
