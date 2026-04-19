@@ -1,5 +1,10 @@
 # Implementation History
 
+## [2026-04-19] - Self-Updating Memory Protocol
+- **Protocol Adoption**: Formalized a new "Self-Updating Memory" protocol where the `memory/` folder is updated automatically.
+- **Rules Updated**: Updated [`AGENTS.md`](file:///Users/danishsayed/Desktop/Waptrix/AGENTS.md) with mandatory instructions for AI agents to maintain project memory.
+- **Memory Initialized**: Created `memory/` directory and initialized `context.md`, `history.md`, and `environment.md`.
+
 ## [2026-04-19] - Domain Integration & Vercel Fix
 - **Vercel Deployment Fix**:
   - Renamed project to `waptrix` in `package.json`.
