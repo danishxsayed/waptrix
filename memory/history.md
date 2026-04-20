@@ -1,5 +1,11 @@
 # Implementation History
 
+## [2026-04-20] - Added Legal Pages
+- **New Pages**: Added professional [Privacy Policy](file:///Users/danishsayed/Desktop/Waptrix/src/app/privacy/page.tsx) and [Terms of Service](file:///Users/danishsayed/Desktop/Waptrix/src/app/terms/page.tsx) pages.
+- **Middleware Update**: Updated [middleware.ts](file:///Users/danishsayed/Desktop/Waptrix/src/middleware.ts) to allow public access to legal pages without authentication redirection.
+- **Design Alignment**: Matched the existing dark theme (`#080A0F` background, `#10B981` jade accents) and typography (`Syne` and `DM Sans`).
+- **Policy Content**: Tailored content specifically for a WhatsApp Marketing SaaS, including Meta/WhatsApp policy compliance and anti-spam measures.
+
 ## [2026-04-19] - Self-Updating Memory Protocol
 - **Protocol Adoption**: Formalized a new "Self-Updating Memory" protocol where the `memory/` folder is updated automatically.
 - **Rules Updated**: Updated [`AGENTS.md`](file:///Users/danishsayed/Desktop/Waptrix/AGENTS.md) with mandatory instructions for AI agents to maintain project memory.

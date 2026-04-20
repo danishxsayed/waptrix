@@ -32,7 +32,9 @@ export async function middleware(request: NextRequest) {
 
   // Protected routes check
   if (!user && !request.nextUrl.pathname.startsWith('/login') && 
-      !request.nextUrl.pathname.startsWith('/signup')) {
+      !request.nextUrl.pathname.startsWith('/signup') &&
+      !request.nextUrl.pathname.startsWith('/privacy') &&
+      !request.nextUrl.pathname.startsWith('/terms')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
