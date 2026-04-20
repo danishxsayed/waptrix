@@ -11,8 +11,10 @@ import {
   BarChart3, 
   Settings,
   ShieldCheck,
-  Images
+  Images,
+  Loader2
 } from "lucide-react";
+import { useTenant } from "@/context/TenantContext";
 
 const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -27,6 +29,13 @@ const navItems = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { tenant, loading } = useTenant();
+
+  // Calculate progress percentage
+  const getProgress = () => {
+    if (!tenant) return 0;
+    return (tenant.messages_used / tenant.messages_limit) * 100;
+  };
 
   return (
     <aside className="w-64 min-h-screen bg-surface border-r border-border flex flex-col">
@@ -64,13 +73,24 @@ export default function Sidebar() {
       <div className="p-4 mt-auto">
         <div className="bg-card border border-border rounded-xl p-4">
           <div className="flex items-center gap-2 mb-2">
-            <ShieldCheck className="w-4 h-4 text-jade" />
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">Plan: Pro</span>
+            {loading ? (
+              <Loader2 className="w-4 h-4 text-jade animate-spin" />
+            ) : (
+              <ShieldCheck className="w-4 h-4 text-jade" />
+            )}
+            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+              Plan: {loading ? "..." : (tenant?.plan || "Starter")}
+            </span>
           </div>
           <div className="w-full bg-surface rounded-full h-1.5 mb-2">
-            <div className="bg-jade h-full rounded-full w-3/4 shadow-[0_0_8px_rgba(16,185,129,0.4)]"></div>
+            <div 
+              className="bg-jade h-full rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(16,185,129,0.4)]" 
+              style={{ width: `${loading ? 0 : getProgress()}%` }}
+            ></div>
           </div>
-          <span className="text-[10px] text-text-muted">7,500 / 10,000 messages used</span>
+          <span className="text-[10px] text-text-muted">
+            {loading ? "Loading usage..." : `${tenant?.messages_used.toLocaleString()} / ${tenant?.messages_limit.toLocaleString()} messages used`}
+          </span>
         </div>
       </div>
     </aside>

@@ -25,42 +25,21 @@ export default function SignupPage() {
     setError(null);
 
     try {
-      // Initialize inside handler to avoid prerender issues (Fix 5)
-      const supabase = createClient();
-
-      const { data, error: authError } = await supabase.auth.signUp({
+      const { data: responseData } = await import('axios').then(m => m.default.post('/api/auth/signup', {
         email: formData.email,
         password: formData.password,
-        options: {
-          data: {
-            full_name: formData.name,
-            company: formData.company
-          }
-        }
-      });
+        name: formData.name,
+        company: formData.company
+      }));
 
-      if (authError) {
-        setError(authError.message);
+      if (responseData.error) {
+        setError(responseData.error);
         return;
-      }
-
-      if (data.user) {
-        const { error: tenantError } = await supabase.from('tenants').insert({
-          id: data.user.id,
-          name: formData.name,
-          email: formData.email,
-          company: formData.company,
-        });
-
-        if (tenantError) {
-          setError(tenantError.message);
-          return;
-        }
       }
 
       router.push("/login?message=Signup successful. Please check your email.");
     } catch (err: any) {
-      setError(err.message || "Something went wrong");
+      setError(err.response?.data?.error || err.message || "Something went wrong");
     } finally {
       setIsLoading(false);
     }

@@ -33,8 +33,14 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
+      // Refresh the router to ensure the server-side knows about the session
       router.refresh();
+      
+      // Add a tiny delay to allow the refresh/cookie to propagate
+      // and prevent the middleware from redirecting back to /login
+      setTimeout(() => {
+        router.push("/");
+      }, 100);
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {

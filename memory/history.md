@@ -1,5 +1,26 @@
 # Implementation History
 
+## [2026-04-20] - Dashboard Dynamics & Auth Stability
+- **Dynamic Dashboard UI**: 
+  - Implemented `TenantContext` to synchronize user profile, plan status, and messaging usage across Topbar and Sidebar components.
+  - Replaced static "Danish Sayed" labels with authenticated user names and real-time usage data.
+- **Login Bug Fix**: Resolved the "double-click to login" issue by adding a `router.refresh()` and a propagation timeout to ensure cookies are processed before navigation.
+- **Meta App Review Support**:
+  - Created a dedicated `meta-reviewer@waptrix.in` test account with a corresponding tenant profile.
+  - Optimized the Meta "Reviewer Instructions" with professional access guides and credentials.
+
+## [2026-04-20] - Branded Password Recovery & Welcome Emails
+- **Custom Auth Flow**: Replaced default Supabase Auth emails with branded HTML templates via **Resend**.
+- **New Routes**:
+  - `src/app/api/auth/signup/route.ts`: Now sends a "beautiful" welcome email on success.
+  - `src/app/api/auth/forgot-password/route.ts`: Generates a recovery link using `service_role` and sends a branded reset email.
+- **Frontend Updates**:
+  - [Forgot Password](file:///Users/danishsayed/Desktop/Waptrix/src/app/forgot-password/page.tsx) and [Reset Password](file:///Users/danishsayed/Desktop/Waptrix/src/app/reset-password/page.tsx) pages fully implemented.
+  - [Signup Page](file:///Users/danishsayed/Desktop/Waptrix/src/app/signup/page.tsx) now integrated with the server-side API for secure email delivery.
+- **Email System**:
+  - Created a reusable [Email Template](file:///Users/danishsayed/Desktop/Waptrix/src/lib/email/template.ts) and [Resend Utility](file:///Users/danishsayed/Desktop/Waptrix/src/lib/email/resend.ts).
+  - Configured `no-reply@waptrix.in` as the default sender.
+
 ## [2026-04-20] - Added Legal Pages
 - **New Pages**: Added professional [Privacy Policy](file:///Users/danishsayed/Desktop/Waptrix/src/app/privacy/page.tsx) and [Terms of Service](file:///Users/danishsayed/Desktop/Waptrix/src/app/terms/page.tsx) pages.
 - **Middleware Update**: Updated [middleware.ts](file:///Users/danishsayed/Desktop/Waptrix/src/middleware.ts) to allow public access to legal pages without authentication redirection.
