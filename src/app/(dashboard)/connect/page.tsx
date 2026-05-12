@@ -72,14 +72,46 @@ export default function ConnectPage() {
     try {
       if (!window.FB) throw new Error("FB not loaded");
       
-      window.FB.login((response: any) => {
+      window.FB.login(function(response: any) {
+        console.log('FB.login response:', JSON.stringify(response))
+        
         if (response.authResponse) {
-          const code = response.authResponse.code;
-          handlePostSignup(code);
+          const code = response.authResponse.code
+          console.log('Auth code received:', code)
+          
+          if (!code) {
+            alert('No authorization code received from Meta')
+            return
+          }
+          
+          // Call exchange-token API
+          fetch('/api/whatsapp/exchange-token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (data.error) {
+              alert('Connection failed: ' + data.error)
+            } else {
+              alert('WhatsApp connected!')
+              fetchConnection()
+            }
+          })
+          .catch(err => alert('Connection failed: ' + err.message))
+        } else {
+          alert('Facebook login cancelled or failed')
         }
       }, {
-        config_id: process.env.NEXT_PUBLIC_META_CONFIG_ID || 'YOUR_CONFIG_ID',
-      });
+        config_id: process.env.NEXT_PUBLIC_META_CONFIG_ID,
+        response_type: 'code',
+        override_default_response_type: true,
+        extras: {
+          feature: 'whatsapp_embedded_signup',
+          setup: {}
+        }
+      })
     } catch (err) {
       console.error("Meta SDK failed:", err);
     }
