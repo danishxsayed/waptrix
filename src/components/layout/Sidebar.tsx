@@ -12,9 +12,12 @@ import {
   Settings,
   ShieldCheck,
   Images,
-  Loader2
+  Loader2,
+  LogOut
 } from "lucide-react";
 import { useTenant } from "@/context/TenantContext";
+import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 
 const navItems = [
   { name: "Dashboard", href: "/", icon: LayoutDashboard },
@@ -30,11 +33,19 @@ const navItems = [
 export default function Sidebar() {
   const pathname = usePathname();
   const { tenant, loading } = useTenant();
+  const router = useRouter();
 
   // Calculate progress percentage
   const getProgress = () => {
     if (!tenant) return 0;
     return (tenant.messages_used / tenant.messages_limit) * 100;
+  };
+
+  const handleLogout = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    router.push("/login");
+    router.refresh();
   };
 
   return (
@@ -48,7 +59,7 @@ export default function Sidebar() {
         </Link>
       </div>
 
-      <nav className="flex-1 px-4 space-y-2 mt-4">
+      <nav className="flex-1 px-4 space-y-1 mt-4">
         {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
@@ -68,6 +79,16 @@ export default function Sidebar() {
             </Link>
           );
         })}
+
+        <div className="pt-4 mt-4 border-t border-border/50">
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-text-muted hover:text-red-400 hover:bg-red-500/5 group"
+          >
+            <LogOut className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            <span className="font-medium">Logout</span>
+          </button>
+        </div>
       </nav>
 
       <div className="p-4 mt-auto">

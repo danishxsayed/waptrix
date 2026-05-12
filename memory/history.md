@@ -1,5 +1,11 @@
 # Implementation History
 
+## [2026-05-12] - Environment Setup & WhatsApp Auth
+- **Dependencies**: Installed missing packages (`npm install`).
+- **Server**: Started the local development server on `localhost:3001`.
+- **WhatsApp API Fix**: Re-implemented the token exchange API route and FB.login client code for the Meta Embedded Signup flow. Fixed the 500 error code exchange failure.
+
+
 ## [2026-04-20] - Dashboard Dynamics & Auth Stability
 - **Dynamic Dashboard UI**: 
   - Implemented `TenantContext` to synchronize user profile, plan status, and messaging usage across Topbar and Sidebar components.

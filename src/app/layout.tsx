@@ -15,8 +15,8 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Wavio | WhatsApp Bulk Messaging SaaS",
-  description: "Scale your business with Wavio - the professional WhatsApp messaging platform.",
+  title: "Waptrix | WhatsApp Bulk Messaging SaaS",
+  description: "Scale your business with Waptrix - the professional WhatsApp messaging platform.",
 };
 
 export default function RootLayout({
