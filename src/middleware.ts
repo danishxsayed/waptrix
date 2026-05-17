@@ -3,15 +3,6 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // Redirect www to non-www
-  const hostname = request.headers.get('host') || '';
-  if (hostname.startsWith('www.')) {
-    const newHostname = hostname.replace('www.', '');
-    const url = request.nextUrl.clone();
-    url.host = newHostname;
-    return NextResponse.redirect(url, { status: 301 });
-  }
-
   let supabaseResponse = NextResponse.next({ request })
 
   const supabase = createServerClient(
