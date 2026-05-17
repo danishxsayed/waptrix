@@ -1,49 +1,86 @@
-export const dynamic = "force-dynamic";
+import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
 
-import { createClient } from '@/lib/supabase/server';
-import { NextResponse } from 'next/server';
-import axios from 'axios';
+export const dynamic = 'force-dynamic'
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   try {
-    const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const supabase = await createClient()
+    const { data: { user } } = await supabase.auth.getUser()
     
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const { code } = await request.json();
+    const body = await req.json()
+    console.log('Connect request body:', body)
+    
+    const { wabaId, phoneNumberId } = body
 
-    // Exchange code for access token
-    const tokenResponse = await axios.get(
-      `https://graph.facebook.com/v22.0/oauth/access_token?client_id=${process.env.NEXT_PUBLIC_META_APP_ID}&client_secret=${process.env.META_APP_SECRET}&code=${code}&redirect_uri=${process.env.NEXT_PUBLIC_APP_URL}/connect`
-    );
+    if (!wabaId || !phoneNumberId) {
+      return NextResponse.json({ 
+        error: 'wabaId and phoneNumberId are required',
+        received: body
+      }, { status: 400 })
+    }
 
-    const accessToken = tokenResponse.data.access_token;
+    // Get the access token from the FB.login response
+    // It should have been stored in the exchange-token step
+    // OR get it from the session if using token response type
+    const { data: existing } = await supabase
+      .from('wa_connections')
+      .select('access_token')
+      .eq('tenant_id', user.id)
+      .single()
+
+    if (!existing?.access_token) {
+      return NextResponse.json({ 
+        error: 'No access token found. Please reconnect.' 
+      }, { status: 400 })
+    }
+
+    // Get phone number details from Meta
+    const phoneRes = await fetch(
+      `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=display_phone_number,verified_name&access_token=${existing.access_token}`
+    )
+    const phoneData = await phoneRes.json()
+    console.log('Phone data from Meta:', phoneData)
 
     // Get WABA details
-    const debugResponse = await axios.get(
-      `https://graph.facebook.com/debug_token?input_token=${accessToken}&access_token=${process.env.NEXT_PUBLIC_META_APP_ID}|${process.env.META_APP_SECRET}`
-    );
+    const wabaRes = await fetch(
+      `https://graph.facebook.com/v19.0/${wabaId}?fields=name&access_token=${existing.access_token}`
+    )
+    const wabaData = await wabaRes.json()
+    console.log('WABA data from Meta:', wabaData)
 
-    const wabaId = debugResponse.data.data.target_ids?.[0]; // Simplified
-
-    // Save connection
-    const { data, error } = await supabase
+    // Update connection with full details
+    const { error: dbError } = await supabase
       .from('wa_connections')
       .upsert({
-        tenant_id: session.user.id,
+        tenant_id: user.id,
         waba_id: wabaId,
-        access_token: accessToken,
-        status: 'CONNECTED',
-      })
-      .select()
-      .single();
+        phone_number_id: phoneNumberId,
+        phone_number: phoneData.display_phone_number || '',
+        business_name: wabaData.name || phoneData.verified_name || '',
+        access_token: existing.access_token,
+      }, { onConflict: 'tenant_id' })
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data);
+    if (dbError) {
+      console.error('DB upsert error:', dbError)
+      return NextResponse.json({ error: dbError.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ 
+      success: true,
+      phoneNumber: phoneData.display_phone_number,
+      businessName: wabaData.name
+    })
+
   } catch (err: any) {
-    return NextResponse.json({ error: err.response?.data?.error?.message || err.message }, { status: 500 });
+    console.error('Connect route error:', err)
+    return NextResponse.json({ 
+      error: err.message || 'Internal server error' 
+    }, { status: 500 })
   }
 }
+

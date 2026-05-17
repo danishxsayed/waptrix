@@ -1,9 +1,8 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-
 import { useState, useEffect } from "react";
-import { Link2, Shield, CheckCircle2, AlertCircle, ExternalLink } from "lucide-react";
+import { Link2, Shield } from "lucide-react";
 import axios from "axios";
 
 declare global {
@@ -17,10 +16,50 @@ export default function ConnectPage() {
   const [isConnected, setIsConnected] = useState(false);
   const [connectionData, setConnectionData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [connecting, setConnecting] = useState(false);
 
   useEffect(() => {
     fetchConnection();
     loadMetaSDK();
+  }, []);
+
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      // Accept messages from Facebook domains only
+      if (
+        event.origin !== 'https://www.facebook.com' && 
+        event.origin !== 'https://web.facebook.com' &&
+        event.origin !== 'https://business.facebook.com'
+      ) return
+
+      try {
+        const data = typeof event.data === 'string' 
+          ? JSON.parse(event.data) 
+          : event.data
+        
+        console.log('Message from Meta:', JSON.stringify(data))
+
+        if (data.type === 'WA_EMBEDDED_SIGNUP') {
+          if (data.event === 'FINISH') {
+            const { waba_id, phone_number_id } = data.data
+            console.log('Signup finished:', { waba_id, phone_number_id })
+            handleFinish(waba_id, phone_number_id)
+          } else if (data.event === 'CANCEL') {
+            console.log('Signup cancelled')
+            setConnecting(false)
+          } else if (data.event === 'ERROR') {
+            console.error('Signup error:', data.data)
+            setConnecting(false)
+            alert('Meta signup error: ' + JSON.stringify(data.data))
+          }
+        }
+      } catch (err) {
+        console.log('Could not parse message:', event.data)
+      }
+    }
+
+    window.addEventListener('message', handleMessage)
+    return () => window.removeEventListener('message', handleMessage)
   }, []);
 
   const fetchConnection = async () => {
@@ -65,13 +104,14 @@ export default function ConnectPage() {
     // Explicit Localhost Bypass because Meta deeply throws async errors on HTTP
     if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
       console.warn("Running on localhost. Bypassing Meta SDK directly.");
-      handlePostSignup("MOCK_DEV_CODE");
+      handleFinish("MOCK_WABA_ID", "MOCK_PHONE_ID");
       return;
     }
 
     try {
       if (!window.FB) throw new Error("FB not loaded");
       
+      setConnecting(true);
       window.FB.login(function(response: any) {
         console.log('FB.login response:', JSON.stringify(response))
         
@@ -81,6 +121,7 @@ export default function ConnectPage() {
           
           if (!code) {
             alert('No authorization code received from Meta')
+            setConnecting(false);
             return
           }
           
@@ -94,14 +135,18 @@ export default function ConnectPage() {
           .then(data => {
             if (data.error) {
               alert('Connection failed: ' + data.error)
+              setConnecting(false);
             } else {
-              alert('WhatsApp connected!')
-              fetchConnection()
+              console.log('Token exchanged successfully, waiting for FINISH message');
             }
           })
-          .catch(err => alert('Connection failed: ' + err.message))
+          .catch(err => {
+            alert('Connection failed: ' + err.message);
+            setConnecting(false);
+          })
         } else {
           alert('Facebook login cancelled or failed')
+          setConnecting(false)
         }
       }, {
         config_id: process.env.NEXT_PUBLIC_META_CONFIG_ID,
@@ -114,21 +159,51 @@ export default function ConnectPage() {
       })
     } catch (err) {
       console.error("Meta SDK failed:", err);
+      setConnecting(false);
     }
   };
 
-  const handlePostSignup = async (code: string) => {
-    setIsLoading(true);
-    try {
-      await axios.post("/api/whatsapp/connect", { code });
-      fetchConnection();
-    } catch (err: any) {
-      console.error("Signup failed", err);
-      alert("Failed to connect: " + (err.response?.data?.error || err.message));
-    } finally {
-      setIsLoading(false);
+  async function handleFinish(wabaId: string, phoneNumberId: string) {
+    let retries = 5;
+    let delay = 1500; // 1.5 seconds
+
+    while (retries > 0) {
+      try {
+        console.log(`Calling connect API with:`, { wabaId, phoneNumberId }, `(Retries left: ${retries})`)
+        
+        const res = await fetch('/api/whatsapp/connect', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ wabaId, phoneNumberId })
+        })
+        
+        const data = await res.json()
+        console.log('Connect API response:', data)
+        
+        if (!res.ok) {
+          // If it fails because of missing token (race condition), retry
+          if (data.error && (data.error.includes('No access token found') || data.error.includes('reconnect'))) {
+            throw new Error(data.error)
+          }
+          throw new Error(data.error || 'Connection failed')
+        }
+        
+        alert('WhatsApp connected successfully!')
+        window.location.reload()
+        return;
+      } catch (err: any) {
+        console.warn(`handleFinish attempt failed:`, err.message)
+        retries--;
+        if (retries === 0) {
+          console.error('handleFinish error:', err)
+          alert('Failed to connect: ' + err.message)
+          setConnecting(false)
+        } else {
+          await new Promise(resolve => setTimeout(resolve, delay));
+        }
+      }
     }
-  };
+  }
 
   if (isLoading) {
     return (
@@ -160,7 +235,20 @@ export default function ConnectPage() {
               <h3 className="font-bold text-lg font-syne">Your number belongs to you.</h3>
               <p className="text-xs text-text-muted mt-2">We use Meta's official Cloud API. We never own your phone number.</p>
             </div>
-            <button onClick={launchEmbeddedSignup} className="btn-primary flex items-center gap-2 mt-4">Connect WhatsApp Account</button>
+            <button 
+              onClick={launchEmbeddedSignup} 
+              disabled={connecting}
+              className="btn-primary flex items-center gap-2 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {connecting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                  Connecting...
+                </>
+              ) : (
+                "Connect WhatsApp Account"
+              )}
+            </button>
           </div>
         ) : (
           <div className="p-6 bg-surface border border-border rounded-2xl">
@@ -172,3 +260,4 @@ export default function ConnectPage() {
     </div>
   );
 }
+

@@ -1,9 +1,17 @@
 # Implementation History
 
-## [2026-05-12] - Environment Setup & WhatsApp Auth
+## [2026-05-17] - Fix WhatsApp Embedded Signup Callback
+- **Embedded Signup Callback**: Added window message listener in `src/app/(dashboard)/connect/page.tsx` filtering Facebook domains and listening for `WA_EMBEDDED_SIGNUP` `FINISH` event.
+- **Race Condition Retry**: Implemented a robust 5x retry loop in `handleFinish` to let the parallel token exchange database write complete before fetching the connect API.
+- **Connect API Route**: Completely refactored `/api/whatsapp/connect/route.ts` to accept `wabaId` and `phoneNumberId`, lookup existing `access_token`, query Meta Graph API `v19.0` for number/business details, and upsert them.
+
+## [2026-05-12] - Branding Update & Logout Functionality
 - **Dependencies**: Installed missing packages (`npm install`).
 - **Server**: Started the local development server on `localhost:3001`.
 - **WhatsApp API Fix**: Re-implemented the token exchange API route and FB.login client code for the Meta Embedded Signup flow. Fixed the 500 error code exchange failure.
+- **Branding**: Updated app metadata in `layout.tsx` to "Waptrix".
+- **Sidebar**: Added a functional Logout button with Supabase authentication integration.
+- **Git**: Pushed all recent changes to GitHub `main` branch.
 
 
 ## [2026-04-20] - Dashboard Dynamics & Auth Stability
