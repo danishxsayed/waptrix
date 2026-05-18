@@ -1,5 +1,10 @@
 # Implementation History
 
+## [2026-05-18] - Direct WhatsApp Token Storage & Origin Fix
+- **Direct AccessToken Storage**: Replaced FB.login callback to handle `accessToken` directly. Stored immediately to a new dedicated route `/api/whatsapp/store-token` without requiring the `code` exchange.
+- **Enhanced Message Listener**: Updated window message listener to accept both `facebook.com` and `waptrix.in` origins to resolve origin mismatches and cross-subdomain/Vercel mapping issues.
+- **Mock Bypass for Localhost**: Updated explicit localhost bypass to mock both `/api/whatsapp/store-token` and `/api/whatsapp/connect` correctly.
+
 ## [2026-05-17] - Fix WhatsApp Embedded Signup Callback
 - **Embedded Signup Callback**: Added window message listener in `src/app/(dashboard)/connect/page.tsx` filtering Facebook domains and listening for `WA_EMBEDDED_SIGNUP` `FINISH` event.
 - **Race Condition Retry**: Implemented a robust 5x retry loop in `handleFinish` to let the parallel token exchange database write complete before fetching the connect API.

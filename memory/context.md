@@ -19,5 +19,5 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 - **Client/Server Libs**: Unified Supabase clients in `src/lib/supabase`, Meta API helpers in `src/lib/meta.ts`, and Resend email utilities in `src/lib/email`.
 
 ## Key Integration
-- **Meta Embedded Signup**: Custom flow using `NEXT_PUBLIC_META_CONFIG_ID`. Integrates parallel token exchange (`/api/whatsapp/exchange-token`) and postMessage `FINISH` callback (`/api/whatsapp/connect`) with built-in retries to ensure zero race conditions.
+- **Meta Embedded Signup**: Custom flow utilizing `NEXT_PUBLIC_META_CONFIG_ID`. Employs direct accessToken storage (`/api/whatsapp/store-token`) during `FB.login` and maps verified assets via `/api/whatsapp/connect` triggered by the window postMessage listener (which allows `facebook.com` and `waptrix.in` origins).
 - **Webhooks**: Automated status event handling at `/api/webhooks/meta`.

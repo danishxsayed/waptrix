@@ -25,11 +25,9 @@ export default function ConnectPage() {
 
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
-      // Accept messages from Facebook domains only
       if (
-        event.origin !== 'https://www.facebook.com' && 
-        event.origin !== 'https://web.facebook.com' &&
-        event.origin !== 'https://business.facebook.com'
+        !event.origin.includes('facebook.com') && 
+        !event.origin.includes('waptrix.in')
       ) return
 
       try {
@@ -37,30 +35,44 @@ export default function ConnectPage() {
           ? JSON.parse(event.data) 
           : event.data
         
-        console.log('Message from Meta:', JSON.stringify(data))
+        console.log('Window message:', data?.type, data?.event)
 
-        if (data.type === 'WA_EMBEDDED_SIGNUP') {
+        if (data?.type === 'WA_EMBEDDED_SIGNUP') {
           if (data.event === 'FINISH') {
             const { waba_id, phone_number_id } = data.data
-            console.log('Signup finished:', { waba_id, phone_number_id })
-            handleFinish(waba_id, phone_number_id)
+            console.log('FINISH event:', { waba_id, phone_number_id })
+            
+            fetch('/api/whatsapp/connect', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ wabaId: waba_id, phoneNumberId: phone_number_id })
+            })
+            .then(res => res.json())
+            .then(data => {
+              if (data.error) {
+                alert('Connection failed: ' + data.error)
+              } else {
+                alert('WhatsApp connected! ' + (data.phoneNumber || ''))
+                window.location.reload()
+              }
+            })
           } else if (data.event === 'CANCEL') {
-            console.log('Signup cancelled')
+            console.log('User cancelled signup')
             setConnecting(false)
           } else if (data.event === 'ERROR') {
             console.error('Signup error:', data.data)
             setConnecting(false)
-            alert('Meta signup error: ' + JSON.stringify(data.data))
+            alert('Meta error: ' + JSON.stringify(data.data))
           }
         }
-      } catch (err) {
-        console.log('Could not parse message:', event.data)
+      } catch (e) {
+        // ignore parse errors
       }
     }
 
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
-  }, []);
+  }, [])
 
   const fetchConnection = async () => {
     try {
@@ -73,9 +85,6 @@ export default function ConnectPage() {
       }
     } catch (err: any) {
       console.error("Failed to fetch connection", err);
-      if (err.code === 'ECONNABORTED') {
-        console.error("Request timed out - check backend connectivity");
-      }
     } finally {
       setIsLoading(false);
     }
@@ -104,7 +113,21 @@ export default function ConnectPage() {
     // Explicit Localhost Bypass because Meta deeply throws async errors on HTTP
     if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
       console.warn("Running on localhost. Bypassing Meta SDK directly.");
-      handleFinish("MOCK_WABA_ID", "MOCK_PHONE_ID");
+      fetch('/api/whatsapp/store-token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accessToken: 'MOCK_TOKEN' })
+      })
+      .then(() => fetch('/api/whatsapp/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wabaId: 'MOCK_WABA', phoneNumberId: 'MOCK_PHONE' })
+      }))
+      .then(res => res.json())
+      .then(() => {
+        alert('WhatsApp connected! (mock)')
+        window.location.reload()
+      })
       return;
     }
 
@@ -115,43 +138,25 @@ export default function ConnectPage() {
       window.FB.login(function(response: any) {
         console.log('FB.login response:', JSON.stringify(response))
         
-        if (response.authResponse) {
-          const code = response.authResponse.code
-          console.log('Auth code received:', code)
+        if (response.authResponse?.accessToken) {
+          const accessToken = response.authResponse.accessToken
+          console.log('Got access token directly')
           
-          if (!code) {
-            alert('No authorization code received from Meta')
-            setConnecting(false);
-            return
-          }
-          
-          // Call exchange-token API
-          fetch('/api/whatsapp/exchange-token', {
+          // Store token then wait for FINISH event for waba_id and phone_number_id
+          fetch('/api/whatsapp/store-token', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code })
-          })
-          .then(res => res.json())
-          .then(data => {
-            if (data.error) {
-              alert('Connection failed: ' + data.error)
-              setConnecting(false);
-            } else {
-              console.log('Token exchanged successfully, waiting for FINISH message');
-            }
-          })
-          .catch(err => {
-            alert('Connection failed: ' + err.message);
-            setConnecting(false);
-          })
+            body: JSON.stringify({ accessToken })
+          }).then(res => res.json())
+            .then(data => console.log('Token stored:', data))
+            .catch(err => console.error('Store token error:', err))
+            
         } else {
-          alert('Facebook login cancelled or failed')
+          console.log('No auth response:', response)
           setConnecting(false)
         }
       }, {
-        config_id: process.env.NEXT_PUBLIC_META_CONFIG_ID,
-        response_type: 'code',
-        override_default_response_type: true,
+        scope: 'whatsapp_business_management,whatsapp_business_messaging,public_profile',
         extras: {
           feature: 'whatsapp_embedded_signup',
           setup: {}
@@ -162,48 +167,6 @@ export default function ConnectPage() {
       setConnecting(false);
     }
   };
-
-  async function handleFinish(wabaId: string, phoneNumberId: string) {
-    let retries = 5;
-    let delay = 1500; // 1.5 seconds
-
-    while (retries > 0) {
-      try {
-        console.log(`Calling connect API with:`, { wabaId, phoneNumberId }, `(Retries left: ${retries})`)
-        
-        const res = await fetch('/api/whatsapp/connect', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ wabaId, phoneNumberId })
-        })
-        
-        const data = await res.json()
-        console.log('Connect API response:', data)
-        
-        if (!res.ok) {
-          // If it fails because of missing token (race condition), retry
-          if (data.error && (data.error.includes('No access token found') || data.error.includes('reconnect'))) {
-            throw new Error(data.error)
-          }
-          throw new Error(data.error || 'Connection failed')
-        }
-        
-        alert('WhatsApp connected successfully!')
-        window.location.reload()
-        return;
-      } catch (err: any) {
-        console.warn(`handleFinish attempt failed:`, err.message)
-        retries--;
-        if (retries === 0) {
-          console.error('handleFinish error:', err)
-          alert('Failed to connect: ' + err.message)
-          setConnecting(false)
-        } else {
-          await new Promise(resolve => setTimeout(resolve, delay));
-        }
-      }
-    }
-  }
 
   if (isLoading) {
     return (
@@ -260,4 +223,3 @@ export default function ConnectPage() {
     </div>
   );
 }
-
