@@ -15,11 +15,46 @@ export default function ConnectPage() {
   const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
   const [connectionInfo, setConnectionInfo] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState("");
+  const [sdkLoaded, setSdkLoaded] = useState(false);
 
-  // Check existing connection on load & initialize Meta SDK
+  // Check existing connection on load
   useEffect(() => {
     checkConnection();
-    loadMetaSDK();
+  }, []);
+
+  // Initialize and load Meta SDK script
+  useEffect(() => {
+    // Check if already loaded
+    if (window.FB) {
+      setSdkLoaded(true);
+      return;
+    }
+
+    // Set init function before SDK loads
+    window.fbAsyncInit = function() {
+      window.FB.init({
+        appId: process.env.NEXT_PUBLIC_META_APP_ID,
+        autoLogAppEvents: true,
+        xfbml: true,
+        version: 'v19.0'
+      });
+      console.log('FB SDK initialized');
+      setSdkLoaded(true);
+    };
+
+    // Load SDK script
+    const script = document.createElement('script');
+    script.id = 'facebook-jssdk';
+    script.src = 'https://connect.facebook.net/en_US/sdk.js';
+    script.async = true;
+    script.defer = true;
+    script.crossOrigin = 'anonymous';
+    document.head.appendChild(script);
+
+    return () => {
+      const existing = document.getElementById('facebook-jssdk');
+      if (existing) existing.remove();
+    };
   }, []);
 
   // Listen for FINISH event from Meta popup
@@ -113,26 +148,9 @@ export default function ConnectPage() {
     }
   }
 
-  const loadMetaSDK = () => {
-    window.fbAsyncInit = function() {
-      window.FB.init({
-        appId: process.env.NEXT_PUBLIC_META_APP_ID || 'YOUR_APP_ID',
-        cookie: true,
-        xfbml: true,
-        version: 'v19.0'
-      });
-    };
-
-    (function(d, s, id) {
-      var js, fjs = d.getElementsByTagName(s)[0];
-      if (d.getElementById(id)) return;
-      js = d.createElement(s) as HTMLScriptElement; js.id = id;
-      js.src = "https://connect.facebook.net/en_US/sdk.js";
-      fjs.parentNode?.insertBefore(js, fjs);
-    }(document, 'script', 'facebook-jssdk'));
-  };
-
   function launchSignup() {
+    console.log('launchSignup clicked, FB available:', !!window.FB, 'sdkLoaded:', sdkLoaded);
+    
     // Explicit Localhost Bypass because Meta deeply throws async errors on HTTP
     if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
       console.warn("Running on localhost. Bypassing Meta SDK directly.");
@@ -150,14 +168,13 @@ export default function ConnectPage() {
       return;
     }
 
-    setStatus('connecting');
-    
     if (!window.FB) {
-      setErrorMsg('Facebook SDK not loaded. Please refresh.');
-      setStatus('error');
+      alert('Facebook SDK not loaded yet. Please wait a moment and try again.');
       return;
     }
 
+    setStatus('connecting');
+    
     window.FB.login(function(response: any) {
       console.log('FB.login response:', JSON.stringify(response));
       
@@ -275,9 +292,17 @@ export default function ConnectPage() {
             </div>
             <button 
               onClick={launchSignup}
-              className="btn-primary flex items-center gap-2 mt-4"
+              disabled={!sdkLoaded}
+              className="btn-primary flex items-center gap-2 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Connect WhatsApp Business
+              {sdkLoaded ? (
+                "Connect WhatsApp Business"
+              ) : (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading...
+                </>
+              )}
             </button>
           </div>
         )}

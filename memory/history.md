@@ -1,6 +1,9 @@
 # Implementation History
 
-## [2026-05-19] - WhatsApp Connect Page Stuck Fix
+## [2026-05-19] - WhatsApp Connect Page Stuck & SDK Load Fix
+- **Dynamic Meta SDK Loading**: Added an dynamic script loader inside `useEffect` that handles full mount lifecycle checks and updates `sdkLoaded` state to track real-time initialization.
+- **CTA Disable State**: Configured the "Connect WhatsApp Business" action button to display "Loading..." and disable clicks until the Meta SDK is fully operational.
+- **Trace Logs & Click Guard**: Added trace console logging to verify FB/SDK states on click and prevent executions if load is not complete.
 - **URL Parameter Fallback Check**: Integrated an on-load URL search query parameter check to intercept cases where Meta redirects back to the main window with `waba_id` and `phone_number_id` rather than posting window messages.
 - **Robust Status State Machine**: Integrated full statuses: `'idle' | 'connecting' | 'connected' | 'error'` with custom loaders, beautiful checkmarks, and a fallback link to manually check synchronization states.
 - **Address Bar Cleanup**: Cleaned up the window query parameters dynamically using HTML5 `history.replaceState` immediately upon capturing redirect credentials.
