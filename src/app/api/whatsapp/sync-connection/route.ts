@@ -48,12 +48,14 @@ export async function POST(req: Request) {
       phone = phonesData?.data?.[0]
     }
 
+    let bizData: any = null
+
     // Method 2: Try businesses endpoint if method 1 fails  
     if (!waba) {
       const bizRes = await fetch(
         `https://graph.facebook.com/v19.0/me/businesses?fields=id,name,whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name}}&access_token=${token}`
       )
-      const bizData = await bizRes.json()
+      bizData = await bizRes.json()
       console.log('Businesses:', JSON.stringify(bizData))
       waba = bizData?.data?.[0]?.whatsapp_business_accounts?.data?.[0]
       phone = waba?.phone_numbers?.data?.[0]
@@ -61,9 +63,16 @@ export async function POST(req: Request) {
 
     if (!waba?.id) {
       // Log what we got for debugging
-      console.log('No WABA found. Token user:', token.substring(0, 20))
+      const debugInfo = {
+        wabaListResponse: wabaList,
+        bizResponse: bizData,
+        tokenPrefix: token.substring(0, 30)
+      }
+      console.log('DEBUG - full Meta responses:', JSON.stringify(debugInfo))
+
       return NextResponse.json({ 
-        error: 'No WhatsApp Business Account found. Make sure the Facebook account has a WABA.' 
+        error: 'No WhatsApp Business Account found. Make sure the Facebook account has a WABA.',
+        debug: debugInfo
       }, { status: 400 })
     }
 
