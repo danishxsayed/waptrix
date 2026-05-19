@@ -1,6 +1,7 @@
 # Implementation History
 
 ## [2026-05-19] - WhatsApp Connect Page Stuck & SDK Load Fix
+- **Immediate Post-Login Sync Trigger**: Replaced the FB.login callback to trigger the `/api/whatsapp/sync-connection` API immediately after storing the accessToken. Added a 2-second initial processing delay and a 5-second auto-retry flow for 100% sync reliability without requiring transient message events.
 - **Fast Synchronizing Timeout**: Shortened the connection check fetch request timeout from 10 seconds to 3 seconds using `AbortController` signals to facilitate instant UI updates after login completions.
 - **Dynamic Multi-Endpoint WABA Discovery**: Implemented a dual-fallback auto-discovery algorithm (trying direct WABA graph calls followed by merchant/business business accounts query) in `/api/whatsapp/sync-connection` and `/api/whatsapp/connect` endpoints to securely link matching phone details.
 - **Dynamic Meta SDK Loading**: Added an dynamic script loader inside `useEffect` that handles full mount lifecycle checks and updates `sdkLoaded` state to track real-time initialization.

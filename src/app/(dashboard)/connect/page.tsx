@@ -208,27 +208,61 @@ export default function ConnectPage() {
     setStatus('connecting');
     
     window.FB.login(function(response: any) {
-      console.log('FB.login response:', JSON.stringify(response));
+      console.log('FB.login response:', JSON.stringify(response))
       
       if (response.authResponse?.accessToken) {
-        // Store token first
+        const accessToken = response.authResponse.accessToken
+        
+        // Store token then immediately sync
         fetch('/api/whatsapp/store-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ accessToken: response.authResponse.accessToken })
+          body: JSON.stringify({ accessToken })
         })
         .then(r => r.json())
-        .then(d => {
-          console.log('Token stored:', d);
-          // Wait for message listener FINISH event
+        .then(async (storeResult) => {
+          console.log('Token stored:', storeResult)
+          
+          // Wait 2 seconds for Meta to process, then sync
+          await new Promise(resolve => setTimeout(resolve, 2000))
+          
+          console.log('Starting sync...')
+          const syncRes = await fetch('/api/whatsapp/sync-connection', { 
+            method: 'POST' 
+          })
+          const syncData = await syncRes.json()
+          console.log('Sync result:', syncData)
+          
+          if (syncData.success) {
+            setStatus('connected')
+            setConnectionInfo(syncData)
+          } else {
+            // Keep showing connecting, wait for FINISH event
+            console.log('Sync failed, waiting for FINISH event:', syncData.error)
+            
+            // Try again after 5 more seconds
+            await new Promise(resolve => setTimeout(resolve, 5000))
+            const retryRes = await fetch('/api/whatsapp/sync-connection', { method: 'POST' })
+            const retryData = await retryRes.json()
+            console.log('Retry sync result:', retryData)
+            
+            if (retryData.success) {
+              setStatus('connected')
+              setConnectionInfo(retryData)
+            } else {
+              setStatus('error')
+              setErrorMsg('Could not find WhatsApp Business Account. Error: ' + retryData.error)
+            }
+          }
         })
         .catch(err => {
-          console.error('Store token error:', err);
-          setStatus('error');
-          setErrorMsg('Failed to store access token');
-        });
+          console.error('Error:', err)
+          setStatus('error')
+          setErrorMsg(err.message)
+        })
       } else {
-        setStatus('idle');
+        console.log('No auth response')
+        setStatus('idle')
       }
     }, {
       scope: 'whatsapp_business_management,whatsapp_business_messaging,public_profile',
@@ -275,11 +309,11 @@ export default function ConnectPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 text-sm">
               <div className="p-4 bg-surface border border-border rounded-xl">
                 <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Display Phone Number</span>
-                <p className="font-semibold text-text-primary mt-1">{connectionInfo.phoneNumber || 'Connected'}</p>
+                <p className="font-semibold text-text-primary mt-1">{connectionInfo.phoneNumber || connectionInfo.phone_number || 'Connected'}</p>
               </div>
               <div className="p-4 bg-surface border border-border rounded-xl">
                 <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Business Name</span>
-                <p className="font-semibold text-text-primary mt-1">{connectionInfo.businessName || 'Connected'}</p>
+                <p className="font-semibold text-text-primary mt-1">{connectionInfo.businessName || connectionInfo.business_name || 'Connected'}</p>
               </div>
             </div>
             <div className="flex justify-end pt-2">
