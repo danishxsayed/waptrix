@@ -11,7 +11,7 @@ export async function GET(request: Request) {
     const { data: campaigns, error } = await supabase
       .from('campaigns')
       .select('*, templates(*), wa_connections(*)')
-      .eq('status', 'SCHEDULED')
+      .in('status', ['SCHEDULED', 'queued', 'scheduled'])
       .lte('scheduled_at', new Date().toISOString())
       .limit(10);
 
@@ -21,7 +21,8 @@ export async function GET(request: Request) {
     }
 
     for (const campaign of campaigns) {
-      await supabase.from('campaigns').update({ status: 'SENDING' }).eq('id', campaign.id);
+      // Transition to 'sending' status (lowercase for frontend compatibility)
+      await supabase.from('campaigns').update({ status: 'sending' }).eq('id', campaign.id);
 
       const { data: contacts } = await supabase
         .from('contacts')
@@ -38,7 +39,7 @@ export async function GET(request: Request) {
                 to: contact.phone,
                 templateName: campaign.templates.name,
                 languageCode: campaign.templates.language,
-                components: campaign.templates.components,
+                components: campaign.templates.components || [],
               }
             );
             
@@ -58,7 +59,8 @@ export async function GET(request: Request) {
         }
       }
 
-      await supabase.from('campaigns').update({ status: 'COMPLETED' }).eq('id', campaign.id);
+      // Transition to 'sent' status (lowercase for frontend compatibility)
+      await supabase.from('campaigns').update({ status: 'sent' }).eq('id', campaign.id);
     }
 
     return NextResponse.json({ message: `Processed ${campaigns.length} campaigns.` });

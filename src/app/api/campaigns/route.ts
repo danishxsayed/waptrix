@@ -14,7 +14,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from('campaigns')
-      .select('*')
+      .select('*, template:templates(*), segment:contact_segments(*)')
       .eq('tenant_id', session.user.id)
       .order('created_at', { ascending: false });
 
@@ -35,7 +35,19 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, template_id, scheduled_at, status } = body;
+    const { 
+      name, 
+      template_id, 
+      segment_id, 
+      variable_mapping, 
+      send_now, 
+      scheduled_at, 
+      status 
+    } = body;
+
+    // Handle immediate launches: auto-set to 'queued' with current time
+    const finalStatus = send_now || !scheduled_at ? 'queued' : (status || 'queued');
+    const finalScheduledAt = send_now || !scheduled_at ? new Date().toISOString() : scheduled_at;
 
     const { data, error } = await supabase
       .from('campaigns')
@@ -43,8 +55,10 @@ export async function POST(request: Request) {
         tenant_id: session.user.id,
         name,
         template_id,
-        scheduled_at,
-        status: status || 'DRAFT',
+        segment_id,
+        variable_mapping: variable_mapping || {},
+        scheduled_at: finalScheduledAt,
+        status: finalStatus,
       })
       .select()
       .single();
