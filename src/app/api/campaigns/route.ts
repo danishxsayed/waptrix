@@ -14,7 +14,7 @@ export async function GET() {
 
     const { data, error } = await supabase
       .from('campaigns')
-      .select('*, template:templates(*), segment:contact_segments(*)')
+      .select('*, template:templates(*), segment:segments(*)')
       .eq('tenant_id', session.user.id)
       .order('created_at', { ascending: false });
 
