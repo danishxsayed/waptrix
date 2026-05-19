@@ -1,6 +1,8 @@
 # Implementation History
 
 ## [2026-05-19] - WhatsApp Connect Page Stuck & SDK Load Fix
+- **Message Template Builder Database Schema Realignment**: Resolved a schema mismatch where template inserts were attempting to save status as `status` and details as `components`, mapping them instead to compliant PostgreSQL columns (`meta_status`, `header_type`, `header_text`, `body`, `footer`, `buttons`).
+- **Complete Meta WhatsApp Message Template Creation Integration**: Developed complete implementation endpoints inside `/api/templates/[id]/submit` and `/api/templates/[id]/sync` to register standard template structures (with automatic validation body example samples) with Meta and update approval reviews.
 - **Detailed WABA Debugging Log Payload**: Implemented a comprehensive error response payload containing `debugInfo` (detailed WABA and business account responses, alongside access token prefix traces) inside both `/api/whatsapp/sync-connection` and `/api/whatsapp/connect` endpoints when no active accounts are resolved.
 - **Immediate Post-Login Sync Trigger**: Replaced the FB.login callback to trigger the `/api/whatsapp/sync-connection` API immediately after storing the accessToken. Added a 2-second initial processing delay and a 5-second auto-retry flow for 100% sync reliability without requiring transient message events.
 - **Fast Synchronizing Timeout**: Shortened the connection check fetch request timeout from 10 seconds to 3 seconds using `AbortController` signals to facilitate instant UI updates after login completions.

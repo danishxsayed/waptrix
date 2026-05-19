@@ -35,7 +35,19 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, category, language, components } = body;
+    const { 
+      name, 
+      category, 
+      language, 
+      header_type, 
+      header_text, 
+      header_image_url, 
+      body: templateBody, 
+      footer, 
+      buttons 
+    } = body;
+
+    const resolvedHeaderText = header_type === 'TEXT' ? header_text : header_image_url;
 
     const { data, error } = await supabase
       .from('templates')
@@ -44,8 +56,12 @@ export async function POST(request: Request) {
         name,
         category: category || 'MARKETING',
         language: language || 'en_US',
-        components,
-        status: 'PENDING'
+        header_type: header_type || 'NONE',
+        header_text: resolvedHeaderText || '',
+        body: templateBody || '',
+        footer: footer || '',
+        buttons: buttons || [],
+        meta_status: 'DRAFT'
       })
       .select()
       .single();
