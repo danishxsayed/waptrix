@@ -1,6 +1,8 @@
 # Implementation History
 
 ## [2026-05-19] - WhatsApp Connect Page Stuck & SDK Load Fix
+- **Fast Synchronizing Timeout**: Shortened the connection check fetch request timeout from 10 seconds to 3 seconds using `AbortController` signals to facilitate instant UI updates after login completions.
+- **Dynamic Multi-Endpoint WABA Discovery**: Implemented a dual-fallback auto-discovery algorithm (trying direct WABA graph calls followed by merchant/business business accounts query) in `/api/whatsapp/sync-connection` and `/api/whatsapp/connect` endpoints to securely link matching phone details.
 - **Dynamic Meta SDK Loading**: Added an dynamic script loader inside `useEffect` that handles full mount lifecycle checks and updates `sdkLoaded` state to track real-time initialization.
 - **CTA Disable State**: Configured the "Connect WhatsApp Business" action button to display "Loading..." and disable clicks until the Meta SDK is fully operational.
 - **Trace Logs & Click Guard**: Added trace console logging to verify FB/SDK states on click and prevent executions if load is not complete.

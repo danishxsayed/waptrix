@@ -91,7 +91,7 @@ export async function POST(req: Request) {
     })
 
   } catch (err: any) {
-    console.error('Connect connection route error:', err)
+    console.error('Sync connection route error:', err)
     return NextResponse.json({ 
       error: err.message || 'Internal server error' 
     }, { status: 500 })

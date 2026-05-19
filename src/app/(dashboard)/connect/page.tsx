@@ -104,9 +104,13 @@ export default function ConnectPage() {
   }, []);
 
   async function checkConnection() {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seconds timeout
+
     try {
-      const res = await fetch('/api/whatsapp/connection');
+      const res = await fetch('/api/whatsapp/connection', { signal: controller.signal });
       const data = await res.json();
+      clearTimeout(timeoutId);
       if (data && data.connected && data.waba_id !== 'pending') {
         setStatus('connected');
         setConnectionInfo({
@@ -118,18 +122,24 @@ export default function ConnectPage() {
       }
     } catch (err) {
       console.error('Check connection error:', err);
+      clearTimeout(timeoutId);
     }
   }
 
   async function saveConnection(wabaId: string, phoneNumberId: string) {
     setStatus('connecting');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seconds timeout
+
     try {
       const res = await fetch('/api/whatsapp/connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wabaId, phoneNumberId })
+        body: JSON.stringify({ wabaId, phoneNumberId }),
+        signal: controller.signal
       });
       const data = await res.json();
+      clearTimeout(timeoutId);
       console.log('Connect response:', data);
       
       if (data.error) {
@@ -143,10 +153,32 @@ export default function ConnectPage() {
         });
       }
     } catch (err: any) {
+      clearTimeout(timeoutId);
       setStatus('error');
-      setErrorMsg(err.message);
+      setErrorMsg(err.message || 'Connection timed out');
     }
   }
+
+  const loadMetaSDK = () => {
+    window.fbAsyncInit = function() {
+      window.FB.init({
+        appId: process.env.NEXT_PUBLIC_META_APP_ID,
+        autoLogAppEvents: true,
+        xfbml: true,
+        version: 'v19.0'
+      });
+      console.log('FB SDK initialized');
+      setSdkLoaded(true);
+    };
+
+    (function(d, s, id) {
+      var js, fjs = d.getElementsByTagName(s)[0];
+      if (d.getElementById(id)) return;
+      js = d.createElement(s) as HTMLScriptElement; js.id = id;
+      js.src = "https://connect.facebook.net/en_US/sdk.js";
+      fjs.parentNode?.insertBefore(js, fjs);
+    }(document, 'script', 'facebook-jssdk'));
+  };
 
   function launchSignup() {
     console.log('launchSignup clicked, FB available:', !!window.FB, 'sdkLoaded:', sdkLoaded);
