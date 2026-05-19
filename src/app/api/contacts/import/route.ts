@@ -12,15 +12,22 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { contacts } = await request.json();
+    const { contacts, segment_id } = await request.json();
+
+    if (!contacts || !Array.isArray(contacts)) {
+      return NextResponse.json({ error: 'Invalid contacts list' }, { status: 400 });
+    }
 
     const formattedContacts = contacts.map((c: any) => ({
       tenant_id: session.user.id,
-      name: c.name,
-      phone: c.phone,
+      segment_id: segment_id || null,
+      name: c.name || '',
+      phone: c.phone || '',
       email: c.email || null,
-      tags: c.tags || [],
-      custom_fields: c.custom_fields || {},
+      custom1: c.custom1 || null,
+      custom2: c.custom2 || null,
+      custom3: c.custom3 || null,
+      opted_in: true
     }));
 
     const { data, error } = await supabase

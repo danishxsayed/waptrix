@@ -35,17 +35,20 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, phone, email, tags, custom_fields } = body;
+    const { name, phone, email, custom1, custom2, custom3, segment_id } = body;
 
     const { data, error } = await supabase
       .from('contacts')
       .insert({
         tenant_id: session.user.id,
-        name,
-        phone,
-        email,
-        tags,
-        custom_fields,
+        segment_id: segment_id || null,
+        name: name || '',
+        phone: phone || '',
+        email: email || null,
+        custom1: custom1 || null,
+        custom2: custom2 || null,
+        custom3: custom3 || null,
+        opted_in: true
       })
       .select()
       .single();

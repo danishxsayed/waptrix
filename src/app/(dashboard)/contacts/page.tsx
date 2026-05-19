@@ -20,6 +20,7 @@ import {
   Plus
 } from "lucide-react";
 import axios from "axios";
+import * as XLSX from "xlsx";
 
 
 // ─── Add Contact Modal ────────────────────────────────────────────────────────
@@ -155,6 +156,7 @@ function AddContactModal({
 }
 
 // ─── Import CSV Modal ─────────────────────────────────────────────────────────
+// ─── Import CSV/Excel Modal ──────────────────────────────────────────────────
 function ImportCSVModal({ 
   segments, 
   onClose, 
@@ -169,47 +171,145 @@ function ImportCSVModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [preview, setPreview] = useState<any[]>([]);
+  const [parsedContacts, setParsedContacts] = useState<any[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const parseCSV = (text: string) => {
     const lines = text.trim().split("\n");
-    const headers = lines[0].split(",").map(h => h.trim().toLowerCase().replace(/['"]/g, ""));
+    if (lines.length === 0) return [];
+    
+    // Auto-detect comma or semicolon separators
+    const firstLine = lines[0];
+    const separator = firstLine.includes(";") ? ";" : ",";
+    
+    const headers = firstLine.split(separator).map(h => h.trim().toLowerCase().replace(/['"]/g, ""));
     return lines.slice(1).map(line => {
-      const values = line.split(",").map(v => v.trim().replace(/['"]/g, ""));
+      const values = line.split(separator).map(v => v.trim().replace(/['"]/g, ""));
       const obj: any = {};
       headers.forEach((h, i) => { obj[h] = values[i] || ""; });
-      return { name: obj.name || "", phone: obj.phone || "", email: obj.email || "", custom1: obj.custom1 || "", custom2: obj.custom2 || "", custom3: obj.custom3 || "" };
+      return { 
+        name: obj.name || "", 
+        phone: obj.phone || "", 
+        email: obj.email || "", 
+        custom1: obj.custom1 || "", 
+        custom2: obj.custom2 || "", 
+        custom3: obj.custom3 || "" 
+      };
     }).filter(r => r.name || r.phone);
+  };
+
+  const processFile = (f: File) => {
+    setFile(f);
+    setError("");
+    const ext = f.name.split('.').pop()?.toLowerCase();
+
+    if (ext === 'xlsx' || ext === 'xls') {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const data = new Uint8Array(ev.target?.result as ArrayBuffer);
+          const workbook = XLSX.read(data, { type: 'array' });
+          const firstSheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheetName];
+          const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+          
+          if (jsonData.length === 0) {
+            setError("The Excel worksheet is empty.");
+            return;
+          }
+
+          const headers = jsonData[0].map((h: any) => String(h || "").trim().toLowerCase());
+          const rows = jsonData.slice(1).map((row: any[]) => {
+            const obj: any = {};
+            headers.forEach((h: string, idx: number) => {
+              obj[h] = row[idx] !== undefined ? String(row[idx]).trim() : "";
+            });
+            return {
+              name: obj.name || "",
+              phone: obj.phone || "",
+              email: obj.email || "",
+              custom1: obj.custom1 || "",
+              custom2: obj.custom2 || "",
+              custom3: obj.custom3 || "",
+            };
+          }).filter(r => r.name || r.phone);
+
+          if (rows.length === 0) {
+            setError("No valid contacts containing name or phone found.");
+            return;
+          }
+
+          setParsedContacts(rows);
+          setPreview(rows.slice(0, 5));
+        } catch (err: any) {
+          console.error("Excel parse error:", err);
+          setError("Failed to parse Excel file. Make sure it's valid.");
+        }
+      };
+      reader.readAsArrayBuffer(f);
+    } else {
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        try {
+          const parsed = parseCSV(ev.target?.result as string);
+          if (parsed.length === 0) {
+            setError("No valid contacts containing name or phone found.");
+            return;
+          }
+          setParsedContacts(parsed);
+          setPreview(parsed.slice(0, 5));
+        } catch {
+          setError("Could not parse file. Make sure it's a valid CSV.");
+        }
+      };
+      reader.readAsText(f);
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    setFile(f);
-    setError("");
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      try {
-        const parsed = parseCSV(ev.target?.result as string);
-        setPreview(parsed.slice(0, 5));
-      } catch {
-        setError("Could not parse file. Make sure it's a valid CSV.");
-      }
-    };
-    reader.readAsText(f);
+    processFile(f);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = () => {
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    const f = e.dataTransfer.files?.[0];
+    if (!f) return;
+
+    const ext = f.name.split('.').pop()?.toLowerCase();
+    if (ext !== 'csv' && ext !== 'xlsx' && ext !== 'xls') {
+      setError("Please upload a valid CSV or Excel (.xlsx/.xls) file.");
+      return;
+    }
+    processFile(f);
   };
 
   const handleImport = async () => {
-    if (!file) { setError("Please select a CSV file."); return; }
+    if (parsedContacts.length === 0) { 
+      setError("No valid contacts loaded. Please upload a valid CSV/Excel file."); 
+      return; 
+    }
     setIsLoading(true);
     setError("");
     try {
-      const text = await file.text();
-      const contacts = parseCSV(text);
-      if (contacts.length === 0) { setError("No valid contacts found in the file."); setIsLoading(false); return; }
-      const res = await axios.post(
+      await axios.post(
         "/api/contacts/import",
-        { contacts, segment_id: segmentId || null }
+        { 
+          contacts: parsedContacts, 
+          segment_id: segmentId || null 
+        }
       );
       onSuccess();
       onClose();
@@ -229,7 +329,7 @@ function ImportCSVModal({
               <Upload className="w-5 h-5 text-info" />
             </div>
             <div>
-              <h2 className="text-base font-bold font-syne">Import CSV</h2>
+              <h2 className="text-base font-bold font-syne">Import CSV / Excel</h2>
               <p className="text-xs text-text-muted">Bulk import contacts from a spreadsheet</p>
             </div>
           </div>
@@ -242,7 +342,7 @@ function ImportCSVModal({
           {/* Format hint */}
           <div className="bg-surface border border-border rounded-xl p-4 space-y-2">
             <p className="text-xs font-bold text-text-muted uppercase tracking-widest flex items-center gap-1.5">
-              <FileText className="w-3.5 h-3.5" /> Expected CSV Format
+              <FileText className="w-3.5 h-3.5" /> Expected Format
             </p>
             <code className="text-[11px] text-jade font-mono block">name, phone, email, custom1, custom2, custom3</code>
             <p className="text-[10px] text-text-muted">Only <strong>name</strong> and <strong>phone</strong> are required. Phone must include country code.</p>
@@ -251,22 +351,35 @@ function ImportCSVModal({
           {/* File drop zone */}
           <div
             onClick={() => fileRef.current?.click()}
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
             className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-all ${
-              file ? "border-jade/50 bg-jade/5" : "border-border hover:border-jade/30 hover:bg-jade/5"
+              file 
+                ? "border-jade/50 bg-jade/5" 
+                : isDragging
+                  ? "border-jade bg-jade/5 scale-[1.01]"
+                  : "border-border hover:border-jade/30 hover:bg-jade/5"
             }`}
           >
-            <input ref={fileRef} type="file" accept=".csv" onChange={handleFileChange} className="hidden" />
+            <input 
+              ref={fileRef} 
+              type="file" 
+              accept=".csv,.xlsx,.xls" 
+              onChange={handleFileChange} 
+              className="hidden" 
+            />
             {file ? (
               <div className="space-y-1">
-                <CheckCircle2 className="w-8 h-8 text-jade mx-auto" />
+                <CheckCircle2 className="w-8 h-8 text-jade mx-auto animate-bounce" />
                 <p className="text-sm font-semibold text-jade">{file.name}</p>
-                <p className="text-xs text-text-muted">{preview.length}+ contacts detected (showing preview)</p>
+                <p className="text-xs text-text-muted">{parsedContacts.length} contacts detected (showing preview)</p>
               </div>
             ) : (
               <div className="space-y-2">
                 <Upload className="w-8 h-8 text-text-muted mx-auto" />
-                <p className="text-sm font-semibold text-text-primary">Click to upload CSV</p>
-                <p className="text-xs text-text-muted">or drag and drop</p>
+                <p className="text-sm font-semibold text-text-primary">Click to upload CSV or Excel</p>
+                <p className="text-xs text-text-muted">or drag and drop spreadsheet here</p>
               </div>
             )}
           </div>
@@ -320,7 +433,11 @@ function ImportCSVModal({
 
           <div className="flex gap-3">
             <button type="button" onClick={onClose} className="flex-1 btn-secondary py-3">Cancel</button>
-            <button onClick={handleImport} disabled={!file || isLoading} className="flex-1 btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
+            <button 
+              onClick={handleImport} 
+              disabled={parsedContacts.length === 0 || isLoading} 
+              className="flex-1 btn-primary py-3 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
               {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               {isLoading ? "Importing..." : "Import Contacts"}
             </button>
