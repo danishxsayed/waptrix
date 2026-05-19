@@ -1,6 +1,7 @@
 # Implementation History
 
 ## [2026-05-19] - WhatsApp Connect Page Stuck & SDK Load Fix
+- **Campaign Wizard Launch & Table Relationships Refactoring**: Resolved campaign creation bugs by feeding `segment_id` and `variable_mapping` into database inserts to pass NOT-NULL constraints, repaired the fetching relations query to correctly map from `contact_segments` to the `segments` table, and aligned cron job dispatch and dashboard badge statuses case-sensitively.
 - **Message Template Builder Database Schema Realignment**: Resolved a schema mismatch where template inserts were attempting to save status as `status` and details as `components`, mapping them instead to compliant PostgreSQL columns (`meta_status`, `header_type`, `header_text`, `body`, `footer`, `buttons`).
 - **Complete Meta WhatsApp Message Template Creation Integration**: Developed complete implementation endpoints inside `/api/templates/[id]/submit` and `/api/templates/[id]/sync` to register standard template structures (with automatic validation body example samples) with Meta and update approval reviews.
 - **Detailed WABA Debugging Log Payload**: Implemented a comprehensive error response payload containing `debugInfo` (detailed WABA and business account responses, alongside access token prefix traces) inside both `/api/whatsapp/sync-connection` and `/api/whatsapp/connect` endpoints when no active accounts are resolved.
