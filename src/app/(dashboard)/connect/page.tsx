@@ -1,9 +1,8 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect } from "react";
-import { Link2, Shield } from "lucide-react";
-import axios from "axios";
+import { useEffect, useState } from "react";
+import { Link2, Shield, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
 
 declare global {
   interface Window {
@@ -13,82 +12,106 @@ declare global {
 }
 
 export default function ConnectPage() {
-  const [isConnected, setIsConnected] = useState(false);
-  const [connectionData, setConnectionData] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [connecting, setConnecting] = useState(false);
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [connectionInfo, setConnectionInfo] = useState<any>(null);
+  const [errorMsg, setErrorMsg] = useState("");
 
+  // Check existing connection on load & initialize Meta SDK
   useEffect(() => {
-    fetchConnection();
+    checkConnection();
     loadMetaSDK();
   }, []);
 
+  // Listen for FINISH event from Meta popup
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
-      if (
-        !event.origin.includes('facebook.com') && 
-        !event.origin.includes('waptrix.in')
-      ) return
-
+      if (!event.origin.includes('facebook.com') && !event.origin.includes('waptrix.in')) return;
+      
       try {
         const data = typeof event.data === 'string' 
           ? JSON.parse(event.data) 
           : event.data
         
-        console.log('Window message:', data?.type, data?.event)
+        console.log('Meta message:', data);
 
         if (data?.type === 'WA_EMBEDDED_SIGNUP') {
           if (data.event === 'FINISH') {
-            const { waba_id, phone_number_id } = data.data
-            console.log('FINISH event:', { waba_id, phone_number_id })
-            
-            fetch('/api/whatsapp/connect', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ wabaId: waba_id, phoneNumberId: phone_number_id })
-            })
-            .then(res => res.json())
-            .then(data => {
-              if (data.error) {
-                alert('Connection failed: ' + data.error)
-              } else {
-                alert('WhatsApp connected! ' + (data.phoneNumber || ''))
-                window.location.reload()
-              }
-            })
+            const { waba_id, phone_number_id } = data.data;
+            console.log('FINISH:', { waba_id, phone_number_id });
+            saveConnection(waba_id, phone_number_id);
           } else if (data.event === 'CANCEL') {
-            console.log('User cancelled signup')
-            setConnecting(false)
+            setStatus('idle');
           } else if (data.event === 'ERROR') {
-            console.error('Signup error:', data.data)
-            setConnecting(false)
-            alert('Meta error: ' + JSON.stringify(data.data))
+            setStatus('error');
+            setErrorMsg(JSON.stringify(data.data));
           }
         }
-      } catch (e) {
-        // ignore parse errors
-      }
+      } catch (e) {}
     }
 
-    window.addEventListener('message', handleMessage)
-    return () => window.removeEventListener('message', handleMessage)
-  }, [])
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, []);
 
-  const fetchConnection = async () => {
+  // Also check URL params — Meta sometimes passes them as query params on redirect back
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const wabaId = params.get('waba_id') || params.get('wabaId');
+    const phoneNumberId = params.get('phone_number_id') || params.get('phoneNumberId');
+    
+    console.log('URL params:', { wabaId, phoneNumberId });
+    
+    if (wabaId && phoneNumberId) {
+      saveConnection(wabaId, phoneNumberId);
+      // Clean URL parameters cleanly
+      window.history.replaceState({}, '', '/connect');
+    }
+  }, []);
+
+  async function checkConnection() {
     try {
-      const res = await axios.get("/api/whatsapp/connection", {
-        timeout: 10000 // 10s timeout to prevent hanging loop
+      const res = await fetch('/api/whatsapp/connection');
+      const data = await res.json();
+      if (data && data.connected && data.waba_id !== 'pending') {
+        setStatus('connected');
+        setConnectionInfo({
+          phoneNumber: data.phone_number,
+          businessName: data.business_name
+        });
+      } else {
+        setStatus('idle');
+      }
+    } catch (err) {
+      console.error('Check connection error:', err);
+    }
+  }
+
+  async function saveConnection(wabaId: string, phoneNumberId: string) {
+    setStatus('connecting');
+    try {
+      const res = await fetch('/api/whatsapp/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wabaId, phoneNumberId })
       });
-      if (res.data) {
-        setIsConnected(true);
-        setConnectionData(res.data);
+      const data = await res.json();
+      console.log('Connect response:', data);
+      
+      if (data.error) {
+        setStatus('error');
+        setErrorMsg(data.error);
+      } else {
+        setStatus('connected');
+        setConnectionInfo({
+          phoneNumber: data.phoneNumber || data.phone_number,
+          businessName: data.businessName || data.business_name
+        });
       }
     } catch (err: any) {
-      console.error("Failed to fetch connection", err);
-    } finally {
-      setIsLoading(false);
+      setStatus('error');
+      setErrorMsg(err.message);
     }
-  };
+  }
 
   const loadMetaSDK = () => {
     window.fbAsyncInit = function() {
@@ -109,71 +132,73 @@ export default function ConnectPage() {
     }(document, 'script', 'facebook-jssdk'));
   };
 
-  const launchEmbeddedSignup = () => {
+  function launchSignup() {
     // Explicit Localhost Bypass because Meta deeply throws async errors on HTTP
     if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
       console.warn("Running on localhost. Bypassing Meta SDK directly.");
+      setStatus('connecting');
       fetch('/api/whatsapp/store-token', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ accessToken: 'MOCK_TOKEN' })
       })
-      .then(() => fetch('/api/whatsapp/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wabaId: 'MOCK_WABA', phoneNumberId: 'MOCK_PHONE' })
-      }))
-      .then(res => res.json())
-      .then(() => {
-        alert('WhatsApp connected! (mock)')
-        window.location.reload()
-      })
+      .then(() => saveConnection('MOCK_WABA', 'MOCK_PHONE'))
+      .catch(err => {
+        setStatus('error');
+        setErrorMsg(err.message);
+      });
       return;
     }
 
-    try {
-      if (!window.FB) throw new Error("FB not loaded");
-      
-      setConnecting(true);
-      window.FB.login(function(response: any) {
-        console.log('FB.login response:', JSON.stringify(response))
-        
-        if (response.authResponse?.accessToken) {
-          const accessToken = response.authResponse.accessToken
-          console.log('Got access token directly')
-          
-          // Store token then wait for FINISH event for waba_id and phone_number_id
-          fetch('/api/whatsapp/store-token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ accessToken })
-          }).then(res => res.json())
-            .then(data => console.log('Token stored:', data))
-            .catch(err => console.error('Store token error:', err))
-            
-        } else {
-          console.log('No auth response:', response)
-          setConnecting(false)
-        }
-      }, {
-        scope: 'whatsapp_business_management,whatsapp_business_messaging,public_profile',
-        extras: {
-          feature: 'whatsapp_embedded_signup',
-          setup: {}
-        }
-      })
-    } catch (err) {
-      console.error("Meta SDK failed:", err);
-      setConnecting(false);
+    setStatus('connecting');
+    
+    if (!window.FB) {
+      setErrorMsg('Facebook SDK not loaded. Please refresh.');
+      setStatus('error');
+      return;
     }
-  };
 
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="w-8 h-8 border-4 border-jade border-t-transparent rounded-full animate-spin"></div>
-      </div>
-    );
+    window.FB.login(function(response: any) {
+      console.log('FB.login response:', JSON.stringify(response));
+      
+      if (response.authResponse?.accessToken) {
+        // Store token first
+        fetch('/api/whatsapp/store-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ accessToken: response.authResponse.accessToken })
+        })
+        .then(r => r.json())
+        .then(d => {
+          console.log('Token stored:', d);
+          // Wait for message listener FINISH event
+        })
+        .catch(err => {
+          console.error('Store token error:', err);
+          setStatus('error');
+          setErrorMsg('Failed to store access token');
+        });
+      } else {
+        setStatus('idle');
+      }
+    }, {
+      scope: 'whatsapp_business_management,whatsapp_business_messaging,public_profile',
+      extras: {
+        feature: 'whatsapp_embedded_signup',
+        setup: {}
+      }
+    });
+  }
+
+  async function handleDisconnect() {
+    try {
+      await fetch('/api/whatsapp/connection', { method: 'DELETE' });
+      setStatus('idle');
+      setConnectionInfo(null);
+    } catch (err: any) {
+      setStatus('error');
+      setErrorMsg(err.message || 'Failed to disconnect');
+    }
   }
 
   return (
@@ -181,42 +206,97 @@ export default function ConnectPage() {
       <div className="glass-card">
         <div className="flex items-start justify-between mb-8">
           <div className="flex items-center gap-4">
-            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${isConnected ? 'bg-jade/10' : 'bg-surface border border-border'}`}>
-              <Link2 className={`w-7 h-7 ${isConnected ? 'text-jade' : 'text-text-muted'}`} />
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${status === 'connected' ? 'bg-jade/10' : 'bg-surface border border-border'}`}>
+              <Link2 className={`w-7 h-7 ${status === 'connected' ? 'text-jade' : 'text-text-muted'}`} />
             </div>
             <div>
               <h2 className="text-xl font-bold font-syne">WhatsApp Connection</h2>
               <p className="text-sm text-text-muted">Connect your official WhatsApp Business Account</p>
             </div>
           </div>
-          {isConnected && <div className="badge-jade flex items-center gap-1.5 py-1 px-3">Connected</div>}
+          {status === 'connected' && <div className="badge-jade flex items-center gap-1.5 py-1 px-3">Connected</div>}
         </div>
-        {!isConnected ? (
-          <div className="p-6 bg-jade/5 border border-jade/10 rounded-2xl flex flex-col items-center text-center space-y-4">
+
+        {status === 'connected' && connectionInfo && (
+          <div className="p-6 bg-jade/5 border border-jade/10 rounded-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="w-6 h-6 text-jade" />
+              <p className="text-jade font-bold font-syne text-lg">WhatsApp Connected Successfully!</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 text-sm">
+              <div className="p-4 bg-surface border border-border rounded-xl">
+                <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Display Phone Number</span>
+                <p className="font-semibold text-text-primary mt-1">{connectionInfo.phoneNumber || 'Connected'}</p>
+              </div>
+              <div className="p-4 bg-surface border border-border rounded-xl">
+                <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Business Name</span>
+                <p className="font-semibold text-text-primary mt-1">{connectionInfo.businessName || 'Connected'}</p>
+              </div>
+            </div>
+            <div className="flex justify-end pt-2">
+              <button 
+                onClick={handleDisconnect}
+                className="text-xs font-bold text-red-500 hover:text-red-400 hover:underline transition-all"
+              >
+                Disconnect Account
+              </button>
+            </div>
+          </div>
+        )}
+
+        {status === 'error' && (
+          <div className="p-6 bg-red-500/5 border border-red-500/10 rounded-2xl space-y-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-6 h-6 text-red-500" />
+              <p className="text-red-500 font-bold font-syne text-lg">Something went wrong</p>
+            </div>
+            <p className="text-sm text-text-muted leading-relaxed">
+              Error details: <code className="bg-surface/50 border border-border px-1.5 py-0.5 rounded font-mono text-red-400">{errorMsg}</code>
+            </p>
+            <div className="flex justify-start pt-2">
+              <button 
+                onClick={() => setStatus('idle')}
+                className="btn-secondary text-xs"
+              >
+                Try Again
+              </button>
+            </div>
+          </div>
+        )}
+
+        {status === 'idle' && (
+          <div className="p-8 bg-jade/5 border border-jade/10 rounded-2xl flex flex-col items-center text-center space-y-4">
             <Shield className="w-10 h-10 text-jade opacity-50" />
             <div className="max-w-md">
               <h3 className="font-bold text-lg font-syne">Your number belongs to you.</h3>
-              <p className="text-xs text-text-muted mt-2">We use Meta's official Cloud API. We never own your phone number.</p>
+              <p className="text-xs text-text-muted mt-2">
+                We use Meta's official Cloud API. We never own your phone number. Your messages remain private and secure.
+              </p>
             </div>
             <button 
-              onClick={launchEmbeddedSignup} 
-              disabled={connecting}
-              className="btn-primary flex items-center gap-2 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={launchSignup}
+              className="btn-primary flex items-center gap-2 mt-4"
             >
-              {connecting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
-                  Connecting...
-                </>
-              ) : (
-                "Connect WhatsApp Account"
-              )}
+              Connect WhatsApp Business
             </button>
           </div>
-        ) : (
-          <div className="p-6 bg-surface border border-border rounded-2xl">
-             <p className="text-sm font-semibold">Business: {connectionData.business_name}</p>
-             <p className="text-sm text-text-muted">Number: {connectionData.phone_number}</p>
+        )}
+
+        {status === 'connecting' && (
+          <div className="p-8 bg-surface border border-border rounded-2xl flex flex-col items-center text-center space-y-4">
+            <Loader2 className="w-10 h-10 text-jade animate-spin" />
+            <div className="max-w-md">
+              <h3 className="font-bold text-lg font-syne">Completing connection...</h3>
+              <p className="text-xs text-text-muted mt-2">
+                We are configuring your numbers and synchronizing with Meta. Please do not close this window.
+              </p>
+              <p className="text-[11px] text-text-muted mt-4">
+                Taking too long? 
+                <button onClick={checkConnection} className="text-jade font-bold ml-1 hover:underline">
+                  click here to check status manually
+                </button>
+              </p>
+            </div>
           </div>
         )}
       </div>

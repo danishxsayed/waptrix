@@ -1,5 +1,10 @@
 # Implementation History
 
+## [2026-05-19] - WhatsApp Connect Page Stuck Fix
+- **URL Parameter Fallback Check**: Integrated an on-load URL search query parameter check to intercept cases where Meta redirects back to the main window with `waba_id` and `phone_number_id` rather than posting window messages.
+- **Robust Status State Machine**: Integrated full statuses: `'idle' | 'connecting' | 'connected' | 'error'` with custom loaders, beautiful checkmarks, and a fallback link to manually check synchronization states.
+- **Address Bar Cleanup**: Cleaned up the window query parameters dynamically using HTML5 `history.replaceState` immediately upon capturing redirect credentials.
+
 ## [2026-05-18] - Direct WhatsApp Token Storage & Origin Fix
 - **Direct AccessToken Storage**: Replaced FB.login callback to handle `accessToken` directly. Stored immediately to a new dedicated route `/api/whatsapp/store-token` without requiring the `code` exchange.
 - **Enhanced Message Listener**: Updated window message listener to accept both `facebook.com` and `waptrix.in` origins to resolve origin mismatches and cross-subdomain/Vercel mapping issues.
