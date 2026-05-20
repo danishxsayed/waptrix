@@ -24,7 +24,13 @@ export async function POST(request: Request) {
     if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });
 
     if (authData.user) {
-      const { error: tenantError } = await supabase.from('tenants').insert({
+      const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+      const serviceClient = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+
+      const { error: tenantError } = await serviceClient.from('tenants').insert({
         id: authData.user.id,
         name,
         email,

@@ -10,17 +10,23 @@ export async function GET(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await supabase
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data, error } = await serviceClient
       .from('templates')
       .select('*')
       .eq('id', id)
-      .eq('tenant_id', session.user.id)
+      .eq('tenant_id', user.id)
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -37,9 +43,9 @@ export async function PUT(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
@@ -58,7 +64,13 @@ export async function PUT(
 
     const resolvedHeaderText = header_type === 'TEXT' ? header_text : header_image_url;
 
-    const { data, error } = await supabase
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { data, error } = await serviceClient
       .from('templates')
       .update({
         name,
@@ -72,7 +84,7 @@ export async function PUT(
         meta_status: 'DRAFT'
       })
       .eq('id', id)
-      .eq('tenant_id', session.user.id)
+      .eq('tenant_id', user.id)
       .select()
       .single();
 
@@ -90,17 +102,23 @@ export async function DELETE(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { error } = await supabase
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { error } = await serviceClient
       .from('templates')
       .delete()
       .eq('id', id)
-      .eq('tenant_id', session.user.id);
+      .eq('tenant_id', user.id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });

@@ -10,25 +10,31 @@ export async function GET(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     // Verify campaign ownership
-    const { data: campaign, error: campaignError } = await supabase
+    const { data: campaign, error: campaignError } = await serviceClient
       .from('campaigns')
       .select('id')
       .eq('id', id)
-      .eq('tenant_id', session.user.id)
+      .eq('tenant_id', user.id)
       .single();
 
     if (campaignError || !campaign) {
       return NextResponse.json({ error: 'Campaign not found or unauthorized' }, { status: 404 });
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await serviceClient
       .from('campaign_logs')
       .select('*')
       .eq('campaign_id', id)

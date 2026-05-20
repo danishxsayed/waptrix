@@ -11,18 +11,24 @@ export async function POST(
   try {
     const { id } = await params;
     const supabase = await createClient();
-    const { data: { session } } = await supabase.auth.getSession();
+    const { data: { user } } = await supabase.auth.getUser();
     
-    if (!session) {
+    if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
     // 1. Fetch template from DB
-    const { data: template, error: templateError } = await supabase
+    const { data: template, error: templateError } = await serviceClient
       .from('templates')
       .select('*')
       .eq('id', id)
-      .eq('tenant_id', session.user.id)
+      .eq('tenant_id', user.id)
       .single();
 
     if (templateError || !template) {
@@ -30,10 +36,10 @@ export async function POST(
     }
 
     // 2. Fetch tenant's active Meta connections
-    const { data: conn, error: connError } = await supabase
+    const { data: conn, error: connError } = await serviceClient
       .from('wa_connections')
       .select('access_token, waba_id')
-      .eq('tenant_id', session.user.id)
+      .eq('tenant_id', user.id)
       .single();
 
     if (connError || !conn?.access_token || !conn?.waba_id) {
@@ -129,14 +135,14 @@ export async function POST(
     }
 
     // 5. Update local database
-    const { error: dbError } = await supabase
+    const { error: dbError } = await serviceClient
       .from('templates')
       .update({
         meta_template_id: metaRes.id,
         meta_status: 'PENDING'
       })
       .eq('id', id)
-      .eq('tenant_id', session.user.id);
+      .eq('tenant_id', user.id);
 
     if (dbError) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });

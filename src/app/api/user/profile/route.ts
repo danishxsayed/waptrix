@@ -25,8 +25,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: updateAuthError.message }, { status: 400 });
     }
 
-    // 2. Update Tenants Table
-    const { error: tenantError } = await supabase
+    // 2. Update Tenants Table using service role bypass
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    const { error: tenantError } = await serviceClient
       .from('tenants')
       .update({
         name,

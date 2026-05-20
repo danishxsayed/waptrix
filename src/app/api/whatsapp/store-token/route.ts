@@ -12,7 +12,13 @@ export async function POST(req: Request) {
     const { accessToken } = await req.json()
     if (!accessToken) return NextResponse.json({ error: 'No token' }, { status: 400 })
 
-    const { error } = await supabase
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+
+    const { error } = await serviceClient
       .from('wa_connections')
       .upsert({
         tenant_id: user.id,
