@@ -1,6 +1,7 @@
 # Implementation History
 
 ## [2026-05-20] - Supabase Auth Cookie & Service Role API Bypass Fix
+- **Standardized Top-Level Service Client Pattern**: Refactored all 19 database query API endpoints to instantiate the service client exactly at the module level: `const service = createServiceClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!)` using the Vercel-compliant `SUPABASE_SERVICE_KEY` environment name.
 - **WhatsApp connection DELETE Support**: Implemented `DELETE` method handler inside `/api/whatsapp/connection/route.ts` to cleanly remove the tenant's WhatsApp Business Account link from the database during disconnect flows.
 - **Supabase Env Key Refactoring**: Replaced all 19 occurrences of `SUPABASE_SERVICE_ROLE_KEY` environment variables with `SUPABASE_SERVICE_KEY` across all API route handlers and cron files.
 - **Supabase Auth getSession Replacement**: Replaced cookie-unstable `getSession` calls with `getUser` in all API route handlers to ensure reliable authenticated user retrieval.

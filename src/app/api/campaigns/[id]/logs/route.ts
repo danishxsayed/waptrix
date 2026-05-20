@@ -2,6 +2,12 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js'
+
+const service = createServiceClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!
+)
 
 export async function GET(
   req: Request,
@@ -16,14 +22,8 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
-    const serviceClient = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
-
     // Verify campaign ownership
-    const { data: campaign, error: campaignError } = await serviceClient
+    const { data: campaign, error: campaignError } = await service
       .from('campaigns')
       .select('id')
       .eq('id', id)
@@ -34,7 +34,7 @@ export async function GET(
       return NextResponse.json({ error: 'Campaign not found or unauthorized' }, { status: 404 });
     }
 
-    const { data, error } = await serviceClient
+    const { data, error } = await service
       .from('campaign_logs')
       .select('*')
       .eq('campaign_id', id)

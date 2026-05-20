@@ -2,6 +2,12 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js'
+
+const service = createServiceClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!
+)
 
 export async function GET() {
   try {
@@ -12,13 +18,7 @@ export async function GET() {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
-    const serviceClient = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
-
-    const { data, error } = await serviceClient
+    const { data, error } = await service
       .from('contacts')
       .select('*')
       .eq('tenant_id', user.id)
@@ -43,13 +43,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, phone, email, custom1, custom2, custom3, segment_id } = body;
 
-    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
-    const serviceClient = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
-
-    const { data, error } = await serviceClient
+    const { data, error } = await service
       .from('contacts')
       .insert({
         tenant_id: user.id,

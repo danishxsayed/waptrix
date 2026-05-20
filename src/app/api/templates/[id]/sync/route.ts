@@ -3,6 +3,12 @@ export const dynamic = "force-dynamic";
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { metaApi } from '@/lib/meta';
+import { createClient as createServiceClient } from '@supabase/supabase-js'
+
+const service = createServiceClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!
+)
 
 export async function POST(
   req: Request,
@@ -17,14 +23,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
-    const serviceClient = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
-
     // 1. Fetch template from DB
-    const { data: template, error: templateError } = await serviceClient
+    const { data: template, error: templateError } = await service
       .from('templates')
       .select('*')
       .eq('id', id)
@@ -42,7 +42,7 @@ export async function POST(
     }
 
     // 2. Fetch tenant's active Meta connections
-    const { data: conn, error: connError } = await serviceClient
+    const { data: conn, error: connError } = await service
       .from('wa_connections')
       .select('access_token')
       .eq('tenant_id', user.id)
@@ -61,7 +61,7 @@ export async function POST(
     const rejectionReason = statusData?.rejected_reason || null;
 
     // 4. Update in local DB
-    const { error: dbError } = await serviceClient
+    const { error: dbError } = await service
       .from('templates')
       .update({
         meta_status: metaStatus,

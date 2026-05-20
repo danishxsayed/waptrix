@@ -1,7 +1,13 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
+
+const service = createServiceClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!
+)
 
 export async function POST(req: Request) {
   try {
@@ -12,13 +18,7 @@ export async function POST(req: Request) {
     const { accessToken } = await req.json()
     if (!accessToken) return NextResponse.json({ error: 'No token' }, { status: 400 })
 
-    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
-    const serviceClient = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    )
-
-    const { error } = await serviceClient
+    const { error } = await service
       .from('wa_connections')
       .upsert({
         tenant_id: user.id,

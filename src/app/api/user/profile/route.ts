@@ -1,5 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { createClient as createServiceClient } from '@supabase/supabase-js'
+
+const service = createServiceClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_KEY!
+)
 
 export async function POST(request: Request) {
   try {
@@ -26,13 +32,7 @@ export async function POST(request: Request) {
     }
 
     // 2. Update Tenants Table using service role bypass
-    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
-    const serviceClient = createServiceClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
-
-    const { error: tenantError } = await serviceClient
+    const { error: tenantError } = await service
       .from('tenants')
       .update({
         name,
