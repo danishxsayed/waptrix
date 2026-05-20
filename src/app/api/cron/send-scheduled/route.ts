@@ -1,17 +1,17 @@
 import { NextResponse } from 'next/server';
 import { metaApi } from '@/lib/meta';
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic';
 
-const service = createServiceClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
-
 export async function GET(request: Request) {
   try {
-    const { data: campaigns, error } = await service
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    const { data: campaigns, error } = await serviceClient
       .from('campaigns')
       .select('*, templates(*), wa_connections(*)')
       .in('status', ['SCHEDULED', 'queued', 'scheduled'])
@@ -25,9 +25,9 @@ export async function GET(request: Request) {
 
     for (const campaign of campaigns) {
       // Transition to 'sending' status (lowercase for frontend compatibility)
-      await service.from('campaigns').update({ status: 'sending' }).eq('id', campaign.id);
+      await serviceClient.from('campaigns').update({ status: 'sending' }).eq('id', campaign.id);
 
-      const { data: contacts } = await service
+      const { data: contacts } = await serviceClient
         .from('contacts')
         .select('phone')
         .eq('tenant_id', campaign.tenant_id);
@@ -46,13 +46,13 @@ export async function GET(request: Request) {
               }
             );
             
-            await service.from('campaign_logs').insert({
+            await serviceClient.from('campaign_logs').insert({
               campaign_id: campaign.id,
               recipient: contact.phone,
               status: 'SENT',
             });
           } catch (sendErr: any) {
-            await service.from('campaign_logs').insert({
+            await serviceClient.from('campaign_logs').insert({
               campaign_id: campaign.id,
               recipient: contact.phone,
               status: 'FAILED',
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
       }
 
       // Transition to 'sent' status (lowercase for frontend compatibility)
-      await service.from('campaigns').update({ status: 'sent' }).eq('id', campaign.id);
+      await serviceClient.from('campaigns').update({ status: 'sent' }).eq('id', campaign.id);
     }
 
     return NextResponse.json({ message: `Processed ${campaigns.length} campaigns.` });

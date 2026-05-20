@@ -1,13 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
-
-const service = createServiceClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
 
 export async function POST(req: Request) {
   try {
@@ -59,7 +53,13 @@ export async function POST(req: Request) {
     }
 
     // Store token temporarily in Supabase using service role bypass
-    const { error: dbError } = await service
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
+
+    const { error: dbError } = await serviceClient
       .from('wa_connections')
       .upsert({
         tenant_id: user.id,

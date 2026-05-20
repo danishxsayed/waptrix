@@ -1,28 +1,39 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
-
-const service = createServiceClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
 
 export async function GET() {
   try {
     const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
+    
+    // Use getUser instead of getSession - more reliable
+    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    
+    console.log('Auth user:', user?.id, authError?.message)
+    
+    if (!user) {
+      return NextResponse.json({ connected: false })
+    }
 
-    if (!user) return NextResponse.json({ connected: false })
+    // Use service role client to bypass RLS
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
 
-    const { data, error } = await service
+    const { data, error } = await serviceClient
       .from('wa_connections')
-      .select('id, waba_id, phone_number_id, phone_number, business_name')
+      .select('id, waba_id, phone_number_id, phone_number, business_name, connected_at')
       .eq('tenant_id', user.id)
       .single()
 
-    if (error || !data) return NextResponse.json({ connected: false })
+    console.log('Connection data:', data, error?.message)
+
+    if (error || !data) {
+      return NextResponse.json({ connected: false })
+    }
 
     return NextResponse.json({
       connected: true,
@@ -35,19 +46,5 @@ export async function GET() {
   } catch (err: any) {
     console.error('Connection route error:', err)
     return NextResponse.json({ connected: false })
-  }
-}
-
-export async function DELETE() {
-  try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-    await service.from('wa_connections').delete().eq('tenant_id', user.id)
-    return NextResponse.json({ success: true })
-
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }

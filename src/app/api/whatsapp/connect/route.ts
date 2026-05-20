@@ -1,13 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import { createClient as createServiceClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
-
-const service = createServiceClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
 
 export async function POST(req: Request) {
   try {
@@ -18,8 +12,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
+
     // Get the access token from the FB.login response
-    const { data: conn } = await service
+    const { data: conn } = await serviceClient
       .from('wa_connections')
       .select('access_token')
       .eq('tenant_id', user.id)
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
     }
 
     // Update connection with full details
-    const { error: dbError } = await service
+    const { error: dbError } = await serviceClient
       .from('wa_connections')
       .upsert({
         tenant_id: user.id,

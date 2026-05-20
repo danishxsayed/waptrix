@@ -2,12 +2,6 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
-import { createClient as createServiceClient } from '@supabase/supabase-js'
-
-const service = createServiceClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
 
 export async function GET(
   req: Request,
@@ -22,7 +16,13 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { data, error } = await service
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    const { data, error } = await serviceClient
       .from('templates')
       .select('*')
       .eq('id', id)
@@ -64,7 +64,13 @@ export async function PUT(
 
     const resolvedHeaderText = header_type === 'TEXT' ? header_text : header_image_url;
 
-    const { data, error } = await service
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    const { data, error } = await serviceClient
       .from('templates')
       .update({
         name,
@@ -102,7 +108,13 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { error } = await service
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    const { error } = await serviceClient
       .from('templates')
       .delete()
       .eq('id', id)

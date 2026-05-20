@@ -3,12 +3,6 @@ export const dynamic = "force-dynamic";
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { metaApi } from '@/lib/meta';
-import { createClient as createServiceClient } from '@supabase/supabase-js'
-
-const service = createServiceClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_KEY!
-)
 
 export async function POST(
   req: Request,
@@ -23,8 +17,14 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
     // 1. Fetch template from DB
-    const { data: template, error: templateError } = await service
+    const { data: template, error: templateError } = await serviceClient
       .from('templates')
       .select('*')
       .eq('id', id)
@@ -36,7 +36,7 @@ export async function POST(
     }
 
     // 2. Fetch tenant's active Meta connections
-    const { data: conn, error: connError } = await service
+    const { data: conn, error: connError } = await serviceClient
       .from('wa_connections')
       .select('access_token, waba_id')
       .eq('tenant_id', user.id)
@@ -135,7 +135,7 @@ export async function POST(
     }
 
     // 5. Update local database
-    const { error: dbError } = await service
+    const { error: dbError } = await serviceClient
       .from('templates')
       .update({
         meta_template_id: metaRes.id,
