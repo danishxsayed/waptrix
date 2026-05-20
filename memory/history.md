@@ -1,6 +1,7 @@
 # Implementation History
 
 ## [2026-05-20] - Supabase Auth Cookie & Service Role API Bypass Fix
+- **WhatsApp connection DELETE Support**: Implemented `DELETE` method handler inside `/api/whatsapp/connection/route.ts` to cleanly remove the tenant's WhatsApp Business Account link from the database during disconnect flows.
 - **Supabase Env Key Refactoring**: Replaced all 19 occurrences of `SUPABASE_SERVICE_ROLE_KEY` environment variables with `SUPABASE_SERVICE_KEY` across all API route handlers and cron files.
 - **Supabase Auth getSession Replacement**: Replaced cookie-unstable `getSession` calls with `getUser` in all API route handlers to ensure reliable authenticated user retrieval.
 - **Service Role Client RLS Bypass**: Standardized database querying across all application endpoints (campaigns, templates, contacts, segments, media, profile updates, token exchanges, syncs, and cron workers) to use the Supabase `service_role` client to bypass RLS, filtering by the authenticated user's ID manually.
