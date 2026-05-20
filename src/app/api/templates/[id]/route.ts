@@ -19,7 +19,7 @@ export async function GET(
     const { createClient: createServiceClient } = await import('@supabase/supabase-js');
     const serviceClient = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.SUPABASE_SERVICE_KEY!
     );
 
     const { data, error } = await serviceClient
@@ -67,7 +67,7 @@ export async function PUT(
     const { createClient: createServiceClient } = await import('@supabase/supabase-js');
     const serviceClient = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.SUPABASE_SERVICE_KEY!
     );
 
     const { data, error } = await serviceClient
@@ -111,7 +111,7 @@ export async function DELETE(
     const { createClient: createServiceClient } = await import('@supabase/supabase-js');
     const serviceClient = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
+      process.env.SUPABASE_SERVICE_KEY!
     );
 
     const { error } = await serviceClient

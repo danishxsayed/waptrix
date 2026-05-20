@@ -1,8 +1,10 @@
 # Implementation History
 
 ## [2026-05-20] - Supabase Auth Cookie & Service Role API Bypass Fix
+- **Supabase Env Key Refactoring**: Replaced all 19 occurrences of `SUPABASE_SERVICE_ROLE_KEY` environment variables with `SUPABASE_SERVICE_KEY` across all API route handlers and cron files.
 - **Supabase Auth getSession Replacement**: Replaced cookie-unstable `getSession` calls with `getUser` in all API route handlers to ensure reliable authenticated user retrieval.
 - **Service Role Client RLS Bypass**: Standardized database querying across all application endpoints (campaigns, templates, contacts, segments, media, profile updates, token exchanges, syncs, and cron workers) to use the Supabase `service_role` client to bypass RLS, filtering by the authenticated user's ID manually.
+
 
 ## [2026-05-19] - WhatsApp Connect Page Stuck & SDK Load Fix
 - **Contacts Import, Drag-and-Drop, and Excel Spreadsheets Parsing**: Fixed PostgreSQL schema cache violations during imports by aligning field payloads directly with the `custom1`/`2`/`3` and `opted_in` schema columns and matching segment assignments. Implemented full HTML5 drag-and-drop React listener events on the modal dropzone, and integrated client-side SheetJS parsing supporting native `.xlsx` and `.xls` uploads.
