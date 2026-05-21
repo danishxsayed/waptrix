@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 
 export const dynamic = 'force-dynamic'
@@ -7,26 +8,8 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   try {
     const cookieStore = await cookies()
-    
-    // Get the auth token from cookies
-    const allCookies = cookieStore.getAll()
-    const authCookie = allCookies.find(c => 
-      c.name.includes('auth-token') || 
-      c.name.includes('access-token') ||
-      c.name.startsWith('sb-')
-    )
-    
-    console.log('Cookies found:', allCookies.map(c => c.name))
 
-    // Use service client directly
-    const serviceClient = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    )
-
-    // Get user from the auth token
-    const { createClient: createSSRClient } = await import('@supabase/ssr')
-    const ssrClient = createSSRClient(
+    const ssrClient = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
@@ -39,20 +22,22 @@ export async function GET() {
       }
     )
 
-    const { data: { user }, error: authError } = await ssrClient.auth.getUser()
-    console.log('User from SSR client:', user?.id, authError?.message)
+    const { data: { user } } = await ssrClient.auth.getUser()
 
     if (!user) {
       return NextResponse.json({ connected: false })
     }
+
+    const serviceClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
 
     const { data, error } = await serviceClient
       .from('wa_connections')
       .select('waba_id, phone_number_id, phone_number, business_name')
       .eq('tenant_id', user.id)
       .single()
-
-    console.log('Connection data:', data, error?.message)
 
     if (error || !data) {
       return NextResponse.json({ connected: false })
@@ -75,8 +60,8 @@ export async function GET() {
 export async function DELETE() {
   try {
     const cookieStore = await cookies()
-    const { createClient: createSSRClient } = await import('@supabase/ssr')
-    const ssrClient = createSSRClient(
+
+    const ssrClient = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       {
