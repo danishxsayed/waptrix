@@ -1,37 +1,34 @@
-import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs'
+import { cookies } from 'next/headers'
+import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
   try {
-    const supabase = await createClient()
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
     
-    // Use getUser instead of getSession - more reliable
-    const { data: { user }, error: authError } = await supabase.auth.getUser()
+    const { data: { session } } = await supabase.auth.getSession()
     
-    console.log('Auth user:', user?.id, authError?.message)
-    
-    if (!user) {
+    if (!session?.user) {
       return NextResponse.json({ connected: false })
     }
 
-    // Use service role client to bypass RLS
-    const { createClient: createServiceClient } = await import('@supabase/supabase-js')
-    const serviceClient = createServiceClient(
+    const serviceClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     )
 
     const { data, error } = await serviceClient
       .from('wa_connections')
-      .select('id, waba_id, phone_number_id, phone_number, business_name, connected_at')
-      .eq('tenant_id', user.id)
+      .select('*')
+      .eq('tenant_id', session.user.id)
       .single()
 
-    console.log('Connection data:', data, error?.message)
-
     if (error || !data) {
+      console.log('No connection found for user:', session.user.id, error?.message)
       return NextResponse.json({ connected: false })
     }
 
@@ -44,7 +41,35 @@ export async function GET() {
     })
 
   } catch (err: any) {
-    console.error('Connection route error:', err)
+    console.error('Connection GET error:', err.message)
     return NextResponse.json({ connected: false })
+  }
+}
+
+export async function DELETE() {
+  try {
+    const cookieStore = cookies()
+    const supabase = createRouteHandlerClient({ cookies: () => cookieStore })
+    const { data: { session } } = await supabase.auth.getSession()
+    
+    if (!session?.user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const serviceClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
+
+    await serviceClient
+      .from('wa_connections')
+      .delete()
+      .eq('tenant_id', session.user.id)
+
+    return NextResponse.json({ success: true })
+
+  } catch (err: any) {
+    console.error('Connection DELETE error:', err.message)
+    return NextResponse.json({ error: err.message }, { status: 500 })
   }
 }
