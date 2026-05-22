@@ -46,7 +46,7 @@ export async function GET(request: Request) {
       // Fetch contacts for the specific campaign segment
       let contactsQuery = serviceClient
         .from('contacts')
-        .select('phone')
+        .select('id, phone')
         .eq('tenant_id', campaign.tenant_id);
 
       if (campaign.segment_id) {
@@ -60,7 +60,7 @@ export async function GET(request: Request) {
         let failedCount = 0;
         for (const contact of contacts) {
           try {
-            await metaApi.sendTemplateMessage(
+            const response = await metaApi.sendTemplateMessage(
               waConnection.access_token,
               waConnection.phone_number_id,
               {
@@ -71,19 +71,29 @@ export async function GET(request: Request) {
               }
             );
             
-            await serviceClient.from('campaign_logs').insert({
+            const metaMsgId = response?.messages?.[0]?.id || null;
+
+            await serviceClient.from('message_logs').insert({
               campaign_id: campaign.id,
-              recipient: contact.phone,
-              status: 'SENT',
+              tenant_id: campaign.tenant_id,
+              contact_id: contact.id,
+              phone: contact.phone,
+              status: 'sent',
+              meta_msg_id: metaMsgId,
+              sent_at: new Date().toISOString()
             });
             sentCount++;
           } catch (sendErr: any) {
-            console.error(`Failed to send message to ${contact.phone}:`, sendErr.message);
-            await serviceClient.from('campaign_logs').insert({
+            const errorMsg = sendErr.response?.data?.error?.message || sendErr.message || String(sendErr);
+            console.error(`Failed to send message to ${contact.phone}:`, errorMsg);
+            
+            await serviceClient.from('message_logs').insert({
               campaign_id: campaign.id,
-              recipient: contact.phone,
-              status: 'FAILED',
-              error: sendErr.message || String(sendErr),
+              tenant_id: campaign.tenant_id,
+              contact_id: contact.id,
+              phone: contact.phone,
+              status: 'failed',
+              error: errorMsg,
             });
             failedCount++;
           }

@@ -12,7 +12,10 @@ import {
   Users, 
   BarChart2,
   MoreVertical,
-  Activity
+  Activity,
+  Trash2,
+  X,
+  Info
 } from "lucide-react";
 import axios from "axios";
 import CampaignWizard from "@/components/campaigns/CampaignWizard";
@@ -21,12 +24,24 @@ export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Interactive options and logs state
+  const [activeMenuCampaignId, setActiveMenuCampaignId] = useState<string | null>(null);
+  const [selectedCampaignForLogs, setSelectedCampaignForLogs] = useState<any | null>(null);
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
 
   useEffect(() => {
     fetchCampaigns();
     const interval = setInterval(fetchCampaigns, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (selectedCampaignForLogs) {
+      fetchLogs(selectedCampaignForLogs.id);
+    }
+  }, [selectedCampaignForLogs]);
 
   const fetchCampaigns = async () => {
     try {
@@ -36,6 +51,30 @@ export default function CampaignsPage() {
       console.error("Failed to fetch campaigns", err);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const fetchLogs = async (campaignId: string) => {
+    setIsLoadingLogs(true);
+    try {
+      const res = await axios.get(`/api/campaigns/${campaignId}/logs`);
+      setLogs(res.data);
+    } catch (err) {
+      console.error("Failed to fetch logs", err);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
+
+  const handleDeleteCampaign = async (campaignId: string) => {
+    if (confirm("Are you sure you want to delete this campaign? This will also delete all associated logs.")) {
+      try {
+        await axios.delete(`/api/campaigns/${campaignId}`);
+        fetchCampaigns();
+      } catch (err) {
+        console.error("Failed to delete campaign", err);
+        alert("Failed to delete campaign");
+      }
     }
   };
 
@@ -115,7 +154,7 @@ export default function CampaignsPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 border-l border-border/50 pl-8 h-12">
+            <div className="flex items-center gap-4 border-l border-border/50 pl-8 h-12 relative">
               <div className="text-center">
                 <p className="text-xs font-bold text-text-primary">{campaign.delivered_count}</p>
                 <p className="text-[10px] text-text-muted uppercase">Delivered</p>
@@ -124,9 +163,44 @@ export default function CampaignsPage() {
                 <p className="text-xs font-bold text-jade">{campaign.read_count}</p>
                 <p className="text-[10px] text-text-muted uppercase">Read</p>
               </div>
-              <button className="p-2 hover:bg-card rounded-xl transition-all">
-                <MoreVertical className="w-4 h-4 text-text-muted" />
-              </button>
+              <div className="relative shrink-0">
+                <button 
+                  onClick={() => setActiveMenuCampaignId(activeMenuCampaignId === campaign.id ? null : campaign.id)}
+                  className="p-2 hover:bg-card rounded-xl transition-all flex items-center justify-center border border-transparent hover:border-border"
+                >
+                  <MoreVertical className="w-4 h-4 text-text-muted hover:text-text-primary" />
+                </button>
+                {activeMenuCampaignId === campaign.id && (
+                  <>
+                    <div 
+                      className="fixed inset-0 z-10" 
+                      onClick={() => setActiveMenuCampaignId(null)}
+                    />
+                    <div className="absolute right-0 mt-2 w-48 rounded-xl bg-card border border-border p-1.5 shadow-xl z-20 space-y-0.5 backdrop-blur-md">
+                      <button
+                        onClick={() => {
+                          setSelectedCampaignForLogs(campaign);
+                          setActiveMenuCampaignId(null);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg text-xs font-dm-sans flex items-center gap-2 text-text-primary hover:bg-surface transition-all"
+                      >
+                        <Activity className="w-3.5 h-3.5 text-jade" />
+                        View Delivery Logs
+                      </button>
+                      <button
+                        onClick={() => {
+                          handleDeleteCampaign(campaign.id);
+                          setActiveMenuCampaignId(null);
+                        }}
+                        className="w-full text-left px-3 py-2 rounded-lg text-xs font-dm-sans flex items-center gap-2 text-rose-500 hover:bg-rose-500/10 transition-all"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        Delete Campaign
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
           </div>
         ))}
@@ -147,6 +221,100 @@ export default function CampaignsPage() {
           onClose={() => setIsWizardOpen(false)} 
           onLaunch={fetchCampaigns}
         />
+      )}
+
+      {/* Campaign Logs Modal */}
+      {selectedCampaignForLogs && (
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
+          <div className="bg-card/90 border border-border w-full max-w-2xl rounded-3xl overflow-hidden shadow-2xl flex flex-col max-h-[85vh] backdrop-blur-md">
+            {/* Header */}
+            <div className="p-6 border-b border-border/50 flex justify-between items-center bg-surface/50">
+              <div>
+                <span className="text-[10px] font-bold text-jade uppercase tracking-wider">Campaign Logs</span>
+                <h3 className="text-lg font-bold font-syne mt-0.5">{selectedCampaignForLogs.name}</h3>
+              </div>
+              <button 
+                onClick={() => {
+                  setSelectedCampaignForLogs(null);
+                  setLogs([]);
+                }}
+                className="p-1.5 hover:bg-card border border-border/40 rounded-xl transition-all text-text-muted hover:text-text-primary"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Stats bar */}
+            <div className="grid grid-cols-4 border-b border-border/30 bg-surface/20 divide-x divide-border/30 text-center py-4">
+              <div>
+                <p className="text-xs font-bold text-text-primary">{selectedCampaignForLogs.total_contacts || 0}</p>
+                <p className="text-[10px] text-text-muted uppercase mt-0.5">Total Contacts</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-sky-500">{selectedCampaignForLogs.sent_count || 0}</p>
+                <p className="text-[10px] text-text-muted uppercase mt-0.5">Sent Success</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-rose-500">{selectedCampaignForLogs.failed_count || 0}</p>
+                <p className="text-[10px] text-text-muted uppercase mt-0.5">Failed</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold text-jade">{selectedCampaignForLogs.read_count || 0}</p>
+                <p className="text-[10px] text-text-muted uppercase mt-0.5">Read</p>
+              </div>
+            </div>
+
+            {/* Body / Logs List */}
+            <div className="flex-1 overflow-y-auto p-6 space-y-4">
+              {isLoadingLogs ? (
+                <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                  <div className="w-6 h-6 border-2 border-jade border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-xs text-text-muted font-dm-sans">Loading campaign logs...</p>
+                </div>
+              ) : logs.length === 0 ? (
+                <div className="text-center py-12 space-y-2">
+                  <Info className="w-8 h-8 text-text-muted opacity-30 mx-auto" />
+                  <p className="text-sm font-semibold font-syne text-text-primary">No logs recorded yet</p>
+                  <p className="text-xs text-text-muted font-dm-sans max-w-sm mx-auto">
+                    This campaign might be queued, draft, or hasn't started sending yet.
+                  </p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/30">
+                  {logs.map((log) => (
+                    <div key={log.id} className="py-3.5 first:pt-0 last:pb-0">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold font-dm-sans text-text-primary">{log.phone}</p>
+                          <p className="text-[10px] text-text-muted font-dm-sans">
+                            {log.sent_at ? `Sent at: ${new Date(log.sent_at).toLocaleString()}` : `Logged at: ${new Date(log.created_at).toLocaleString()}`}
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                          {log.status === 'sent' || log.status === 'SENT' ? (
+                            <span className="bg-sky-500/10 text-sky-500 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border border-sky-500/20 flex items-center gap-1">
+                              <CheckCircle2 className="w-2.5 h-2.5" /> Sent
+                            </span>
+                          ) : (
+                            <span className="bg-rose-500/10 text-rose-500 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border border-rose-500/20 flex items-center gap-1">
+                              <AlertCircle className="w-2.5 h-2.5" /> Failed
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      {(log.status === 'failed' || log.status === 'FAILED') && log.error && (
+                        <div className="mt-2 p-2.5 bg-rose-500/5 border border-rose-500/15 rounded-lg text-[11px] font-mono text-rose-400 break-words">
+                          <span className="font-bold uppercase tracking-wider mr-1 text-[9px] bg-rose-500/15 text-rose-300 px-1 py-0.5 rounded">Error Detail</span>
+                          {log.error}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

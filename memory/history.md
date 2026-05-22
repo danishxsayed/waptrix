@@ -1,6 +1,11 @@
 # Implementation History
 
 ## [2026-05-22] - Campaign Validation & Niche Library Management
+- **Campaign Logs Table & Constraint Alignment**: Resolved delivery execution crashes by shifting database logger writes from the nonexistent table `campaign_logs` to the correct `message_logs` table. Modified queries to select the required `id` (as `contact_id`) from the contacts table to satisfy NOT NULL constraints.
+- **Granular API Error Capture**: Configured route controllers (`/api/campaigns` and `/api/cron/send-scheduled`) to extract descriptive Axios error objects (`sendErr.response?.data?.error?.message`) when dispatching messages via Meta Graph APIs, saving detailed reasons for reception failures (e.g. sandbox recipient validation) to the database.
+- **Interactive Option Menus**: Wired up the unhandled three-dot dropdown action buttons in the campaigns list UI (`src/app/(dashboard)/campaigns/page.tsx`) to allow users to trigger "View Delivery Logs" and "Delete Campaign" dynamically.
+- **Single Campaign DELETE Endpoint**: Implemented `/src/app/api/campaigns/[id]/route.ts` supporting full cascade campaign deletions, removing all dependent logs cleanly.
+- **Diagnostics Delivery Modal**: Developed a glassmorphic logs modal in the campaigns page that pulls real-time tracking data (`GET /api/campaigns/[id]/logs`) to show exact counts, delivery outcomes, and individual error reasons for failed attempts.
 - **Campaign Immediate Launch Implementation**: Added an inline immediate campaign send execution flow directly inside the `/api/campaigns` route for immediate campaigns (`send_now: true`), bringing instant message dispatch.
 - **Cron Query Schema cache relationship Fix**: Resolved the campaign sender query error (`Could not find a relationship between 'campaigns' and 'wa_connections' in the schema cache`) by querying `wa_connections` separately based on `tenant_id`, and refined contact list fetching to correctly filter by `segment_id`.
 - **Standardized Import and Contact Route**: Refactored `/api/contacts/import` to utilize standardized `@supabase/ssr` cookies and statically import `@supabase/supabase-js`, resolving the 500 error, and added the missing `DELETE` method to `/api/contacts` to enable individual contact deletions.

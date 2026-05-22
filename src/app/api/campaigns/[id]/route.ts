@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
-export async function GET(
+export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
@@ -34,14 +34,23 @@ export async function GET(
       return NextResponse.json({ error: 'Campaign not found or unauthorized' }, { status: 404 });
     }
 
-    const { data, error } = await serviceClient
+    // First delete dependent message_logs
+    await serviceClient
       .from('message_logs')
-      .select('*')
-      .eq('campaign_id', id)
-      .order('created_at', { ascending: false });
+      .delete()
+      .eq('campaign_id', id);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data);
+    // Now delete the campaign
+    const { error: deleteError } = await serviceClient
+      .from('campaigns')
+      .delete()
+      .eq('id', id);
+
+    if (deleteError) {
+      return NextResponse.json({ error: deleteError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, message: 'Campaign deleted successfully.' });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
