@@ -1,6 +1,7 @@
 # Implementation History
 
 ## [2026-05-22] - Campaign Validation & Niche Library Management
+- **Stable Auth Login Redirection**: Resolved the "double-click/refresh to login" issue by changing `router.push('/')` client transitions to a full browser redirection `window.location.href = '/'` inside `src/app/login/page.tsx`. This guarantees browser cookie headers are fully written and passed directly to the Supabase SSR middleware, completely bypassing client-side caching race conditions.
 - **Campaign Logs Table & Constraint Alignment**: Resolved delivery execution crashes by shifting database logger writes from the nonexistent table `campaign_logs` to the correct `message_logs` table. Modified queries to select the required `id` (as `contact_id`) from the contacts table to satisfy NOT NULL constraints.
 - **Granular API Error Capture**: Configured route controllers (`/api/campaigns` and `/api/cron/send-scheduled`) to extract descriptive Axios error objects (`sendErr.response?.data?.error?.message`) when dispatching messages via Meta Graph APIs, saving detailed reasons for reception failures (e.g. sandbox recipient validation) to the database.
 - **Interactive Option Menus**: Wired up the unhandled three-dot dropdown action buttons in the campaigns list UI (`src/app/(dashboard)/campaigns/page.tsx`) to allow users to trigger "View Delivery Logs" and "Delete Campaign" dynamically.

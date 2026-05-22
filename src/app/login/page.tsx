@@ -33,14 +33,9 @@ export default function LoginPage() {
         return;
       }
 
-      // Refresh the router to ensure the server-side knows about the session
-      router.refresh();
-      
-      // Add a tiny delay to allow the refresh/cookie to propagate
-      // and prevent the middleware from redirecting back to /login
-      setTimeout(() => {
-        router.push("/");
-      }, 100);
+      // Use full page reload/redirection to ensure browser cookies are completely
+      // registered and passed to server middleware, avoiding Next.js client-side cookie race conditions.
+      window.location.href = "/";
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
