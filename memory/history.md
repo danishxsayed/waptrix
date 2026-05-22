@@ -1,6 +1,8 @@
 # Implementation History
 
-## [2026-05-22] - Campaign Validation & API Parameter Normalization
+## [2026-05-22] - Campaign Validation & Niche Library Management
+- **Contacts Niche & List Management Library**: Built a complete, robust "Library Way" contact segment manager in `src/app/(dashboard)/contacts/page.tsx`. Added on-the-fly niche creation during CSV uploads and manual additions, real-time contact count badges to the left sidebar, and a full-screen "Niche & List Library" modal to rename/delete lists cleanly.
+- **Niche API PUT & DELETE Handlers**: Implemented custom API `PUT` (rename) and `DELETE` (delete niche and unassign contacts safely) methods in `src/app/api/contacts/segments/route.ts` to coordinate database actions with frontend library state.
 - **Campaign POST API Validation**: Added strict validation rules for `name`, `templateId`/`template_id`, and `segmentId`/`segment_id` fields at the beginning of the campaign creation API handler.
 - **CamelCase & Snake_case Compatibility**: Implemented automatic fallback mapping in `/api/campaigns` to gracefully accept both `template_id`/`segment_id` and `templateId`/`segmentId` field shapes.
 - **Client Payload Verification**: Integrated a descriptive `console.log` in `CampaignWizard.tsx` inside the launch hook to trace the exact keys and data sent to `/api/campaigns`.

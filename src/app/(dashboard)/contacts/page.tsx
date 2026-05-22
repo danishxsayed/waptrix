@@ -27,15 +27,18 @@ import * as XLSX from "xlsx";
 function AddContactModal({ 
   segments, 
   onClose, 
-  onSuccess 
+  onSuccess,
+  onSegmentCreated
 }: { 
   segments: any[]; 
   onClose: () => void; 
   onSuccess: () => void; 
+  onSegmentCreated: (seg: any) => void;
 }) {
   const [form, setForm] = useState({ name: "", phone: "", email: "", segment_id: "" });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,20 +127,38 @@ function AddContactModal({
             />
           </div>
 
-          {segments.length > 0 && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Segment (optional)</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Segment (optional)</label>
+            <div className="flex gap-2">
               <select
                 value={form.segment_id}
                 onChange={e => setForm({ ...form, segment_id: e.target.value })}
-                className="input-field w-full text-sm"
+                className="input-field flex-1 text-sm bg-background border-border"
               >
                 <option value="">No segment</option>
                 {segments.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => setShowQuickCreate(true)}
+                className="btn-secondary px-3 py-2 flex items-center justify-center gap-1 hover:border-jade/30"
+                title="Create new segment"
+              >
+                <Plus className="w-4 h-4 text-jade" />
+              </button>
             </div>
+          </div>
+
+          {showQuickCreate && (
+            <QuickCreateSegmentModal
+              onClose={() => setShowQuickCreate(false)}
+              onSuccess={(newSeg) => {
+                onSegmentCreated(newSeg);
+                setForm({ ...form, segment_id: newSeg.id });
+              }}
+            />
           )}
 
           <div className="flex gap-3 pt-2">
@@ -160,11 +181,13 @@ function AddContactModal({
 function ImportCSVModal({ 
   segments, 
   onClose, 
-  onSuccess 
+  onSuccess,
+  onSegmentCreated
 }: { 
   segments: any[]; 
   onClose: () => void; 
   onSuccess: () => void; 
+  onSegmentCreated: (seg: any) => void;
 }) {
   const [file, setFile] = useState<File | null>(null);
   const [segmentId, setSegmentId] = useState("");
@@ -174,6 +197,7 @@ function ImportCSVModal({
   const [parsedContacts, setParsedContacts] = useState<any[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [showQuickCreate, setShowQuickCreate] = useState(false);
 
   const parseCSV = (text: string) => {
     const lines = text.trim().split("\n");
@@ -408,20 +432,38 @@ function ImportCSVModal({
             </div>
           )}
 
-          {segments.length > 0 && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Add to Segment (optional)</label>
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Add to Segment (optional)</label>
+            <div className="flex gap-2">
               <select
                 value={segmentId}
                 onChange={e => setSegmentId(e.target.value)}
-                className="input-field w-full text-sm"
+                className="input-field flex-1 text-sm bg-background border-border"
               >
                 <option value="">No segment</option>
                 {segments.map(s => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>
+              <button
+                type="button"
+                onClick={() => setShowQuickCreate(true)}
+                className="btn-secondary px-3 py-2 flex items-center justify-center gap-1 hover:border-jade/30"
+                title="Create new segment"
+              >
+                <Plus className="w-4 h-4 text-jade" />
+              </button>
             </div>
+          </div>
+
+          {showQuickCreate && (
+            <QuickCreateSegmentModal
+              onClose={() => setShowQuickCreate(false)}
+              onSuccess={(newSeg) => {
+                onSegmentCreated(newSeg);
+                setSegmentId(newSeg.id);
+              }}
+            />
           )}
 
           {error && (
@@ -507,6 +549,262 @@ function DeleteModal({
   );
 }
 
+function QuickCreateSegmentModal({
+  onClose,
+  onSuccess,
+}: {
+  onClose: () => void;
+  onSuccess: (newSegment: any) => void;
+}) {
+  const [name, setName] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim()) return;
+    setIsLoading(true);
+    setError("");
+    try {
+      const res = await axios.post("/api/contacts/segments", { name: name.trim() });
+      onSuccess(res.data);
+      onClose();
+    } catch (err: any) {
+      setError(err.response?.data?.error || "Failed to create segment.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold font-syne">Create New Segment</h3>
+          <button onClick={onClose} className="p-1 hover:bg-surface rounded-lg text-text-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Segment Name</label>
+            <input
+              type="text"
+              required
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="e.g. HIV Clinic, Dentist, VIPs"
+              className="input-field w-full text-sm bg-background border-border"
+              autoFocus
+            />
+          </div>
+          {error && <p className="text-xs text-danger">{error}</p>}
+          <div className="flex gap-3">
+            <button type="button" onClick={onClose} className="flex-1 btn-secondary py-2 text-xs">
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isLoading || !name.trim()}
+              className="flex-1 btn-primary py-2 text-xs flex items-center justify-center gap-1.5"
+            >
+              {isLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+              Create
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function SegmentsLibraryModal({
+  segments,
+  contacts,
+  onClose,
+  onSegmentCreated,
+  onSegmentUpdated,
+  onSegmentDeleted,
+}: {
+  segments: any[];
+  contacts: any[];
+  onClose: () => void;
+  onSegmentCreated: (seg: any) => void;
+  onSegmentUpdated: (seg: any) => void;
+  onSegmentDeleted: (id: string) => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [showCreate, setShowCreate] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+
+  const handleRename = async (id: string) => {
+    if (!editName.trim()) return;
+    setIsSaving(true);
+    try {
+      const res = await axios.put("/api/contacts/segments", { id, name: editName.trim() });
+      onSegmentUpdated(res.data);
+      setEditingId(null);
+    } catch (err) {
+      console.error("Rename failed", err);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this segment? The contacts in it will not be deleted, but will be removed from this segment.")) return;
+    setIsDeletingId(id);
+    try {
+      await axios.delete(`/api/contacts/segments?id=${id}`);
+      onSegmentDeleted(id);
+    } catch (err) {
+      console.error("Delete failed", err);
+    } finally {
+      setIsDeletingId(null);
+    }
+  };
+
+  const filtered = segments.filter(s =>
+    (s.name || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-2xl shadow-2xl flex flex-col h-[80vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b border-border bg-card">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-jade/10 rounded-xl flex items-center justify-center">
+              <FileText className="w-5 h-5 text-jade" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold font-syne">Niche &amp; List Library</h2>
+              <p className="text-xs text-text-muted">Manage your separate customer segments and upload sheets</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-surface rounded-lg text-text-muted">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Search & Action Bar */}
+        <div className="p-4 border-b border-border flex gap-3 items-center">
+          <div className="relative flex-1">
+            <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search segments..."
+              className="input-field w-full pl-10 text-xs py-2.5 bg-background border-border"
+            />
+          </div>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="btn-primary py-2.5 px-4 text-xs flex items-center gap-1.5"
+          >
+            <Plus className="w-4 h-4" /> New List
+          </button>
+        </div>
+
+        {/* List */}
+        <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
+          {filtered.map(s => {
+            const count = contacts.filter(c => c.segment_id === s.id).length;
+            const isEditing = editingId === s.id;
+            return (
+              <div key={s.id} className="bg-surface border border-border/60 hover:border-jade/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all">
+                <div className="flex items-center gap-4 flex-1">
+                  <div className="w-12 h-12 bg-card border border-border rounded-xl flex flex-col items-center justify-center text-text-muted shadow-sm">
+                    <FileText className="w-5 h-5 text-jade" />
+                    <span className="text-[9px] font-bold mt-0.5 uppercase tracking-wider text-text-muted/60">list</span>
+                  </div>
+                  
+                  <div className="flex-1 space-y-1">
+                    {isEditing ? (
+                      <div className="flex gap-2 items-center">
+                        <input
+                          value={editName}
+                          onChange={e => setEditName(e.target.value)}
+                          className="input-field py-1 px-2 text-xs flex-1 max-w-[250px] bg-background border-border"
+                          autoFocus
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleRename(s.id);
+                            if (e.key === 'Escape') setEditingId(null);
+                          }}
+                        />
+                        <button
+                          onClick={() => handleRename(s.id)}
+                          disabled={isSaving}
+                          className="text-xs text-jade font-bold hover:underline"
+                        >
+                          {isSaving ? "Saving..." : "Save"}
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          className="text-xs text-text-muted hover:underline"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <h4 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                        {s.name}
+                        <button
+                          onClick={() => {
+                            setEditingId(s.id);
+                            setEditName(s.name);
+                          }}
+                          className="text-[10px] font-medium text-text-muted hover:text-jade transition-colors"
+                        >
+                          (Rename)
+                        </button>
+                      </h4>
+                    )}
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
+                      <span>{count} contact{count !== 1 ? 's' : ''}</span>
+                      <span className="text-text-muted/40">•</span>
+                      <span>Created {new Date(s.created_at).toLocaleDateString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 self-end sm:self-auto">
+                  <button
+                    onClick={() => handleDelete(s.id)}
+                    disabled={isDeletingId === s.id}
+                    className="btn-secondary !border-rose-500/20 hover:!bg-rose-500/10 !text-rose-500 py-1.5 px-3 text-xs flex items-center gap-1"
+                  >
+                    {isDeletingId === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                    Delete List
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+
+          {filtered.length === 0 && (
+            <div className="py-12 text-center space-y-2">
+              <FileText className="w-12 h-12 text-text-muted opacity-25 mx-auto" />
+              <p className="text-sm font-semibold text-text-muted">No separate lists found</p>
+              <p className="text-xs text-text-muted">Create your first sheet/niche segment by clicking "New List"</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {showCreate && (
+        <QuickCreateSegmentModal
+          onClose={() => setShowCreate(false)}
+          onSuccess={onSegmentCreated}
+        />
+      )}
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const PAGE_SIZE = 50;
 
@@ -521,10 +819,31 @@ export default function ContactsPage() {
   const [deleteTarget, setDeleteTarget] = useState<any | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
+  const [showLibraryModal, setShowLibraryModal] = useState(false);
+  const [showQuickCreateSegment, setShowQuickCreateSegment] = useState(false);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3500);
+  };
+
+  const handleSegmentCreated = (newSeg: any) => {
+    setSegments(prev => [newSeg, ...prev]);
+    showToast(`Segment "${newSeg.name}" created!`);
+  };
+
+  const handleSegmentUpdated = (updatedSeg: any) => {
+    setSegments(prev => prev.map(s => s.id === updatedSeg.id ? updatedSeg : s));
+    showToast(`Segment renamed to "${updatedSeg.name}"!`);
+  };
+
+  const handleSegmentDeleted = (id: string) => {
+    setSegments(prev => prev.filter(s => s.id !== id));
+    setContacts(prev => prev.map(c => c.segment_id === id ? { ...c, segment_id: null } : c));
+    if (activeSegment === id) {
+      setActiveSegment("all");
+    }
+    showToast("Segment deleted successfully!");
   };
 
   useEffect(() => {
@@ -592,6 +911,7 @@ export default function ContactsPage() {
           segments={segments}
           onClose={() => setShowAddModal(false)}
           onSuccess={() => { fetchContacts(); showToast("Contact added successfully!"); }}
+          onSegmentCreated={handleSegmentCreated}
         />
       )}
       {showImportModal && (
@@ -599,6 +919,7 @@ export default function ContactsPage() {
           segments={segments}
           onClose={() => setShowImportModal(false)}
           onSuccess={() => { fetchContacts(); showToast("Contacts imported successfully!"); }}
+          onSegmentCreated={handleSegmentCreated}
         />
       )}
       {deleteTarget && (
@@ -606,6 +927,22 @@ export default function ContactsPage() {
           contact={deleteTarget}
           onClose={() => setDeleteTarget(null)}
           onSuccess={() => { fetchContacts(); showToast("Contact deleted."); }}
+        />
+      )}
+      {showLibraryModal && (
+        <SegmentsLibraryModal
+          segments={segments}
+          contacts={contacts}
+          onClose={() => setShowLibraryModal(false)}
+          onSegmentCreated={handleSegmentCreated}
+          onSegmentUpdated={handleSegmentUpdated}
+          onSegmentDeleted={handleSegmentDeleted}
+        />
+      )}
+      {showQuickCreateSegment && (
+        <QuickCreateSegmentModal
+          onClose={() => setShowQuickCreateSegment(false)}
+          onSuccess={handleSegmentCreated}
         />
       )}
 
@@ -637,7 +974,15 @@ export default function ContactsPage() {
         {/* Segments Sidebar */}
         <div className="space-y-4">
           <div className="glass-card !p-4">
-            <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest mb-4">Segments</h3>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">Segments</h3>
+              <button
+                onClick={() => setShowLibraryModal(true)}
+                className="text-[10px] font-bold text-jade hover:underline uppercase tracking-wider flex items-center gap-1"
+              >
+                Manage Library
+              </button>
+            </div>
             <div className="space-y-1">
               <button
                 onClick={() => setActiveSegment("all")}
@@ -649,19 +994,35 @@ export default function ContactsPage() {
               >
                 All Contacts ({contacts.length})
               </button>
-              {segments.map(s => (
-                <button
-                  key={s.id}
-                  onClick={() => setActiveSegment(s.id)}
-                  className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
-                    activeSegment === s.id
-                      ? "bg-jade/10 text-jade shadow-[inset_0_0_10px_rgba(16,185,129,0.1)]"
-                      : "text-text-muted hover:bg-surface hover:text-text-primary"
-                  }`}
-                >
-                  {s.name}
-                </button>
-              ))}
+              {segments.map(s => {
+                const count = contacts.filter(c => c.segment_id === s.id).length;
+                return (
+                  <button
+                    key={s.id}
+                    onClick={() => setActiveSegment(s.id)}
+                    className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-all flex justify-between items-center ${
+                      activeSegment === s.id
+                        ? "bg-jade/10 text-jade shadow-[inset_0_0_10px_rgba(16,185,129,0.1)]"
+                        : "text-text-muted hover:bg-surface hover:text-text-primary"
+                    }`}
+                  >
+                    <span className="truncate">{s.name}</span>
+                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
+                      activeSegment === s.id ? 'bg-jade/20 text-jade font-bold' : 'bg-surface text-text-muted'
+                    }`}>
+                      {count}
+                    </span>
+                  </button>
+                );
+              })}
+              
+              <button
+                onClick={() => setShowQuickCreateSegment(true)}
+                className="w-full mt-2 border border-dashed border-border hover:border-jade/30 rounded-xl px-3 py-2 text-xs font-bold text-text-muted hover:text-jade flex items-center justify-center gap-1.5 transition-all"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add New Niche
+              </button>
             </div>
           </div>
         </div>
