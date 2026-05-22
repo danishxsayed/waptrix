@@ -43,6 +43,17 @@ export default function CampaignsPage() {
     }
   }, [selectedCampaignForLogs]);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("new") === "true") {
+        setIsWizardOpen(true);
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+      }
+    }
+  }, []);
+
   const fetchCampaigns = async () => {
     try {
       const res = await axios.get("/api/campaigns");

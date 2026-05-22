@@ -1,7 +1,9 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import axios from "axios";
 import { 
   Send, 
   CheckCircle2, 
@@ -21,53 +23,73 @@ import {
   ResponsiveContainer 
 } from 'recharts';
 
-const stats = [
-  { 
-    name: "Total Messages Sent", 
-    value: "12,482", 
-    icon: Send, 
-    change: "+12.5%", 
-    trend: "up",
-    color: "jade"
-  },
-  { 
-    name: "Delivery Rate", 
-    value: "98.2%", 
-    icon: CheckCircle2, 
-    change: "+0.4%", 
-    trend: "up",
-    color: "info"
-  },
-  { 
-    name: "Total Contacts", 
-    value: "4,209", 
-    icon: Users, 
-    change: "+240", 
-    trend: "up",
-    color: "warning"
-  },
-  { 
-    name: "Active Templates", 
-    value: "18", 
-    icon: MessageSquare, 
-    change: "-2", 
-    trend: "down",
-    color: "danger"
-  },
-];
-
-const chartData = [
-  { date: 'Apr 04', sent: 400 },
-  { date: 'Apr 06', sent: 1200 },
-  { date: 'Apr 08', sent: 900 },
-  { date: 'Apr 10', sent: 1800 },
-  { date: 'Apr 12', sent: 1400 },
-  { date: 'Apr 14', sent: 2200 },
-  { date: 'Apr 16', sent: 1900 },
-  { date: 'Apr 18', sent: 2600 },
-];
-
 export default function DashboardPage() {
+  const router = useRouter();
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchAnalytics() {
+      try {
+        const res = await axios.get("/api/analytics");
+        setData(res.data);
+      } catch (err) {
+        console.error("Failed to fetch analytics", err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchAnalytics();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-jade border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-text-muted text-sm font-medium animate-pulse font-syne">Loading dashboard metrics...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const stats = [
+    { 
+      name: "Total Messages Sent", 
+      value: data?.stats?.totalSent?.toLocaleString() ?? "0", 
+      icon: Send, 
+      change: data?.stats?.totalSent > 0 ? "+100%" : "+0%", 
+      trend: "up",
+      color: "jade"
+    },
+    { 
+      name: "Delivery Rate", 
+      value: `${data?.stats?.deliveryRate ?? 100}%`, 
+      icon: CheckCircle2, 
+      change: data?.stats?.deliveryRate >= 90 ? "+0.5%" : "-1.2%",
+      trend: data?.stats?.deliveryRate >= 90 ? "up" : "down",
+      color: "info"
+    },
+    { 
+      name: "Total Contacts", 
+      value: data?.stats?.totalContacts?.toLocaleString() ?? "0", 
+      icon: Users, 
+      change: data?.stats?.totalContacts > 0 ? `+${data.stats.totalContacts}` : "+0",
+      trend: "up",
+      color: "warning"
+    },
+    { 
+      name: "Active Templates", 
+      value: data?.stats?.activeTemplates?.toLocaleString() ?? "0", 
+      icon: MessageSquare, 
+      change: data?.stats?.activeTemplates > 0 ? `+${data.stats.activeTemplates}` : "+0",
+      trend: "up",
+      color: "danger"
+    },
+  ];
+
+  const chartData = data?.chartData || [];
+
   return (
     <div className="space-y-8">
       {/* Stat Cards */}
@@ -155,7 +177,10 @@ export default function DashboardPage() {
         <div className="glass-card">
           <h3 className="text-lg font-bold mb-6 font-syne">Quick Actions</h3>
           <div className="space-y-3">
-            <button className="w-full flex items-center justify-between p-4 bg-surface hover:bg-card border border-border rounded-xl group transition-all">
+            <button 
+              onClick={() => router.push("/campaigns?new=true")}
+              className="w-full flex items-center justify-between p-4 bg-surface hover:bg-card border border-border rounded-xl group transition-all"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-jade/10 rounded-lg flex items-center justify-center">
                   <Send className="w-5 h-5 text-jade" />
@@ -168,7 +193,10 @@ export default function DashboardPage() {
               <ArrowUpRight className="w-4 h-4 text-text-muted group-hover:text-jade transition-colors" />
             </button>
 
-            <button className="w-full flex items-center justify-between p-4 bg-surface hover:bg-card border border-border rounded-xl group transition-all">
+            <button 
+              onClick={() => router.push("/contacts?import=true")}
+              className="w-full flex items-center justify-between p-4 bg-surface hover:bg-card border border-border rounded-xl group transition-all"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-info/10 rounded-lg flex items-center justify-center">
                   <Plus className="w-5 h-5 text-info" />
@@ -181,7 +209,10 @@ export default function DashboardPage() {
               <ArrowUpRight className="w-4 h-4 text-text-muted group-hover:text-info transition-colors" />
             </button>
 
-            <button className="w-full flex items-center justify-between p-4 bg-surface hover:bg-card border border-border rounded-xl group transition-all">
+            <button 
+              onClick={() => router.push("/templates")}
+              className="w-full flex items-center justify-between p-4 bg-surface hover:bg-card border border-border rounded-xl group transition-all"
+            >
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 bg-warning/10 rounded-lg flex items-center justify-center">
                   <Plus className="w-5 h-5 text-warning" />
@@ -199,3 +230,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

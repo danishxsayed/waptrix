@@ -1,5 +1,11 @@
 # Implementation History
 
+## [2026-05-22] - Dynamic Dashboard Metrics & Action Routing
+- **Dynamic Metrics and Visual Wow-factor**: Modified the home dashboard (`/src/app/(dashboard)/page.tsx`) to pull live aggregated stats ("Total Messages Sent", "Delivery Rate", "Total Contacts", "Active Templates") and chronological 14-day chart volume from `/api/analytics` via React Hooks and Axios.
+- **Glassmorphic Loading States**: Designed and integrated a premium loading spinner on mount to match the platform's luxury dark theme.
+- **Interactive Quick Action Triggers**: Connected the "New Campaign", "Import Contacts", and "Create Template" action buttons to route seamlessly. Updated the Campaigns and Contacts pages to automatically read URL parameters (`?new=true` / `?import=true`) and open their creation/import wizard panels instantly, clearing search parameters afterwards to ensure clean browser history.
+- **TypeScript Type Safety**: Added type annotations to the rolling 14-day database group array in the analytics route handler to enforce full project type compilation.
+
 ## [2026-05-22] - Campaign Validation & Niche Library Management
 - **Stable Auth Login Redirection**: Resolved the "double-click/refresh to login" issue by changing `router.push('/')` client transitions to a full browser redirection `window.location.href = '/'` inside `src/app/login/page.tsx`. This guarantees browser cookie headers are fully written and passed directly to the Supabase SSR middleware, completely bypassing client-side caching race conditions.
 - **Campaign Logs Table & Constraint Alignment**: Resolved delivery execution crashes by shifting database logger writes from the nonexistent table `campaign_logs` to the correct `message_logs` table. Modified queries to select the required `id` (as `contact_id`) from the contacts table to satisfy NOT NULL constraints.

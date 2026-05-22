@@ -851,6 +851,17 @@ export default function ContactsPage() {
     fetchSegments();
   }, []);
 
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get("import") === "true") {
+        setShowImportModal(true);
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, "", newUrl);
+      }
+    }
+  }, []);
+
   // Reset to page 1 whenever search or segment filter changes
   useEffect(() => {
     setCurrentPage(1);
