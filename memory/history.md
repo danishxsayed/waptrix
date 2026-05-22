@@ -1,5 +1,16 @@
 # Implementation History
 
+## [2026-05-22] - Campaign Validation & API Parameter Normalization
+- **Campaign POST API Validation**: Added strict validation rules for `name`, `templateId`/`template_id`, and `segmentId`/`segment_id` fields at the beginning of the campaign creation API handler.
+- **CamelCase & Snake_case Compatibility**: Implemented automatic fallback mapping in `/api/campaigns` to gracefully accept both `template_id`/`segment_id` and `templateId`/`segmentId` field shapes.
+- **Client Payload Verification**: Integrated a descriptive `console.log` in `CampaignWizard.tsx` inside the launch hook to trace the exact keys and data sent to `/api/campaigns`.
+- **Reusable Auth Helpers**: Created a clean local `getUser()` SSR session retrieval utility in the campaigns route.
+
+## [2026-05-21] - WhatsApp Connection Route Update
+- **Connection API Rewrite**: Replaced `src/app/api/whatsapp/connection/route.ts` with a direct implementation utilizing `@supabase/ssr` (specifically `createServerClient`) to properly fetch user sessions and retrieve the service client directly.
+- **Global API Refactor**: Standardized the Supabase client implementation across all API routes to consistently use `@supabase/ssr` and `createServerClient` for reliable session fetching and service client initialization.
+- **Segments API Fix**: Fully updated `src/app/api/contacts/segments/route.ts` to implement the same `@supabase/ssr` and `createServerClient` standard across `GET` and `POST` methods.
+
 ## [2026-05-20] - Supabase Auth Cookie & Service Role API Bypass Fix
 - **Supabase Auth getSession Replacement**: Replaced cookie-unstable `getSession` calls with `getUser` in all API route handlers to ensure reliable authenticated user retrieval.
 - **Service Role Client RLS Bypass**: Standardized database querying across all application endpoints (campaigns, templates, contacts, segments, media, profile updates, token exchanges, syncs, and cron workers) to use the Supabase `service_role` client to bypass RLS, filtering by the authenticated user's ID manually.

@@ -17,9 +17,9 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 - **TenantContext**: Shared client-side state for authenticated user profiles and messaging quotas.
 - **Middleware**: Handles authentication redirects via Supabase SSR.
 - **Client/Server Libs**: Unified Supabase clients in `src/lib/supabase`, Meta API helpers in `src/lib/meta.ts`, and Resend email utilities in `src/lib/email`.
-- **API Authentication & RLS Bypass Standard**: Database operations in Next.js API Route Handlers authenticate users using the cookie-reliable `supabase.auth.getUser()`. Query operations are performed using a Supabase `service_role` client to bypass RLS, utilizing manual tenant-level filtering by `user.id`.
+- **API Authentication & RLS Bypass Standard**: Database operations in Next.js API Route Handlers authenticate users using the cookie-reliable `supabase.auth.getUser()`. Query operations are performed using a Supabase `service_role` client to bypass RLS, utilizing manual tenant-level filtering by `user.id`. API request bodies normalize camelCase and snake_case parameters (e.g. `templateId` and `template_id`) seamlessly to ensure robust client and schema alignment.
 
 ## Key Integration
 - **Meta Embedded Signup**: Custom flow utilizing `NEXT_PUBLIC_META_CONFIG_ID`. Employs direct accessToken storage (`/api/whatsapp/store-token`) during `FB.login` and auto-discovers verified assets via `/api/whatsapp/connect` or `/api/whatsapp/sync-connection` using dual WABA/business lookup methods.
-- **Campaign Wizard & Cron Dispatcher**: Endpoints at `/api/campaigns` manage draft and scheduled campaign objects with target segment lists and field mappings. Standardized status transitions (`'queued'`, `'sending'`, `'sent'`, `'failed'`) synchronize with the client dashboard dynamically.
+- **Campaign Wizard & Cron Dispatcher**: Endpoints at `/api/campaigns` manage draft and scheduled campaign objects with target segment lists and field mappings with strict validation. The endpoint and frontend `CampaignWizard` support both snake_case database mapping and modern camelCase payloads flawlessly. Standardized status transitions (`'queued'`, `'sending'`, `'sent'`, `'failed'`) synchronize with the client dashboard dynamically.
 - **Webhooks**: Automated status event handling at `/api/webhooks/meta`.

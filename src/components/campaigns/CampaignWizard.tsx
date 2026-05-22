@@ -69,6 +69,17 @@ export default function CampaignWizard({ onClose, onLaunch }: { onClose: () => v
 
   const handleLaunch = async () => {
     setIsSubmitting(true);
+    const { 
+      name, 
+      template_id: templateId, 
+      segment_id: segmentId, 
+      variable_mapping: variableMapping, 
+      send_now: sendNow, 
+      scheduled_at: scheduledAt 
+    } = formData;
+    console.log('Launching campaign with data:', {
+      name, templateId, segmentId, variableMapping, sendNow, scheduledAt
+    });
     try {
       await axios.post("/api/campaigns", formData);
       onLaunch();
