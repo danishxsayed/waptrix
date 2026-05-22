@@ -13,7 +13,7 @@ export async function GET(request: Request) {
 
     const { data: campaigns, error } = await serviceClient
       .from('campaigns')
-      .select('*, templates(*), wa_connections(*)')
+      .select('*, templates(*)')
       .in('status', ['SCHEDULED', 'queued', 'scheduled'])
       .lte('scheduled_at', new Date().toISOString())
       .limit(10);
@@ -24,20 +24,45 @@ export async function GET(request: Request) {
     }
 
     for (const campaign of campaigns) {
-      // Transition to 'sending' status (lowercase for frontend compatibility)
+      // Transition to 'sending' status
       await serviceClient.from('campaigns').update({ status: 'sending' }).eq('id', campaign.id);
 
-      const { data: contacts } = await serviceClient
+      // Fetch active wa_connection for this tenant
+      const { data: waConnection, error: connError } = await serviceClient
+        .from('wa_connections')
+        .select('*')
+        .eq('tenant_id', campaign.tenant_id)
+        .single();
+
+      if (connError || !waConnection) {
+        console.error(`No WhatsApp connection found for tenant ${campaign.tenant_id}`);
+        await serviceClient
+          .from('campaigns')
+          .update({ status: 'failed', failed_count: 1 })
+          .eq('id', campaign.id);
+        continue;
+      }
+
+      // Fetch contacts for the specific campaign segment
+      let contactsQuery = serviceClient
         .from('contacts')
         .select('phone')
         .eq('tenant_id', campaign.tenant_id);
 
+      if (campaign.segment_id) {
+        contactsQuery = contactsQuery.eq('segment_id', campaign.segment_id);
+      }
+
+      const { data: contacts } = await contactsQuery;
+
       if (contacts && contacts.length > 0) {
+        let sentCount = 0;
+        let failedCount = 0;
         for (const contact of contacts) {
           try {
             await metaApi.sendTemplateMessage(
-              campaign.wa_connections.access_token,
-              campaign.wa_connections.phone_number_id,
+              waConnection.access_token,
+              waConnection.phone_number_id,
               {
                 to: contact.phone,
                 templateName: campaign.templates.name,
@@ -51,19 +76,41 @@ export async function GET(request: Request) {
               recipient: contact.phone,
               status: 'SENT',
             });
+            sentCount++;
           } catch (sendErr: any) {
+            console.error(`Failed to send message to ${contact.phone}:`, sendErr.message);
             await serviceClient.from('campaign_logs').insert({
               campaign_id: campaign.id,
               recipient: contact.phone,
               status: 'FAILED',
-              error: sendErr.message,
+              error: sendErr.message || String(sendErr),
             });
+            failedCount++;
           }
         }
-      }
 
-      // Transition to 'sent' status (lowercase for frontend compatibility)
-      await serviceClient.from('campaigns').update({ status: 'sent' }).eq('id', campaign.id);
+        // Transition to 'sent' status and update counts
+        await serviceClient
+          .from('campaigns')
+          .update({ 
+            status: 'sent',
+            sent_count: sentCount,
+            failed_count: failedCount,
+            total_contacts: contacts.length,
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', campaign.id);
+      } else {
+        // No contacts found, mark as sent/completed with 0
+        await serviceClient
+          .from('campaigns')
+          .update({ 
+            status: 'sent',
+            total_contacts: 0,
+            completed_at: new Date().toISOString()
+          })
+          .eq('id', campaign.id);
+      }
     }
 
     return NextResponse.json({ message: `Processed ${campaigns.length} campaigns.` });

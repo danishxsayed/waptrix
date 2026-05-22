@@ -1,6 +1,9 @@
 # Implementation History
 
 ## [2026-05-22] - Campaign Validation & Niche Library Management
+- **Campaign Immediate Launch Implementation**: Added an inline immediate campaign send execution flow directly inside the `/api/campaigns` route for immediate campaigns (`send_now: true`), bringing instant message dispatch.
+- **Cron Query Schema cache relationship Fix**: Resolved the campaign sender query error (`Could not find a relationship between 'campaigns' and 'wa_connections' in the schema cache`) by querying `wa_connections` separately based on `tenant_id`, and refined contact list fetching to correctly filter by `segment_id`.
+- **Standardized Import and Contact Route**: Refactored `/api/contacts/import` to utilize standardized `@supabase/ssr` cookies and statically import `@supabase/supabase-js`, resolving the 500 error, and added the missing `DELETE` method to `/api/contacts` to enable individual contact deletions.
 - **Contacts Niche & List Management Library**: Built a complete, robust "Library Way" contact segment manager in `src/app/(dashboard)/contacts/page.tsx`. Added on-the-fly niche creation during CSV uploads and manual additions, real-time contact count badges to the left sidebar, and a full-screen "Niche & List Library" modal to rename/delete lists cleanly.
 - **Niche API PUT & DELETE Handlers**: Implemented custom API `PUT` (rename) and `DELETE` (delete niche and unassign contacts safely) methods in `src/app/api/contacts/segments/route.ts` to coordinate database actions with frontend library state.
 - **Campaign POST API Validation**: Added strict validation rules for `name`, `templateId`/`template_id`, and `segmentId`/`segment_id` fields at the beginning of the campaign creation API handler.
