@@ -2,40 +2,49 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { 
-  LayoutDashboard, 
-  Send, 
-  FileText, 
-  Users, 
-  Link2, 
-  BarChart3, 
+import {
+  LayoutDashboard,
+  Send,
+  FileText,
+  Users,
+  Link2,
+  BarChart3,
   Settings,
   ShieldCheck,
   Images,
   Loader2,
-  LogOut
+  LogOut,
+  MessageSquare
 } from "lucide-react";
 import { useTenant } from "@/context/TenantContext";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
-
-const navItems = [
-  { name: "Dashboard", href: "/", icon: LayoutDashboard },
-  { name: "Campaigns", href: "/campaigns", icon: Send },
-  { name: "Templates", href: "/templates", icon: FileText },
-  { name: "Media Library", href: "/media", icon: Images },
-  { name: "Contacts", href: "/contacts", icon: Users },
-  { name: "Connect", href: "/connect", icon: Link2 },
-  { name: "Analytics", href: "/analytics", icon: BarChart3 },
-  { name: "Settings", href: "/settings", icon: Settings },
-];
+import { useEffect, useState } from "react";
 
 export default function Sidebar() {
   const pathname = usePathname();
   const { tenant, loading } = useTenant();
   const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState(0);
 
-  // Calculate progress percentage
+  // Poll for unread message count every 30s
+  useEffect(() => {
+    async function fetchUnread() {
+      try {
+        const res = await fetch("/api/conversations");
+        if (res.ok) {
+          const data: { unread_count: number }[] = await res.json();
+          const total = data.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+          setUnreadCount(total);
+        }
+      } catch (_) {}
+    }
+
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 30_000);
+    return () => clearInterval(interval);
+  }, []);
+
   const getProgress = () => {
     if (!tenant) return 0;
     return (tenant.messages_used / tenant.messages_limit) * 100;
@@ -47,6 +56,18 @@ export default function Sidebar() {
     router.push("/login");
     router.refresh();
   };
+
+  const navItems = [
+    { name: "Dashboard", href: "/", icon: LayoutDashboard },
+    { name: "Inbox", href: "/", icon: MessageSquare, badge: unreadCount },
+    { name: "Campaigns", href: "/campaigns", icon: Send },
+    { name: "Templates", href: "/templates", icon: FileText },
+    { name: "Media Library", href: "/media", icon: Images },
+    { name: "Contacts", href: "/contacts", icon: Users },
+    { name: "Connect", href: "/connect", icon: Link2 },
+    { name: "Analytics", href: "/analytics", icon: BarChart3 },
+    { name: "Settings", href: "/settings", icon: Settings },
+  ];
 
   return (
     <aside className="w-64 min-h-screen bg-surface border-r border-border flex flex-col">
@@ -61,21 +82,40 @@ export default function Sidebar() {
 
       <nav className="flex-1 px-4 space-y-1 mt-4">
         {navItems.map((item) => {
-          const isActive = pathname === item.href;
+          const isActive =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href);
           const Icon = item.icon;
+          const badge = (item as any).badge ?? 0;
+
+          // Show Dashboard and Inbox as merged (both link to /)
+          // Skip duplicate entry
+          if (item.name === "Dashboard" && navItems.some((n) => n.name === "Inbox")) {
+            return null; // Only show Inbox entry which also links to /
+          }
 
           return (
             <Link
-              key={item.href}
+              key={item.name}
               href={item.href}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
-                isActive 
-                  ? "bg-jade/10 text-jade border border-jade/20 shadow-[0_0_10px_rgba(16,185,129,0.05)]" 
+                isActive
+                  ? "bg-jade/10 text-jade border border-jade/20 shadow-[0_0_10px_rgba(16,185,129,0.05)]"
                   : "text-text-muted hover:text-text-primary hover:bg-card"
               }`}
             >
-              <Icon className={`w-5 h-5 ${isActive ? "text-jade" : "group-hover:text-jade transition-colors"}`} />
-              <span className="font-medium">{item.name}</span>
+              <Icon
+                className={`w-5 h-5 flex-shrink-0 ${
+                  isActive ? "text-jade" : "group-hover:text-jade transition-colors"
+                }`}
+              />
+              <span className="font-medium flex-1">{item.name}</span>
+              {badge > 0 && (
+                <span className="w-5 h-5 bg-jade text-background text-[10px] font-bold rounded-full flex items-center justify-center">
+                  {badge > 9 ? "9+" : badge}
+                </span>
+              )}
             </Link>
           );
         })}
@@ -100,17 +140,19 @@ export default function Sidebar() {
               <ShieldCheck className="w-4 h-4 text-jade" />
             )}
             <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-              Plan: {loading ? "..." : (tenant?.plan || "Starter")}
+              Plan: {loading ? "..." : tenant?.plan || "Starter"}
             </span>
           </div>
           <div className="w-full bg-surface rounded-full h-1.5 mb-2">
-            <div 
-              className="bg-jade h-full rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(16,185,129,0.4)]" 
+            <div
+              className="bg-jade h-full rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
               style={{ width: `${loading ? 0 : getProgress()}%` }}
-            ></div>
+            />
           </div>
           <span className="text-[10px] text-text-muted">
-            {loading ? "Loading usage..." : `${tenant?.messages_used.toLocaleString()} / ${tenant?.messages_limit.toLocaleString()} messages used`}
+            {loading
+              ? "Loading usage..."
+              : `${tenant?.messages_used.toLocaleString()} / ${tenant?.messages_limit.toLocaleString()} messages used`}
           </span>
         </div>
       </div>

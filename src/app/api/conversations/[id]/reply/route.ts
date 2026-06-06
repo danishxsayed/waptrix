@@ -1,0 +1,168 @@
+export const dynamic = "force-dynamic";
+
+import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
+import { NextResponse } from 'next/server';
+
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: conversationId } = await params;
+    const cookieStore = await cookies();
+    const ssrClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
+    );
+    const { data: { user } } = await ssrClient.auth.getUser();
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const db = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    // Verify ownership and get contact phone
+    const { data: conv } = await db
+      .from('conversations')
+      .select('id, contact_phone, tenant_id')
+      .eq('id', conversationId)
+      .eq('tenant_id', user.id)
+      .single();
+
+    if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+
+    // Get WhatsApp connection for this tenant
+    const { data: waConn } = await db
+      .from('wa_connections')
+      .select('access_token, phone_number_id')
+      .eq('tenant_id', user.id)
+      .single();
+
+    if (!waConn?.access_token || !waConn?.phone_number_id) {
+      return NextResponse.json({ error: 'WhatsApp not connected' }, { status: 400 });
+    }
+
+    const body = await req.json();
+    const { type = 'text', content, templateName, languageCode, components, mediaUrl, mediaMimeType } = body;
+
+    const baseUrl = `https://graph.facebook.com/v19.0/${waConn.phone_number_id}/messages`;
+    const headers = {
+      Authorization: `Bearer ${waConn.access_token}`,
+      'Content-Type': 'application/json',
+    };
+
+    let metaPayload: any;
+    let storedType = type;
+    let storedContent = content || '';
+
+    if (type === 'text') {
+      // ── Free-text message (within 24h customer service window)
+      metaPayload = {
+        messaging_product: 'whatsapp',
+        to: conv.contact_phone,
+        type: 'text',
+        text: { body: content, preview_url: false },
+      };
+
+    } else if (type === 'template') {
+      // ── Template message (works outside 24h window)
+      metaPayload = {
+        messaging_product: 'whatsapp',
+        to: conv.contact_phone,
+        type: 'template',
+        template: {
+          name: templateName,
+          language: { code: languageCode || 'en_US' },
+          components: components || [],
+        },
+      };
+      storedContent = `[Template: ${templateName}]`;
+
+    } else if (['image', 'document', 'video', 'audio'].includes(type)) {
+      // ── Media message — upload file to Meta first if raw URL provided
+      let mediaId: string | null = null;
+
+      if (mediaUrl) {
+        // Upload to Meta media API
+        const uploadRes = await fetch(
+          `https://graph.facebook.com/v19.0/${waConn.phone_number_id}/media`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${waConn.access_token}` },
+            body: (() => {
+              const fd = new FormData();
+              fd.append('messaging_product', 'whatsapp');
+              fd.append('type', mediaMimeType || 'image/jpeg');
+              fd.append('file_url', mediaUrl);
+              return fd;
+            })(),
+          }
+        );
+        const uploadData = await uploadRes.json();
+        mediaId = uploadData?.id ?? null;
+      }
+
+      metaPayload = {
+        messaging_product: 'whatsapp',
+        to: conv.contact_phone,
+        type,
+        [type]: mediaId ? { id: mediaId } : { link: mediaUrl },
+      };
+
+      storedContent = `[${type}]`;
+    } else {
+      return NextResponse.json({ error: `Unsupported message type: ${type}` }, { status: 400 });
+    }
+
+    // Send via Meta API
+    const sendRes = await fetch(baseUrl, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(metaPayload),
+    });
+    const sendData = await sendRes.json();
+
+    if (sendData.error) {
+      console.error('Meta send error:', sendData.error);
+      return NextResponse.json({
+        error: sendData.error.message || 'Failed to send message',
+        metaError: sendData.error,
+      }, { status: 400 });
+    }
+
+    const metaMessageId = sendData.messages?.[0]?.id ?? null;
+
+    // Save outbound message to DB
+    const { data: savedMsg } = await db
+      .from('chat_messages')
+      .insert({
+        tenant_id: user.id,
+        conversation_id: conversationId,
+        direction: 'outbound',
+        meta_message_id: metaMessageId,
+        type: storedType,
+        content: storedContent,
+        status: 'sent',
+      })
+      .select()
+      .single();
+
+    // Update conversation last_message
+    await db
+      .from('conversations')
+      .update({
+        last_message: storedContent.slice(0, 120),
+        last_message_at: new Date().toISOString(),
+      })
+      .eq('id', conversationId);
+
+    return NextResponse.json(savedMsg);
+  } catch (err: any) {
+    console.error('Reply error:', err.message);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}

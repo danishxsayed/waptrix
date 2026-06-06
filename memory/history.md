@@ -1,5 +1,19 @@
 # Implementation History
 
+## [2026-06-06] - Real-time Conversational Inbox & Webhook Signature Verification
+- **Inbox Database Schema**: Created `inbox_schema.sql` defining `conversations` and `chat_messages` tables with appropriate indexing, cascade deletion rules, and enabled Supabase Realtime publication setup.
+- **Conversational APIs**:
+  - `GET /api/conversations`: Fetches tenant-scoped conversations ordered by last message timestamp.
+  - `GET /api/conversations/[id]/messages`: Fetches chronological chat log history.
+  - `POST /api/conversations/[id]/mark-read`: Safely resets unread message counters.
+  - `POST /api/conversations/[id]/reply`: Validates connection credentials, dispatches messages/templates to Meta Graph API, and logs the `outbound` messages.
+- **Meta Webhook Verification and Ingestion Upgrade**:
+  - Configured signature verification via `HMAC-SHA256` hashing using `META_APP_SECRET`.
+  - Extended `/api/webhooks/meta` `POST` method to digest message statuses (delivered/read/failed), locate owner tenants via `phone_number_id`, parse diverse formats (text, buttons, attachments), and upsert threads in real-time.
+  - Aligned webhook GET handshake verification token with `META_VERIFY_TOKEN`.
+- **Real-time Inbox Dashboard**: Built the responsive, premium glassmorphic `InboxPanel` component with instant filtering, template selection, and automated conversation scroll lock.
+- **Global Context Integration**: Integrated `InboxProvider` context to sync active/unread states globally. Appended active unread count badge indicators to the sidebar panel.
+
 ## [2026-05-22] - Dynamic Dashboard Metrics & Action Routing
 - **Dynamic Metrics and Visual Wow-factor**: Modified the home dashboard (`/src/app/(dashboard)/page.tsx`) to pull live aggregated stats ("Total Messages Sent", "Delivery Rate", "Total Contacts", "Active Templates") and chronological 14-day chart volume from `/api/analytics` via React Hooks and Axios.
 - **Glassmorphic Loading States**: Designed and integrated a premium loading spinner on mount to match the platform's luxury dark theme.
