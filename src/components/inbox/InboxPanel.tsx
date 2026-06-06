@@ -98,7 +98,13 @@ function StatusIcon({ status }: { status: string }) {
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
-export default function InboxPanel({ onUnreadChange }: { onUnreadChange?: (count: number) => void }) {
+export default function InboxPanel({
+  onUnreadChange,
+  fullHeight = false,
+}: {
+  onUnreadChange?: (count: number) => void;
+  fullHeight?: boolean;
+}) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -394,7 +400,7 @@ export default function InboxPanel({ onUnreadChange }: { onUnreadChange?: (count
         </div>
       </div>
 
-      <div className="flex h-[600px]">
+      <div className={`flex ${fullHeight ? "h-[calc(100vh-260px)]" : "h-[600px]"}`}>
         {/* ── Left: Conversation List ────────────────────────────── */}
         <div className="w-80 border-r border-border flex flex-col flex-shrink-0">
           {/* Search */}

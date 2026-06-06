@@ -22,13 +22,10 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
-import InboxPanel from "@/components/inbox/InboxPanel";
-
 export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [inboxUnread, setInboxUnread] = useState(0);
 
   useEffect(() => {
     async function fetchAnalytics() {
@@ -239,9 +236,6 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
-
-      {/* WhatsApp Inbox Panel */}
-      <InboxPanel onUnreadChange={setInboxUnread} />
     </div>
   );
 }

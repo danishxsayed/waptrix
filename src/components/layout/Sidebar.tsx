@@ -21,6 +21,18 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+const navItems = [
+  { name: "Dashboard",     href: "/",          icon: LayoutDashboard },
+  { name: "Inbox",         href: "/inbox",      icon: MessageSquare,  badge: true },
+  { name: "Campaigns",     href: "/campaigns",  icon: Send },
+  { name: "Templates",     href: "/templates",  icon: FileText },
+  { name: "Media Library", href: "/media",      icon: Images },
+  { name: "Contacts",      href: "/contacts",   icon: Users },
+  { name: "Connect",       href: "/connect",    icon: Link2 },
+  { name: "Analytics",     href: "/analytics",  icon: BarChart3 },
+  { name: "Settings",      href: "/settings",   icon: Settings },
+];
+
 export default function Sidebar() {
   const pathname = usePathname();
   const { tenant, loading } = useTenant();
@@ -57,18 +69,6 @@ export default function Sidebar() {
     router.refresh();
   };
 
-  const navItems = [
-    { name: "Dashboard", href: "/", icon: LayoutDashboard },
-    { name: "Inbox", href: "/", icon: MessageSquare, badge: unreadCount },
-    { name: "Campaigns", href: "/campaigns", icon: Send },
-    { name: "Templates", href: "/templates", icon: FileText },
-    { name: "Media Library", href: "/media", icon: Images },
-    { name: "Contacts", href: "/contacts", icon: Users },
-    { name: "Connect", href: "/connect", icon: Link2 },
-    { name: "Analytics", href: "/analytics", icon: BarChart3 },
-    { name: "Settings", href: "/settings", icon: Settings },
-  ];
-
   return (
     <aside className="w-64 min-h-screen bg-surface border-r border-border flex flex-col">
       <div className="p-6">
@@ -87,17 +87,10 @@ export default function Sidebar() {
               ? pathname === "/"
               : pathname.startsWith(item.href);
           const Icon = item.icon;
-          const badge = (item as any).badge ?? 0;
-
-          // Show Dashboard and Inbox as merged (both link to /)
-          // Skip duplicate entry
-          if (item.name === "Dashboard" && navItems.some((n) => n.name === "Inbox")) {
-            return null; // Only show Inbox entry which also links to /
-          }
 
           return (
             <Link
-              key={item.name}
+              key={item.href}
               href={item.href}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
                 isActive
@@ -111,9 +104,9 @@ export default function Sidebar() {
                 }`}
               />
               <span className="font-medium flex-1">{item.name}</span>
-              {badge > 0 && (
-                <span className="w-5 h-5 bg-jade text-background text-[10px] font-bold rounded-full flex items-center justify-center">
-                  {badge > 9 ? "9+" : badge}
+              {item.badge && unreadCount > 0 && (
+                <span className="w-5 h-5 bg-jade text-background text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                  {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
             </Link>
