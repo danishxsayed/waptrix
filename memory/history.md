@@ -1,6 +1,13 @@
 # Implementation History
 
 ## [2026-06-06] - Real-time Conversational Inbox & Webhook Signature Verification
+- **Meta Access Token Exchange**:
+  - Implemented client-to-server exchange in `/api/whatsapp/store-token` converting short-lived tokens to 60-day long-lived tokens using Meta's exchange API.
+  - Added PostgreSQL schema migration in `add_token_expiry.sql` adding `token_expires_at` to the `wa_connections` table.
+- **Automated Token Rotation Cron**:
+  - Created `/api/cron/refresh-tokens` endpoint to automatically identify tokens expiring within 10 days and rotate them using Meta's exchange endpoints. Secured via `CRON_SECRET` validation headers.
+  - Registered the token rotation cron in `vercel.json` to execute daily at 3:00 AM.
+  - Adjusted the campaign dispatcher cron frequency in `vercel.json` from daily (`0 0 * * *`) to run every 15 minutes (`*/15 * * * *`).
 - **Inbox Database Schema**: Created `inbox_schema.sql` defining `conversations` and `chat_messages` tables with appropriate indexing, cascade deletion rules, and enabled Supabase Realtime publication setup.
 - **Conversational APIs**:
   - `GET /api/conversations`: Fetches tenant-scoped conversations ordered by last message timestamp.
