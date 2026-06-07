@@ -4,9 +4,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   MessageSquare, Send, Paperclip, Search, CheckCheck, Check,
-  Clock, Image, FileText, Mic, MoreVertical, X, ChevronDown, Loader2
+  Clock, FileText, Mic, X, Loader2
 } from "lucide-react";
-import { formatDistanceToNow, format, isToday, isYesterday } from "date-fns";
+import { format, isToday, isYesterday } from "date-fns";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -529,7 +529,7 @@ export default function InboxPanel({
                             {/* Media badge */}
                             {msg.type === "image" && (
                               <div className="flex items-center gap-1.5 mb-1 opacity-70">
-                                <Image className="w-3.5 h-3.5" />
+                                <FileText className="w-3.5 h-3.5" />
                                 <span className="text-[10px] font-semibold uppercase">Photo</span>
                               </div>
                             )}
