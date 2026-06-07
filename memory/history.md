@@ -1,7 +1,9 @@
 # Implementation History
 
-## [2026-06-07] - Build Fix & Memory Documentation
+## [2026-06-07] - Build Fixes & Auth/Webhook Middleware Routing
 - **Build Compilation Fix**: Resolved production build failure by removing unused imports (such as `Image` and `formatDistanceToNow`) in `src/components/inbox/InboxPanel.tsx`.
+- **Client Component Directive Cleanup**: Removed invalid `export const dynamic = 'force-dynamic'` from client-side component `src/app/signup/page.tsx` to prevent Next.js build compilation warnings/errors.
+- **Middleware Routing Exclusion**: Configured `src/middleware.ts` to allow direct public access to `/api/auth/` and `/api/webhooks/` routes, preventing auth redirection checks from blocking incoming Meta webhooks and internal authentication handlers.
 
 ## [2026-06-06] - Real-time Conversational Inbox & Webhook Signature Verification
 - **Meta Access Token Exchange**:

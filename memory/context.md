@@ -15,7 +15,7 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 ## Core Architecture
 - **(dashboard)**: Grouped route containing all authenticated user pages (Analytics, Connect, Campaigns, Contacts, etc.).
 - **TenantContext**: Shared client-side state for authenticated user profiles and messaging quotas.
-- **Middleware**: Handles authentication redirects via Supabase SSR.
+- **Middleware**: Handles authentication redirects via Supabase SSR, with explicit exclusions for public routes (login, signup, terms, privacy, password recovery, `/api/auth/` endpoint routes, and `/api/webhooks/`).
 - **Client/Server Libs**: Unified Supabase clients in `src/lib/supabase`, Meta API helpers in `src/lib/meta.ts`, and Resend email utilities in `src/lib/email`.
 - **API Authentication & RLS Bypass Standard**: Database operations in Next.js API Route Handlers authenticate users using the cookie-reliable `supabase.auth.getUser()`. Query operations are performed using a Supabase `service_role` client to bypass RLS, utilizing manual tenant-level filtering by `user.id`. API request bodies normalize camelCase and snake_case parameters (e.g. `templateId` and `template_id`) seamlessly to ensure robust client and schema alignment.
 
