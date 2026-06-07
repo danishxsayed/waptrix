@@ -1,7 +1,7 @@
 # Project Context: Waptrix
 
 ## Overview
-Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with a modern web stack and integrated with Meta's WhatsApp Business API.
+Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with a modern web stack, integrated with Meta's WhatsApp Business API, and maintained for high reliability.
 
 ## Tech Stack
 - **Framework**: Next.js 15 (App Router)

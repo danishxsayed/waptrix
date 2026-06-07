@@ -1,5 +1,8 @@
 # Implementation History
 
+## [2026-06-07] - Build Fix & Memory Documentation
+- **Build Compilation Fix**: Resolved production build failure by removing unused imports (such as `Image` and `formatDistanceToNow`) in `src/components/inbox/InboxPanel.tsx`.
+
 ## [2026-06-06] - Real-time Conversational Inbox & Webhook Signature Verification
 - **Meta Access Token Exchange**:
   - Implemented client-to-server exchange in `/api/whatsapp/store-token` converting short-lived tokens to 60-day long-lived tokens using Meta's exchange API.
