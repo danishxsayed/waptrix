@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { Link2, Shield, AlertTriangle, CheckCircle, Loader2 } from "lucide-react";
+import { Link2, Shield, AlertTriangle, CheckCircle, Loader2, RefreshCcw } from "lucide-react";
 
 declare global {
   interface Window {
@@ -12,25 +12,21 @@ declare global {
 }
 
 export default function ConnectPage() {
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'connecting' | 'syncing' | 'connected' | 'error'>('idle');
   const [connectionInfo, setConnectionInfo] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [sdkLoaded, setSdkLoaded] = useState(false);
 
-  // Check existing connection on load
   useEffect(() => {
     checkConnection();
   }, []);
 
-  // Initialize and load Meta SDK script
   useEffect(() => {
-    // Check if already loaded
     if (window.FB) {
       setSdkLoaded(true);
       return;
     }
 
-    // Set init function before SDK loads
     window.fbAsyncInit = function() {
       window.FB.init({
         appId: process.env.NEXT_PUBLIC_META_APP_ID,
@@ -42,7 +38,6 @@ export default function ConnectPage() {
       setSdkLoaded(true);
     };
 
-    // Load SDK script
     const script = document.createElement('script');
     script.id = 'facebook-jssdk';
     script.src = 'https://connect.facebook.net/en_US/sdk.js';
@@ -61,19 +56,24 @@ export default function ConnectPage() {
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
       if (!event.origin.includes('facebook.com') && !event.origin.includes('waptrix.in')) return;
-      
+
       try {
-        const data = typeof event.data === 'string' 
-          ? JSON.parse(event.data) 
-          : event.data
-        
+        const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
         console.log('Meta message:', data);
 
         if (data?.type === 'WA_EMBEDDED_SIGNUP') {
           if (data.event === 'FINISH') {
-            const { waba_id, phone_number_id } = data.data;
-            console.log('FINISH:', { waba_id, phone_number_id });
-            saveConnection(waba_id, phone_number_id);
+            const { waba_id, phone_number_id } = data.data || {};
+            console.log('FINISH event:', { waba_id, phone_number_id });
+
+            if (waba_id && phone_number_id) {
+              // FINISH event delivered IDs — use them directly
+              saveConnection(waba_id, phone_number_id);
+            } else {
+              // FINISH event fired but no IDs — fall back to API sync
+              console.warn('FINISH event missing IDs, falling back to sync-connection');
+              syncConnection();
+            }
           } else if (data.event === 'CANCEL') {
             setStatus('idle');
           } else if (data.event === 'ERROR') {
@@ -88,60 +88,44 @@ export default function ConnectPage() {
     return () => window.removeEventListener('message', handleMessage);
   }, []);
 
-  // Also check URL params — Meta sometimes passes them as query params on redirect back
+  // Also check URL params on redirect back
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const wabaId = params.get('waba_id') || params.get('wabaId');
     const phoneNumberId = params.get('phone_number_id') || params.get('phoneNumberId');
-    
-    console.log('URL params:', { wabaId, phoneNumberId });
-    
+
     if (wabaId && phoneNumberId) {
       saveConnection(wabaId, phoneNumberId);
-      // Clean URL parameters cleanly
       window.history.replaceState({}, '', '/connect');
     }
   }, []);
 
   async function checkConnection() {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seconds timeout
-
     try {
-      const res = await fetch('/api/whatsapp/connection', { signal: controller.signal });
+      const res = await fetch('/api/whatsapp/connection');
       const data = await res.json();
-      clearTimeout(timeoutId);
-      if (data && data.connected && data.waba_id !== 'pending') {
+      // API returns camelCase: wabaId, phoneNumberId, phoneNumber, businessName
+      if (data?.connected && data.wabaId && data.wabaId !== 'pending') {
         setStatus('connected');
         setConnectionInfo({
-          phoneNumber: data.phone_number,
-          businessName: data.business_name
+          phoneNumber: data.phoneNumber,
+          businessName: data.businessName
         });
       } else {
         setStatus('idle');
       }
     } catch (err) {
       console.error('Check connection error:', err);
-      clearTimeout(timeoutId);
+      setStatus('idle');
     }
   }
 
-  async function saveConnection(wabaId: string, phoneNumberId: string) {
-    setStatus('connecting');
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 3000); // 3 seconds timeout
-
+  async function syncConnection() {
+    setStatus('syncing');
     try {
-      const res = await fetch('/api/whatsapp/connect', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wabaId, phoneNumberId }),
-        signal: controller.signal
-      });
+      const res = await fetch('/api/whatsapp/sync-connection', { method: 'POST' });
       const data = await res.json();
-      clearTimeout(timeoutId);
-      console.log('Connect response:', data);
-      
+      console.log('Sync response:', data);
       if (data.error) {
         setStatus('error');
         setErrorMsg(data.error);
@@ -153,37 +137,42 @@ export default function ConnectPage() {
         });
       }
     } catch (err: any) {
-      clearTimeout(timeoutId);
       setStatus('error');
-      setErrorMsg(err.message || 'Connection timed out');
+      setErrorMsg(err.message || 'Sync failed');
     }
   }
 
-  const loadMetaSDK = () => {
-    window.fbAsyncInit = function() {
-      window.FB.init({
-        appId: process.env.NEXT_PUBLIC_META_APP_ID,
-        autoLogAppEvents: true,
-        xfbml: true,
-        version: 'v19.0'
+  async function saveConnection(wabaId: string, phoneNumberId: string) {
+    setStatus('connecting');
+    try {
+      const res = await fetch('/api/whatsapp/connect', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wabaId, phoneNumberId }),
       });
-      console.log('FB SDK initialized');
-      setSdkLoaded(true);
-    };
+      const data = await res.json();
+      console.log('Connect response:', data);
 
-    (function(d, s, id) {
-      var js, fjs = d.getElementsByTagName(s)[0];
-      if (d.getElementById(id)) return;
-      js = d.createElement(s) as HTMLScriptElement; js.id = id;
-      js.src = "https://connect.facebook.net/en_US/sdk.js";
-      fjs.parentNode?.insertBefore(js, fjs);
-    }(document, 'script', 'facebook-jssdk'));
-  };
+      if (data.error) {
+        // If connect fails, try sync as fallback
+        console.warn('saveConnection failed, trying syncConnection fallback:', data.error);
+        syncConnection();
+      } else {
+        setStatus('connected');
+        setConnectionInfo({
+          phoneNumber: data.phoneNumber || data.phone_number,
+          businessName: data.businessName || data.business_name
+        });
+      }
+    } catch (err: any) {
+      // Network error — try sync as fallback
+      syncConnection();
+    }
+  }
 
   function launchSignup() {
     console.log('launchSignup clicked, FB available:', !!window.FB, 'sdkLoaded:', sdkLoaded);
-    
-    // Explicit Localhost Bypass because Meta deeply throws async errors on HTTP
+
     if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
       console.warn("Running on localhost. Bypassing Meta SDK directly.");
       setStatus('connecting');
@@ -193,10 +182,7 @@ export default function ConnectPage() {
         body: JSON.stringify({ accessToken: 'MOCK_TOKEN' })
       })
       .then(() => saveConnection('MOCK_WABA', 'MOCK_PHONE'))
-      .catch(err => {
-        setStatus('error');
-        setErrorMsg(err.message);
-      });
+      .catch(err => { setStatus('error'); setErrorMsg(err.message); });
       return;
     }
 
@@ -208,16 +194,11 @@ export default function ConnectPage() {
     setStatus('connecting');
 
     window.FB.login(function(response: any) {
-      console.log('FB.login response:', JSON.stringify(response))
+      console.log('FB.login response:', JSON.stringify(response));
 
       if (response.authResponse?.accessToken) {
-        const accessToken = response.authResponse.accessToken
+        const accessToken = response.authResponse.accessToken;
 
-        // Step 1: Store the token (exchanged for 60-day long-lived token server-side).
-        // Step 2: Do NOT call sync-connection here — it races against the FINISH event
-        //         and fails because Meta hasn't propagated the WABA yet.
-        //         The FINISH event listener below will call saveConnection() with the
-        //         real wabaId + phoneNumberId once the user completes Embedded Signup.
         fetch('/api/whatsapp/store-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -225,17 +206,18 @@ export default function ConnectPage() {
         })
         .then(r => r.json())
         .then(result => {
-          console.log('Token stored, waiting for Embedded Signup FINISH event:', result)
-          // Status stays 'connecting' — the FINISH event handler completes the flow
+          console.log('Token stored, waiting for FINISH event:', result);
+          // FINISH event handler will call saveConnection or syncConnection.
+          // If popup closes without firing FINISH, user can click "Sync manually".
         })
         .catch(err => {
-          console.error('store-token error:', err)
-          setStatus('error')
-          setErrorMsg(err.message)
-        })
+          console.error('store-token error:', err);
+          setStatus('error');
+          setErrorMsg(err.message);
+        });
       } else {
-        console.log('No auth response — user cancelled FB.login')
-        setStatus('idle')
+        console.log('No auth response — user cancelled FB.login');
+        setStatus('idle');
       }
     }, {
       scope: 'whatsapp_business_management,whatsapp_business_messaging,public_profile',
@@ -282,15 +264,15 @@ export default function ConnectPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 text-sm">
               <div className="p-4 bg-surface border border-border rounded-xl">
                 <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Display Phone Number</span>
-                <p className="font-semibold text-text-primary mt-1">{connectionInfo.phoneNumber || connectionInfo.phone_number || 'Connected'}</p>
+                <p className="font-semibold text-text-primary mt-1">{connectionInfo.phoneNumber || '—'}</p>
               </div>
               <div className="p-4 bg-surface border border-border rounded-xl">
                 <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Business Name</span>
-                <p className="font-semibold text-text-primary mt-1">{connectionInfo.businessName || connectionInfo.business_name || 'Connected'}</p>
+                <p className="font-semibold text-text-primary mt-1">{connectionInfo.businessName || '—'}</p>
               </div>
             </div>
             <div className="flex justify-end pt-2">
-              <button 
+              <button
                 onClick={handleDisconnect}
                 className="text-xs font-bold text-red-500 hover:text-red-400 hover:underline transition-all"
               >
@@ -307,14 +289,12 @@ export default function ConnectPage() {
               <p className="text-red-500 font-bold font-syne text-lg">Something went wrong</p>
             </div>
             <p className="text-sm text-text-muted leading-relaxed">
-              Error details: <code className="bg-surface/50 border border-border px-1.5 py-0.5 rounded font-mono text-red-400">{errorMsg}</code>
+              {errorMsg}
             </p>
-            <div className="flex justify-start pt-2">
-              <button 
-                onClick={() => setStatus('idle')}
-                className="btn-secondary text-xs"
-              >
-                Try Again
+            <div className="flex gap-3 pt-2">
+              <button onClick={() => setStatus('idle')} className="btn-secondary text-xs">Try Again</button>
+              <button onClick={syncConnection} className="btn-primary text-xs flex items-center gap-1.5">
+                <RefreshCcw className="w-3.5 h-3.5" /> Sync Manually
               </button>
             </div>
           </div>
@@ -329,38 +309,36 @@ export default function ConnectPage() {
                 We use Meta's official Cloud API. We never own your phone number. Your messages remain private and secure.
               </p>
             </div>
-            <button 
+            <button
               onClick={launchSignup}
               disabled={!sdkLoaded}
               className="btn-primary flex items-center gap-2 mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {sdkLoaded ? (
-                "Connect WhatsApp Business"
-              ) : (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Loading...
-                </>
-              )}
+              {sdkLoaded ? "Connect WhatsApp Business" : <><Loader2 className="w-4 h-4 animate-spin" />Loading...</>}
             </button>
           </div>
         )}
 
-        {status === 'connecting' && (
+        {(status === 'connecting' || status === 'syncing') && (
           <div className="p-8 bg-surface border border-border rounded-2xl flex flex-col items-center text-center space-y-4">
             <Loader2 className="w-10 h-10 text-jade animate-spin" />
             <div className="max-w-md">
-              <h3 className="font-bold text-lg font-syne">Complete the WhatsApp setup in the popup</h3>
+              <h3 className="font-bold text-lg font-syne">
+                {status === 'syncing' ? 'Syncing your WhatsApp account...' : 'Complete the WhatsApp setup in the popup'}
+              </h3>
               <p className="text-xs text-text-muted mt-2">
-                Select your WhatsApp Business Account and phone number in the Facebook popup window.
-                This page will update automatically once you finish.
+                {status === 'syncing'
+                  ? 'Fetching your WhatsApp Business Account details from Meta.'
+                  : 'Select your WhatsApp Business Account and phone number in the Facebook popup window. This page will update automatically once you finish.'}
               </p>
-              <p className="text-[11px] text-text-muted mt-4">
-                Already finished the popup?{' '}
-                <button onClick={checkConnection} className="text-jade font-bold hover:underline">
-                  Click here to check status
-                </button>
-              </p>
+              {status === 'connecting' && (
+                <p className="text-[11px] text-text-muted mt-4">
+                  Finished the popup but nothing happened?{' '}
+                  <button onClick={syncConnection} className="text-jade font-bold hover:underline">
+                    Click here to sync manually
+                  </button>
+                </p>
+              )}
             </div>
           </div>
         )}
