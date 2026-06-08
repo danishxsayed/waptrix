@@ -1,16 +1,16 @@
 export const dynamic = "force-dynamic";
 
-import { createClient } from '@/lib/supabase/server';
+import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createClient();
+    const supabase = await createServerSupabaseClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
-    const serviceClient = createServiceClient(
+    const serviceClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
@@ -21,7 +21,11 @@ export async function POST(request: Request) {
       .eq('tenant_id', user.id)
       .single();
 
-    if (!conn?.access_token || !conn?.phone_number_id) {
+    const phoneNumberId = conn?.phone_number_id && conn.phone_number_id !== 'pending'
+      ? conn.phone_number_id
+      : null;
+
+    if (!conn?.access_token || !phoneNumberId) {
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
     }
 
@@ -49,7 +53,7 @@ export async function POST(request: Request) {
     uploadForm.append('messaging_product', 'whatsapp');
 
     const uploadRes = await fetch(
-      `https://graph.facebook.com/v19.0/${conn.phone_number_id}/media`,
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/media`,
       {
         method: 'POST',
         headers: { Authorization: `Bearer ${conn.access_token}` },
@@ -71,7 +75,7 @@ export async function POST(request: Request) {
 
     // Step 2: Set as profile picture using the media handle
     const profileRes = await fetch(
-      `https://graph.facebook.com/v19.0/${conn.phone_number_id}/whatsapp_business_profile`,
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/whatsapp_business_profile`,
       {
         method: 'POST',
         headers: {
