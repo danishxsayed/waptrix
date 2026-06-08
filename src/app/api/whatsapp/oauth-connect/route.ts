@@ -20,7 +20,31 @@ async function exchangeForLongLivedToken(shortToken: string) {
   };
 }
 
-// Auto-detect WABA and phone number ID from a user access token.
+// Fetch phone details from a WABA — most reliable way to get display_phone_number + verified_name
+async function fetchPhoneFromWaba(wabaId: string, token: string): Promise<{
+  phoneNumberId: string;
+  displayPhone: string;
+  businessName: string;
+} | null> {
+  try {
+    const r = await fetch(
+      `https://graph.facebook.com/v19.0/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${token}`
+    );
+    const d = await r.json();
+    console.log('WABA phone_numbers:', JSON.stringify(d).substring(0, 400));
+    const phone = d?.data?.[0];
+    if (phone?.id) {
+      return {
+        phoneNumberId: phone.id,
+        displayPhone: phone.display_phone_number || '',
+        businessName: phone.verified_name || '',
+      };
+    }
+  } catch (_) {}
+  return null;
+}
+
+// Auto-detect WABA and phone number from a user access token.
 // Tries multiple API paths since permission availability varies.
 async function detectWhatsAppAccount(token: string): Promise<{
   wabaId: string;
@@ -32,29 +56,37 @@ async function detectWhatsAppAccount(token: string): Promise<{
   // Method 1: me/businesses → whatsapp_business_accounts (needs business_management scope)
   try {
     const r = await fetch(
-      `https://graph.facebook.com/v19.0/me/businesses?fields=id,name,whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name}}&access_token=${token}`
+      `https://graph.facebook.com/v19.0/me/businesses?fields=id,name,whatsapp_business_accounts{id,name}&access_token=${token}`
     );
     const d = await r.json();
-    console.log('Method1 businesses:', JSON.stringify(d).substring(0, 300));
+    console.log('Method1 businesses:', JSON.stringify(d).substring(0, 400));
     const biz = d?.data?.[0];
     const waba = biz?.whatsapp_business_accounts?.data?.[0];
-    const phone = waba?.phone_numbers?.data?.[0];
-    if (waba?.id && phone?.id) {
-      return { wabaId: waba.id, phoneNumberId: phone.id, displayPhone: phone.display_phone_number || '', businessName: phone.verified_name || waba.name || '' };
+    if (waba?.id) {
+      // Use dedicated WABA phone_numbers endpoint — more reliable than nested query
+      const phoneDetails = await fetchPhoneFromWaba(waba.id, token);
+      if (phoneDetails) {
+        return { wabaId: waba.id, ...phoneDetails };
+      }
+      // WABA found but no phone number yet
+      return { wabaId: waba.id, phoneNumberId: '', displayPhone: '', businessName: waba.name || '' };
     }
   } catch (_) {}
 
   // Method 2: me/whatsapp_business_accounts (needs whatsapp_business_management scope)
   try {
     const r = await fetch(
-      `https://graph.facebook.com/v19.0/me/whatsapp_business_accounts?fields=id,name,phone_numbers{id,display_phone_number,verified_name}&access_token=${token}`
+      `https://graph.facebook.com/v19.0/me/whatsapp_business_accounts?fields=id,name&access_token=${token}`
     );
     const d = await r.json();
-    console.log('Method2 waba:', JSON.stringify(d).substring(0, 300));
+    console.log('Method2 waba:', JSON.stringify(d).substring(0, 400));
     const waba = d?.data?.[0];
-    const phone = waba?.phone_numbers?.data?.[0];
-    if (waba?.id && phone?.id) {
-      return { wabaId: waba.id, phoneNumberId: phone.id, displayPhone: phone.display_phone_number || '', businessName: phone.verified_name || waba.name || '' };
+    if (waba?.id) {
+      const phoneDetails = await fetchPhoneFromWaba(waba.id, token);
+      if (phoneDetails) {
+        return { wabaId: waba.id, ...phoneDetails };
+      }
+      return { wabaId: waba.id, phoneNumberId: '', displayPhone: '', businessName: waba.name || '' };
     }
   } catch (_) {}
 
@@ -120,11 +152,21 @@ export async function POST(req: Request) {
         phoneNumberId = detected.phoneNumberId;
         displayPhone = detected.displayPhone;
         businessName = detected.businessName;
-        console.log('Auto-detected:', { wabaId, phoneNumberId, displayPhone });
+        console.log('Auto-detected:', { wabaId, phoneNumberId, displayPhone, businessName });
       }
     }
 
-    // If we have phoneNumberId but still need display info
+    // If we have wabaId but still need phone details, try WABA endpoint
+    if (wabaId && (!phoneNumberId || !displayPhone)) {
+      const phoneDetails = await fetchPhoneFromWaba(wabaId, longLivedToken);
+      if (phoneDetails) {
+        if (!phoneNumberId) phoneNumberId = phoneDetails.phoneNumberId;
+        if (!displayPhone) displayPhone = phoneDetails.displayPhone;
+        if (!businessName) businessName = phoneDetails.businessName;
+      }
+    }
+
+    // If we have phoneNumberId but still need display info, try direct phone lookup
     if (phoneNumberId && (!displayPhone || !businessName)) {
       try {
         const r = await fetch(
@@ -132,8 +174,8 @@ export async function POST(req: Request) {
         );
         const d = await r.json();
         console.log('Phone detail lookup:', JSON.stringify(d));
-        displayPhone = d.display_phone_number || displayPhone;
-        businessName = d.verified_name || businessName;
+        if (!displayPhone) displayPhone = d.display_phone_number || '';
+        if (!businessName) businessName = d.verified_name || '';
         if (!wabaId && d.whatsapp_business_account?.id) {
           wabaId = d.whatsapp_business_account.id;
         }
@@ -141,7 +183,17 @@ export async function POST(req: Request) {
     }
 
     if (!phoneNumberId) {
-      // Return info so the client can show manual entry
+      // Save token at least so sync can be retried later
+      await db.from('wa_connections').upsert({
+        tenant_id: user.id,
+        waba_id: wabaId || 'manual',
+        phone_number_id: 'pending',
+        phone_number: '',
+        business_name: businessName,
+        access_token: longLivedToken,
+        token_expires_at: expiresAt,
+      }, { onConflict: 'tenant_id' });
+
       return NextResponse.json({
         error: 'auto-detect-failed',
         tokenSaved: true,

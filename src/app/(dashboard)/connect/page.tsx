@@ -69,7 +69,17 @@ export default function ConnectPage() {
         setErrorMsg(data.error);
       } else {
         setStatus('connected');
-        setConnectionInfo({ phoneNumber: data.phoneNumber, businessName: data.businessName });
+        // Prefer API response values; fall back to re-reading from DB via checkConnection
+        if (data.phoneNumber || data.businessName) {
+          setConnectionInfo({ phoneNumber: data.phoneNumber, businessName: data.businessName });
+        } else {
+          // Phone name might be empty if Meta hasn't set verified_name yet — read from DB
+          const conn = await fetch('/api/whatsapp/connection').then(r => r.json()).catch(() => null);
+          setConnectionInfo({
+            phoneNumber: conn?.phoneNumber || '',
+            businessName: conn?.businessName || '',
+          });
+        }
       }
     } catch (err: any) {
       setStatus('error');
@@ -91,7 +101,12 @@ export default function ConnectPage() {
         setErrorMsg(data.error);
       } else {
         setStatus('connected');
-        setConnectionInfo({ phoneNumber: data.phoneNumber, businessName: data.businessName });
+        if (data.phoneNumber || data.businessName) {
+          setConnectionInfo({ phoneNumber: data.phoneNumber, businessName: data.businessName });
+        } else {
+          const conn = await fetch('/api/whatsapp/connection').then(r => r.json()).catch(() => null);
+          setConnectionInfo({ phoneNumber: conn?.phoneNumber || '', businessName: conn?.businessName || '' });
+        }
       }
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to save');
