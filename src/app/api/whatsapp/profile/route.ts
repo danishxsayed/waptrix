@@ -17,16 +17,42 @@ export async function GET() {
 
     const { data: conn } = await serviceClient
       .from('wa_connections')
-      .select('access_token, phone_number_id, phone_number, business_name, updated_at')
+      .select('access_token, phone_number_id, waba_id, phone_number, business_name, updated_at')
       .eq('tenant_id', user.id)
       .single();
 
-    if (!conn?.access_token || !conn?.phone_number_id) {
+    if (!conn?.access_token) {
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
     }
 
+    let phoneNumberId = conn.phone_number_id;
+
+    // Self-heal: if phone_number_id is missing, fetch it from the WABA
+    if (!phoneNumberId && conn.waba_id) {
+      try {
+        const wabaRes = await fetch(
+          `https://graph.facebook.com/v19.0/${conn.waba_id}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${conn.access_token}`
+        );
+        const wabaData = await wabaRes.json();
+        const firstPhone = wabaData?.data?.[0];
+        if (firstPhone?.id) {
+          phoneNumberId = firstPhone.id;
+          // Persist so we don't need to do this again
+          await serviceClient.from('wa_connections').update({
+            phone_number_id: firstPhone.id,
+            phone_number: firstPhone.display_phone_number || conn.phone_number,
+            business_name: firstPhone.verified_name || conn.business_name,
+          }).eq('tenant_id', user.id);
+        }
+      } catch (_) {}
+    }
+
+    if (!phoneNumberId) {
+      return NextResponse.json({ error: 'No WhatsApp connection found. Please reconnect.' }, { status: 404 });
+    }
+
     const res = await fetch(
-      `https://graph.facebook.com/v19.0/${conn.phone_number_id}/whatsapp_business_profile?fields=about,description,profile_picture_url,vertical,email,websites`,
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/whatsapp_business_profile?fields=about,description,profile_picture_url,vertical,email,websites`,
       { headers: { Authorization: `Bearer ${conn.access_token}` } }
     );
 
