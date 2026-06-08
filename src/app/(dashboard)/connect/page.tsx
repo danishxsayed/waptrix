@@ -206,62 +206,35 @@ export default function ConnectPage() {
     }
 
     setStatus('connecting');
-    
+
     window.FB.login(function(response: any) {
       console.log('FB.login response:', JSON.stringify(response))
-      
+
       if (response.authResponse?.accessToken) {
         const accessToken = response.authResponse.accessToken
-        
-        // Store token then immediately sync
+
+        // Step 1: Store the token (exchanged for 60-day long-lived token server-side).
+        // Step 2: Do NOT call sync-connection here — it races against the FINISH event
+        //         and fails because Meta hasn't propagated the WABA yet.
+        //         The FINISH event listener below will call saveConnection() with the
+        //         real wabaId + phoneNumberId once the user completes Embedded Signup.
         fetch('/api/whatsapp/store-token', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ accessToken })
         })
         .then(r => r.json())
-        .then(async (storeResult) => {
-          console.log('Token stored:', storeResult)
-          
-          // Wait 2 seconds for Meta to process, then sync
-          await new Promise(resolve => setTimeout(resolve, 2000))
-          
-          console.log('Starting sync...')
-          const syncRes = await fetch('/api/whatsapp/sync-connection', { 
-            method: 'POST' 
-          })
-          const syncData = await syncRes.json()
-          console.log('Sync result:', syncData)
-          
-          if (syncData.success) {
-            setStatus('connected')
-            setConnectionInfo(syncData)
-          } else {
-            // Keep showing connecting, wait for FINISH event
-            console.log('Sync failed, waiting for FINISH event:', syncData.error)
-            
-            // Try again after 5 more seconds
-            await new Promise(resolve => setTimeout(resolve, 5000))
-            const retryRes = await fetch('/api/whatsapp/sync-connection', { method: 'POST' })
-            const retryData = await retryRes.json()
-            console.log('Retry sync result:', retryData)
-            
-            if (retryData.success) {
-              setStatus('connected')
-              setConnectionInfo(retryData)
-            } else {
-              setStatus('error')
-              setErrorMsg('Could not find WhatsApp Business Account. Error: ' + retryData.error)
-            }
-          }
+        .then(result => {
+          console.log('Token stored, waiting for Embedded Signup FINISH event:', result)
+          // Status stays 'connecting' — the FINISH event handler completes the flow
         })
         .catch(err => {
-          console.error('Error:', err)
+          console.error('store-token error:', err)
           setStatus('error')
           setErrorMsg(err.message)
         })
       } else {
-        console.log('No auth response')
+        console.log('No auth response — user cancelled FB.login')
         setStatus('idle')
       }
     }, {
@@ -377,14 +350,15 @@ export default function ConnectPage() {
           <div className="p-8 bg-surface border border-border rounded-2xl flex flex-col items-center text-center space-y-4">
             <Loader2 className="w-10 h-10 text-jade animate-spin" />
             <div className="max-w-md">
-              <h3 className="font-bold text-lg font-syne">Completing connection...</h3>
+              <h3 className="font-bold text-lg font-syne">Complete the WhatsApp setup in the popup</h3>
               <p className="text-xs text-text-muted mt-2">
-                We are configuring your numbers and synchronizing with Meta. Please do not close this window.
+                Select your WhatsApp Business Account and phone number in the Facebook popup window.
+                This page will update automatically once you finish.
               </p>
               <p className="text-[11px] text-text-muted mt-4">
-                Taking too long? 
-                <button onClick={checkConnection} className="text-jade font-bold ml-1 hover:underline">
-                  click here to check status manually
+                Already finished the popup?{' '}
+                <button onClick={checkConnection} className="text-jade font-bold hover:underline">
+                  Click here to check status
                 </button>
               </p>
             </div>

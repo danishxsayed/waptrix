@@ -1,5 +1,17 @@
 # Implementation History
 
+## [2026-06-08] - WhatsApp Business Profile Management & Signup Flow Refinement
+- **WhatsApp Business Profile Integration**:
+  - Implemented the WhatsApp profile display and editing UI on `/settings`, showcasing connection state, synchronized business details (avatar, name, phone, last sync time).
+  - Developed the bio/about text field (limited to 139 characters) with direct synchronization to Meta Graph API.
+  - Built an interactive profile picture upload widget utilizing `FileReader` for immediate client previews and a hidden file input.
+- **WhatsApp Profile API Endpoints**:
+  - `GET /api/whatsapp/profile`: Retrieves business details from Meta's `whatsapp_business_profile` endpoint using stored credential tokens.
+  - `POST /api/whatsapp/profile`: Updates profile attributes (about, description, email, websites) to Meta and records sync logs.
+  - `POST /api/whatsapp/profile/picture`: Handles multi-part file uploads (jpeg/png up to 5MB), uploads the file to the Meta Graph API `/media` endpoint, and links the resulting media handle to the business's profile avatar.
+- **Embedded Signup Flow Refinement**:
+  - Refactored `src/app/(dashboard)/connect/page.tsx` login handler to resolve race conditions. Instead of instantly executing a synchronization fetch request post token storage, the flow relies on the `WA_EMBEDDED_SIGNUP` `FINISH` event listener to complete the connection, keeping the client state as "connecting" with a loader while the user navigates the Meta popup.
+
 ## [2026-06-07] - Build Fixes & Auth/Webhook Middleware Routing
 - **Build Compilation Fix**: Resolved production build failure by removing unused imports (such as `Image` and `formatDistanceToNow`) in `src/components/inbox/InboxPanel.tsx`.
 - **Client Component Directive Cleanup**: Removed invalid `export const dynamic = 'force-dynamic'` from client-side component `src/app/signup/page.tsx` to prevent Next.js build compilation warnings/errors.

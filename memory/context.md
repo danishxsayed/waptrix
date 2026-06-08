@@ -30,4 +30,9 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Backed by the local `InboxContext` and Supabase Realtime replication to push live message indicators and content changes to the client.
   - Managed by four specific API routes: fetching conversation lists (`/api/conversations`), listing messages (`/api/conversations/[id]/messages`), marking read threads (`/api/conversations/[id]/mark-read`), and sending replies (`/api/conversations/[id]/reply`).
   - Supports template selection and dynamic text replies with full attachment mime type mapping.
+- **WhatsApp Business Profile Management**:
+  - Integrated a dedicated settings pane on the `/settings` route to display active connection status, synced official business names, phone numbers, and last sync times.
+  - Created `/api/whatsapp/profile` (GET to retrieve business details, and POST to update status/bio fields) interacting directly with Meta Graph API.
+  - Created `/api/whatsapp/profile/picture` (POST to upload JPEG/PNG avatar assets up to 5MB, register the resulting media handle with Meta, and set it as the WhatsApp Business Profile picture).
+
 
