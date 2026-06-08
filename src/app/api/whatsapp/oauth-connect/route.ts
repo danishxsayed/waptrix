@@ -183,7 +183,32 @@ export async function POST(req: Request) {
     }
 
     if (!phoneNumberId) {
-      // Save token at least so sync can be retried later
+      // Auto-detect failed — check if tenant already has a valid connection in DB
+      const { data: existing } = await db
+        .from('wa_connections')
+        .select('waba_id, phone_number_id, phone_number, business_name')
+        .eq('tenant_id', user.id)
+        .single();
+
+      const existingPhoneId = existing?.phone_number_id && existing.phone_number_id !== 'pending'
+        ? existing.phone_number_id : null;
+
+      if (existingPhoneId) {
+        // Tenant already has a valid phone number ID — just refresh the token
+        console.log('Auto-detect failed but existing connection found — refreshing token only');
+        await db.from('wa_connections').update({
+          access_token: longLivedToken,
+          token_expires_at: expiresAt,
+        }).eq('tenant_id', user.id);
+
+        return NextResponse.json({
+          success: true,
+          phoneNumber: existing.phone_number || '',
+          businessName: existing.business_name || '',
+        });
+      }
+
+      // No existing connection — save token and ask for manual entry
       await db.from('wa_connections').upsert({
         tenant_id: user.id,
         waba_id: wabaId || 'manual',
