@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 const PENDING = 'pending';
+const isPending = (v: string | null) => !v || v === 'pending';
 
 async function getAuth() {
   const cookieStore = await cookies();

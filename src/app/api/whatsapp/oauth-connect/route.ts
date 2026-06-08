@@ -5,6 +5,62 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
+async function exchangeForLongLivedToken(shortToken: string) {
+  const res = await fetch(
+    `https://graph.facebook.com/v19.0/oauth/access_token?` +
+    `grant_type=fb_exchange_token` +
+    `&client_id=${process.env.NEXT_PUBLIC_META_APP_ID}` +
+    `&client_secret=${process.env.META_APP_SECRET}` +
+    `&fb_exchange_token=${shortToken}`
+  );
+  const data = await res.json();
+  return {
+    token: data.access_token || shortToken,
+    expiresAt: new Date(Date.now() + (data.expires_in ?? 5183944) * 1000).toISOString(),
+  };
+}
+
+// Auto-detect WABA and phone number ID from a user access token.
+// Tries multiple API paths since permission availability varies.
+async function detectWhatsAppAccount(token: string): Promise<{
+  wabaId: string;
+  phoneNumberId: string;
+  displayPhone: string;
+  businessName: string;
+} | null> {
+
+  // Method 1: me/businesses → whatsapp_business_accounts (needs business_management scope)
+  try {
+    const r = await fetch(
+      `https://graph.facebook.com/v19.0/me/businesses?fields=id,name,whatsapp_business_accounts{id,name,phone_numbers{id,display_phone_number,verified_name}}&access_token=${token}`
+    );
+    const d = await r.json();
+    console.log('Method1 businesses:', JSON.stringify(d).substring(0, 300));
+    const biz = d?.data?.[0];
+    const waba = biz?.whatsapp_business_accounts?.data?.[0];
+    const phone = waba?.phone_numbers?.data?.[0];
+    if (waba?.id && phone?.id) {
+      return { wabaId: waba.id, phoneNumberId: phone.id, displayPhone: phone.display_phone_number || '', businessName: phone.verified_name || waba.name || '' };
+    }
+  } catch (_) {}
+
+  // Method 2: me/whatsapp_business_accounts (needs whatsapp_business_management scope)
+  try {
+    const r = await fetch(
+      `https://graph.facebook.com/v19.0/me/whatsapp_business_accounts?fields=id,name,phone_numbers{id,display_phone_number,verified_name}&access_token=${token}`
+    );
+    const d = await r.json();
+    console.log('Method2 waba:', JSON.stringify(d).substring(0, 300));
+    const waba = d?.data?.[0];
+    const phone = waba?.phone_numbers?.data?.[0];
+    if (waba?.id && phone?.id) {
+      return { wabaId: waba.id, phoneNumberId: phone.id, displayPhone: phone.display_phone_number || '', businessName: phone.verified_name || waba.name || '' };
+    }
+  } catch (_) {}
+
+  return null;
+}
+
 export async function POST(req: Request) {
   try {
     const cookieStore = await cookies();
@@ -16,66 +72,87 @@ export async function POST(req: Request) {
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { code, wabaId, phoneNumberId } = await req.json();
-
-    if (!code || !wabaId || !phoneNumberId) {
-      return NextResponse.json({ error: 'Missing code, wabaId, or phoneNumberId' }, { status: 400 });
-    }
+    const body = await req.json();
+    const { code, wabaId: rawWabaId, phoneNumberId: rawPhoneNumberId } = body;
 
     const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/connect`;
+    const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
-    // Step 1: Exchange auth code for short-lived user token
-    const tokenRes = await fetch(
-      `https://graph.facebook.com/v19.0/oauth/access_token?` +
-      `client_id=${process.env.NEXT_PUBLIC_META_APP_ID}` +
-      `&client_secret=${process.env.META_APP_SECRET}` +
-      `&code=${code}` +
-      `&redirect_uri=${encodeURIComponent(redirectUri)}`
-    );
-    const tokenData = await tokenRes.json();
-    console.log('OAuth token exchange:', JSON.stringify({ ...tokenData, access_token: '[REDACTED]' }));
-
-    if (tokenData.error) {
-      return NextResponse.json({ error: tokenData.error.message || 'Token exchange failed' }, { status: 400 });
+    // Step 1: Get a short-lived token (from OAuth code or existing DB token)
+    let shortToken = '';
+    if (code) {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/oauth/access_token?` +
+        `client_id=${process.env.NEXT_PUBLIC_META_APP_ID}` +
+        `&client_secret=${process.env.META_APP_SECRET}` +
+        `&code=${code}` +
+        `&redirect_uri=${encodeURIComponent(redirectUri)}`
+      );
+      const data = await res.json();
+      console.log('Code exchange:', JSON.stringify({ ...data, access_token: data.access_token ? '[REDACTED]' : undefined }));
+      if (data.error) {
+        return NextResponse.json({ error: data.error.message || 'Token exchange failed' }, { status: 400 });
+      }
+      shortToken = data.access_token;
+    } else {
+      const { data: existing } = await db.from('wa_connections').select('access_token').eq('tenant_id', user.id).single();
+      if (!existing?.access_token) {
+        return NextResponse.json({ error: 'No token. Please reconnect via Facebook first.' }, { status: 400 });
+      }
+      shortToken = existing.access_token;
     }
 
-    const shortToken: string = tokenData.access_token;
-
     // Step 2: Exchange for 60-day long-lived token
-    const llRes = await fetch(
-      `https://graph.facebook.com/v19.0/oauth/access_token?` +
-      `grant_type=fb_exchange_token` +
-      `&client_id=${process.env.NEXT_PUBLIC_META_APP_ID}` +
-      `&client_secret=${process.env.META_APP_SECRET}` +
-      `&fb_exchange_token=${shortToken}`
-    );
-    const llData = await llRes.json();
-    const longLivedToken: string = llData.access_token || shortToken;
-    const expiresIn: number = llData.expires_in ?? 5183944;
-    const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
-    console.log(`Long-lived token obtained. Expires: ${expiresAt}`);
+    const { token: longLivedToken, expiresAt } = await exchangeForLongLivedToken(shortToken);
+    console.log(`Long-lived token. Expires: ${expiresAt}`);
 
-    // Step 3: Fetch phone display info
+    // Step 3: Resolve WABA + phone number ID
+    let wabaId = rawWabaId && !['from-phone-id', 'pending', 'manual'].includes(rawWabaId) ? rawWabaId : '';
+    let phoneNumberId = rawPhoneNumberId && !['pending'].includes(rawPhoneNumberId) ? rawPhoneNumberId : '';
     let displayPhone = '';
     let businessName = '';
-    try {
-      const pRes = await fetch(
-        `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=display_phone_number,verified_name&access_token=${longLivedToken}`
-      );
-      const pData = await pRes.json();
-      displayPhone = pData.display_phone_number || '';
-      businessName = pData.verified_name || '';
-    } catch (_) {}
+
+    if (!wabaId || !phoneNumberId) {
+      // Auto-detect via API
+      const detected = await detectWhatsAppAccount(longLivedToken);
+      if (detected) {
+        wabaId = detected.wabaId;
+        phoneNumberId = detected.phoneNumberId;
+        displayPhone = detected.displayPhone;
+        businessName = detected.businessName;
+        console.log('Auto-detected:', { wabaId, phoneNumberId, displayPhone });
+      }
+    }
+
+    // If we have phoneNumberId but still need display info
+    if (phoneNumberId && (!displayPhone || !businessName)) {
+      try {
+        const r = await fetch(
+          `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=display_phone_number,verified_name,whatsapp_business_account&access_token=${longLivedToken}`
+        );
+        const d = await r.json();
+        console.log('Phone detail lookup:', JSON.stringify(d));
+        displayPhone = d.display_phone_number || displayPhone;
+        businessName = d.verified_name || businessName;
+        if (!wabaId && d.whatsapp_business_account?.id) {
+          wabaId = d.whatsapp_business_account.id;
+        }
+      } catch (_) {}
+    }
+
+    if (!phoneNumberId) {
+      // Return info so the client can show manual entry
+      return NextResponse.json({
+        error: 'auto-detect-failed',
+        tokenSaved: true,
+        message: 'Could not auto-detect phone number. Please enter it manually.'
+      }, { status: 422 });
+    }
 
     // Step 4: Save to DB
-    const db = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
-
     const { error: dbError } = await db.from('wa_connections').upsert({
       tenant_id: user.id,
-      waba_id: wabaId,
+      waba_id: wabaId || 'manual',
       phone_number_id: phoneNumberId,
       phone_number: displayPhone,
       business_name: businessName,
