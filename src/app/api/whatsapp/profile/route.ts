@@ -1,97 +1,111 @@
 export const dynamic = "force-dynamic";
 
-import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
-function getServiceClient() {
+const PENDING = 'pending';
+
+async function getAuth() {
+  const cookieStore = await cookies();
+  const ssrClient = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    { cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} } }
+  );
+  const { data: { user } } = await ssrClient.auth.getUser();
+  return user;
+}
+
+function serviceClient() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_KEY!
   );
 }
 
-const PENDING = 'pending';
-
 export async function GET() {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuth();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const serviceClient = getServiceClient();
+    const db = serviceClient();
 
-    const { data: conn } = await serviceClient
+    const { data: conn, error: dbError } = await db
       .from('wa_connections')
       .select('access_token, phone_number_id, waba_id, phone_number, business_name, updated_at')
       .eq('tenant_id', user.id)
       .single();
 
-    if (!conn?.access_token) {
+    if (dbError || !conn?.access_token) {
+      console.error('wa_connections lookup failed:', dbError?.message);
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
     }
 
+    // Resolve phone_number_id — treat 'pending' as missing
     let phoneNumberId: string | null =
       conn.phone_number_id && conn.phone_number_id !== PENDING
         ? conn.phone_number_id
         : null;
 
-    // Self-heal: if phone_number_id is missing or 'pending', fetch from WABA
+    // Self-heal: fetch phone_number_id from WABA if missing
     if (!phoneNumberId) {
       const wabaId = conn.waba_id && conn.waba_id !== PENDING ? conn.waba_id : null;
       if (wabaId) {
         try {
-          const wabaRes = await fetch(
+          const r = await fetch(
             `https://graph.facebook.com/v19.0/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${conn.access_token}`
           );
-          const wabaData = await wabaRes.json();
-          const firstPhone = wabaData?.data?.[0];
-          if (firstPhone?.id) {
-            phoneNumberId = firstPhone.id;
-            await serviceClient.from('wa_connections').update({
-              phone_number_id: firstPhone.id,
-              phone_number: firstPhone.display_phone_number || conn.phone_number || '',
-              business_name: firstPhone.verified_name || conn.business_name || '',
+          const d = await r.json();
+          const p = d?.data?.[0];
+          if (p?.id) {
+            phoneNumberId = p.id;
+            await db.from('wa_connections').update({
+              phone_number_id: p.id,
+              phone_number: p.display_phone_number || conn.phone_number || '',
+              business_name: p.verified_name || conn.business_name || '',
             }).eq('tenant_id', user.id);
           }
         } catch (e) {
-          console.error('WABA phone lookup failed:', e);
+          console.error('WABA self-heal failed:', e);
         }
       }
     }
 
     if (!phoneNumberId) {
       return NextResponse.json({
-        error: 'Could not resolve phone number ID. Please reconnect your WhatsApp account.'
+        error: 'Could not resolve WhatsApp phone number. Please reconnect your account.'
       }, { status: 404 });
     }
 
-    const res = await fetch(
+    // Fetch WhatsApp business profile
+    const profileRes = await fetch(
       `https://graph.facebook.com/v19.0/${phoneNumberId}/whatsapp_business_profile?fields=about,description,profile_picture_url,vertical,email,websites`,
       { headers: { Authorization: `Bearer ${conn.access_token}` } }
     );
 
-    if (!res.ok) {
-      const err = await res.json();
-      return NextResponse.json({ error: err.error?.message || 'Failed to fetch profile' }, { status: res.status });
+    if (!profileRes.ok) {
+      const err = await profileRes.json();
+      return NextResponse.json({ error: err.error?.message || 'Failed to fetch profile' }, { status: profileRes.status });
     }
 
-    const profile = await res.json();
-    const data = profile.data?.[0] || profile;
+    const profileJson = await profileRes.json();
+    const data = profileJson.data?.[0] || profileJson;
 
     // Fetch fresh phone/business name if still empty
     let phoneName = conn.phone_number || '';
     let bizName = conn.business_name || '';
     if (!phoneName || !bizName) {
       try {
-        const pRes = await fetch(
+        const r = await fetch(
           `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=display_phone_number,verified_name&access_token=${conn.access_token}`
         );
-        const pData = await pRes.json();
-        phoneName = pData.display_phone_number || phoneName;
-        bizName = pData.verified_name || bizName;
+        const d = await r.json();
+        phoneName = d.display_phone_number || phoneName;
+        bizName = d.verified_name || bizName;
         if (phoneName || bizName) {
-          await serviceClient.from('wa_connections').update({
+          await db.from('wa_connections').update({
             phone_number: phoneName,
             business_name: bizName,
           }).eq('tenant_id', user.id);
@@ -118,16 +132,15 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await getAuth();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await request.json();
     const { about, description, vertical, email, websites } = body;
 
-    const serviceClient = getServiceClient();
+    const db = serviceClient();
 
-    const { data: conn } = await serviceClient
+    const { data: conn } = await db
       .from('wa_connections')
       .select('access_token, phone_number_id')
       .eq('tenant_id', user.id)
@@ -141,12 +154,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
     }
 
-    const updatePayload: Record<string, any> = { messaging_product: 'whatsapp' };
-    if (about !== undefined) updatePayload.about = about;
-    if (description !== undefined) updatePayload.description = description;
-    if (vertical !== undefined) updatePayload.vertical = vertical;
-    if (email !== undefined) updatePayload.email = email;
-    if (websites !== undefined) updatePayload.websites = websites;
+    const payload: Record<string, any> = { messaging_product: 'whatsapp' };
+    if (about !== undefined) payload.about = about;
+    if (description !== undefined) payload.description = description;
+    if (vertical !== undefined) payload.vertical = vertical;
+    if (email !== undefined) payload.email = email;
+    if (websites !== undefined) payload.websites = websites;
 
     const res = await fetch(
       `https://graph.facebook.com/v19.0/${phoneNumberId}/whatsapp_business_profile`,
@@ -156,7 +169,7 @@ export async function POST(request: Request) {
           Authorization: `Bearer ${conn.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(updatePayload),
+        body: JSON.stringify(payload),
       }
     );
 
@@ -165,8 +178,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.error?.message || 'Failed to update profile' }, { status: res.status });
     }
 
-    await serviceClient
-      .from('wa_connections')
+    await db.from('wa_connections')
       .update({ updated_at: new Date().toISOString() })
       .eq('tenant_id', user.id);
 

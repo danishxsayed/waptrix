@@ -1,21 +1,27 @@
 export const dynamic = "force-dynamic";
 
-import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 
 export async function POST(request: Request) {
   try {
-    const supabase = await createServerSupabaseClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const cookieStore = await cookies();
+    const ssrClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} } }
+    );
+    const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const serviceClient = createClient(
+    const db = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
 
-    const { data: conn } = await serviceClient
+    const { data: conn } = await db
       .from('wa_connections')
       .select('access_token, phone_number_id')
       .eq('tenant_id', user.id)
@@ -29,7 +35,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
     }
 
-    // Parse multipart form data
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 
@@ -73,7 +78,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No media handle returned from Meta' }, { status: 500 });
     }
 
-    // Step 2: Set as profile picture using the media handle
+    // Step 2: Set as profile picture
     const profileRes = await fetch(
       `https://graph.facebook.com/v19.0/${phoneNumberId}/whatsapp_business_profile`,
       {
@@ -94,9 +99,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.error?.message || 'Failed to set profile picture' }, { status: profileRes.status });
     }
 
-    // Update last sync timestamp
-    await serviceClient
-      .from('wa_connections')
+    await db.from('wa_connections')
       .update({ updated_at: new Date().toISOString() })
       .eq('tenant_id', user.id);
 
