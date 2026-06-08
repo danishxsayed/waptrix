@@ -34,7 +34,7 @@ export async function GET() {
 
     const { data: conn, error: dbError } = await db
       .from('wa_connections')
-      .select('access_token, phone_number_id, waba_id, phone_number, business_name, updated_at')
+      .select('access_token, phone_number_id, waba_id, phone_number, business_name')
       .eq('tenant_id', user.id)
       .single();
 
@@ -122,7 +122,7 @@ export async function GET() {
       websites: data.websites || [],
       phone_number: phoneName,
       business_name: bizName,
-      last_sync: conn.updated_at,
+      last_sync: null,
     });
   } catch (err: any) {
     console.error('Profile GET error:', err);
@@ -177,10 +177,6 @@ export async function POST(request: Request) {
       const err = await res.json();
       return NextResponse.json({ error: err.error?.message || 'Failed to update profile' }, { status: res.status });
     }
-
-    await db.from('wa_connections')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('tenant_id', user.id);
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

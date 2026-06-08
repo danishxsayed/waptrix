@@ -99,10 +99,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: err.error?.message || 'Failed to set profile picture' }, { status: profileRes.status });
     }
 
-    await db.from('wa_connections')
-      .update({ updated_at: new Date().toISOString() })
-      .eq('tenant_id', user.id);
-
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
