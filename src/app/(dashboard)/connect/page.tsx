@@ -22,6 +22,8 @@ export default function ConnectPage() {
   // Webhook subscription state
   const [isSubscribing, setIsSubscribing] = useState(false);
   const [subscribeMsg, setSubscribeMsg] = useState("");
+  const [showWabaInput, setShowWabaInput] = useState(false);
+  const [manualWabaId, setManualWabaId] = useState("");
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -140,16 +142,26 @@ export default function ConnectPage() {
     }
   }
 
-  async function handleSubscribeWebhook() {
+  async function handleSubscribeWebhook(wabaIdOverride?: string) {
     setIsSubscribing(true);
     setSubscribeMsg('');
     try {
-      const res = await fetch('/api/whatsapp/subscribe-webhook', { method: 'POST' });
+      const body = wabaIdOverride ? { wabaId: wabaIdOverride } : {};
+      const res = await fetch('/api/whatsapp/subscribe-webhook', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
       const data = await res.json();
-      if (!res.ok) {
+      if (res.status === 422 && data.error === 'needs-waba-id') {
+        setShowWabaInput(true);
+        setSubscribeMsg('');
+      } else if (!res.ok) {
         setSubscribeMsg(`Error: ${data.error || 'Subscription failed'}`);
       } else {
         setSubscribeMsg('Webhook subscribed! Messages will now appear in your inbox.');
+        setShowWabaInput(false);
+        setManualWabaId('');
       }
     } catch (err: any) {
       setSubscribeMsg(`Error: ${err.message}`);
@@ -249,6 +261,36 @@ export default function ConnectPage() {
                   {subscribeMsg}
                 </p>
               )}
+
+            {showWabaInput && (
+              <div className="mt-4 p-4 bg-surface border border-border rounded-xl space-y-3">
+                <p className="text-xs font-bold text-text-primary">Enter your WhatsApp Business Account (WABA) ID</p>
+                <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-lg text-xs text-text-muted space-y-1">
+                  <p className="font-bold text-amber-400">How to find your WABA ID:</p>
+                  <p>1. Go to <a href="https://business.facebook.com/settings/whatsapp-business-accounts" target="_blank" rel="noopener noreferrer" className="text-jade hover:underline inline-flex items-center gap-0.5">Meta Business Settings <ExternalLink className="w-3 h-3" /></a></p>
+                  <p>2. Click your WhatsApp Business Account</p>
+                  <p>3. Copy the numeric ID shown (e.g. 123456789012345)</p>
+                  <p className="text-text-muted/60">Note: This is different from your Phone Number ID</p>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={manualWabaId}
+                    onChange={e => setManualWabaId(e.target.value.replace(/\D/g, ''))}
+                    placeholder="e.g. 123456789012345"
+                    className="input-field flex-1 text-sm font-mono"
+                  />
+                  <button
+                    onClick={() => handleSubscribeWebhook(manualWabaId)}
+                    disabled={!manualWabaId.trim() || isSubscribing}
+                    className="btn-primary text-sm disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {isSubscribing && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    Subscribe
+                  </button>
+                </div>
+              </div>
+            )}
             </div>
 
             {/* Register Phone Panel */}
