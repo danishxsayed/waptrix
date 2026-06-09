@@ -242,6 +242,20 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
+    // Auto-subscribe WABA to this app's webhook so Meta delivers events
+    if (wabaId && wabaId !== 'manual') {
+      try {
+        const subRes = await fetch(
+          `https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`,
+          { method: 'POST', headers: { Authorization: `Bearer ${longLivedToken}` } }
+        );
+        const subData = await subRes.json();
+        console.log('WABA webhook subscription:', JSON.stringify(subData));
+      } catch (e) {
+        console.warn('WABA webhook subscription failed (non-fatal):', e);
+      }
+    }
+
     return NextResponse.json({ success: true, phoneNumber: displayPhone, businessName });
   } catch (err: any) {
     console.error('oauth-connect error:', err);
