@@ -244,7 +244,7 @@ export default function ConnectPage() {
                     {registerSuccess ? 'Phone Registered ✓' : 'Register Phone Number (fix Pending status)'}
                   </button>
                   <button
-                    onClick={handleSubscribeWebhook}
+                    onClick={() => handleSubscribeWebhook()}
                     disabled={isSubscribing}
                     className="text-xs font-bold text-blue-400 hover:text-blue-300 hover:underline transition-all flex items-center gap-1.5 disabled:opacity-50"
                   >

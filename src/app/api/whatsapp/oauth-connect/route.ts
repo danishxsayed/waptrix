@@ -40,7 +40,7 @@ async function fetchPhoneFromWaba(wabaId: string, token: string): Promise<{
         businessName: phone.verified_name || '',
       };
     }
-  } catch (_) {}
+  } catch (_) { }
   return null;
 }
 
@@ -71,7 +71,7 @@ async function detectWhatsAppAccount(token: string): Promise<{
       // WABA found but no phone number yet
       return { wabaId: waba.id, phoneNumberId: '', displayPhone: '', businessName: waba.name || '' };
     }
-  } catch (_) {}
+  } catch (_) { }
 
   // Method 2: me/whatsapp_business_accounts (needs whatsapp_business_management scope)
   try {
@@ -88,7 +88,7 @@ async function detectWhatsAppAccount(token: string): Promise<{
       }
       return { wabaId: waba.id, phoneNumberId: '', displayPhone: '', businessName: waba.name || '' };
     }
-  } catch (_) {}
+  } catch (_) { }
 
   return null;
 }
@@ -99,7 +99,7 @@ export async function POST(req: Request) {
     const ssrClient = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} } }
+      { cookies: { getAll() { return cookieStore.getAll(); }, setAll() { } } }
     );
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -179,7 +179,7 @@ export async function POST(req: Request) {
         if (!wabaId && d.whatsapp_business_account?.id) {
           wabaId = d.whatsapp_business_account.id;
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     if (!phoneNumberId) {
@@ -254,7 +254,7 @@ export async function POST(req: Request) {
         if (d?.whatsapp_business_account?.id) {
           wabaId = d.whatsapp_business_account.id;
         }
-      } catch (_) {}
+      } catch (_) { }
     }
 
     // Auto-subscribe WABA to this app's webhook so Meta delivers events.
