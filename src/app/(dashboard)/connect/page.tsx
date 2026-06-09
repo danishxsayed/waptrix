@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 
 import { useEffect, useState } from "react";
-import { Link2, Shield, AlertTriangle, CheckCircle, Loader2, ExternalLink } from "lucide-react";
+import { Link2, Shield, AlertTriangle, CheckCircle, Loader2, ExternalLink, KeyRound } from "lucide-react";
 
 export default function ConnectPage() {
   const [status, setStatus] = useState<'idle' | 'connecting' | 'need-phone-id' | 'connected' | 'error'>('idle');
@@ -11,6 +11,13 @@ export default function ConnectPage() {
   const [phoneNumberId, setPhoneNumberId] = useState("");
   const [pendingCode, setPendingCode] = useState("");
   const [isSaving, setIsSaving] = useState(false);
+
+  // Phone registration state
+  const [showRegister, setShowRegister] = useState(false);
+  const [registerPin, setRegisterPin] = useState("");
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registerError, setRegisterError] = useState("");
+  const [registerSuccess, setRegisterSuccess] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -29,10 +36,8 @@ export default function ConnectPage() {
     }
 
     if (code && wabaId && phoneId) {
-      // Full Embedded Signup response — exchange directly
       handleOAuthCallback(code, wabaId, phoneId);
     } else if (code) {
-      // Only got code (user already had WABA set up) — store code, ask for phone_number_id
       setPendingCode(code);
       setStatus('need-phone-id');
     } else {
@@ -69,16 +74,11 @@ export default function ConnectPage() {
         setErrorMsg(data.error);
       } else {
         setStatus('connected');
-        // Prefer API response values; fall back to re-reading from DB via checkConnection
         if (data.phoneNumber || data.businessName) {
           setConnectionInfo({ phoneNumber: data.phoneNumber, businessName: data.businessName });
         } else {
-          // Phone name might be empty if Meta hasn't set verified_name yet — read from DB
           const conn = await fetch('/api/whatsapp/connection').then(r => r.json()).catch(() => null);
-          setConnectionInfo({
-            phoneNumber: conn?.phoneNumber || '',
-            businessName: conn?.businessName || '',
-          });
+          setConnectionInfo({ phoneNumber: conn?.phoneNumber || '', businessName: conn?.businessName || '' });
         }
       }
     } catch (err: any) {
@@ -128,9 +128,39 @@ export default function ConnectPage() {
       await fetch('/api/whatsapp/connection', { method: 'DELETE' });
       setStatus('idle');
       setConnectionInfo(null);
+      setShowRegister(false);
+      setRegisterSuccess(false);
     } catch (err: any) {
       setStatus('error');
       setErrorMsg(err.message || 'Failed to disconnect');
+    }
+  }
+
+  async function handleRegisterPhone() {
+    if (!/^\d{6}$/.test(registerPin)) {
+      setRegisterError('Enter a 6-digit PIN');
+      return;
+    }
+    setIsRegistering(true);
+    setRegisterError('');
+    try {
+      const res = await fetch('/api/whatsapp/register-phone', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pin: registerPin }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setRegisterError(data.error || 'Registration failed');
+      } else {
+        setRegisterSuccess(true);
+        setShowRegister(false);
+        setRegisterPin('');
+      }
+    } catch (err: any) {
+      setRegisterError(err.message || 'Registration failed');
+    } finally {
+      setIsRegistering(false);
     }
   }
 
@@ -154,26 +184,85 @@ export default function ConnectPage() {
 
         {/* Connected */}
         {status === 'connected' && connectionInfo && (
-          <div className="p-6 bg-jade/5 border border-jade/10 rounded-2xl space-y-4">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="w-6 h-6 text-jade" />
-              <p className="text-jade font-bold font-syne text-lg">WhatsApp Connected Successfully!</p>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 text-sm">
-              <div className="p-4 bg-surface border border-border rounded-xl">
-                <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Display Phone Number</span>
-                <p className="font-semibold text-text-primary mt-1">{connectionInfo.phoneNumber || '—'}</p>
+          <div className="space-y-4">
+            <div className="p-6 bg-jade/5 border border-jade/10 rounded-2xl space-y-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="w-6 h-6 text-jade" />
+                <p className="text-jade font-bold font-syne text-lg">WhatsApp Connected Successfully!</p>
               </div>
-              <div className="p-4 bg-surface border border-border rounded-xl">
-                <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Business Name</span>
-                <p className="font-semibold text-text-primary mt-1">{connectionInfo.businessName || '—'}</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 text-sm">
+                <div className="p-4 bg-surface border border-border rounded-xl">
+                  <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Display Phone Number</span>
+                  <p className="font-semibold text-text-primary mt-1">{connectionInfo.phoneNumber || '—'}</p>
+                </div>
+                <div className="p-4 bg-surface border border-border rounded-xl">
+                  <span className="text-xs text-text-muted uppercase tracking-wider font-bold">Business Name</span>
+                  <p className="font-semibold text-text-primary mt-1">{connectionInfo.businessName || '—'}</p>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-2">
+                <button
+                  onClick={() => { setShowRegister(!showRegister); setRegisterError(''); }}
+                  className="text-xs font-bold text-jade hover:text-jade/80 hover:underline transition-all flex items-center gap-1.5"
+                >
+                  <KeyRound className="w-3.5 h-3.5" />
+                  {registerSuccess ? 'Phone Registered ✓' : 'Register Phone Number (fix Pending status)'}
+                </button>
+                <button onClick={handleDisconnect} className="text-xs font-bold text-red-500 hover:text-red-400 hover:underline transition-all">
+                  Disconnect Account
+                </button>
               </div>
             </div>
-            <div className="flex justify-end pt-2">
-              <button onClick={handleDisconnect} className="text-xs font-bold text-red-500 hover:text-red-400 hover:underline transition-all">
-                Disconnect Account
-              </button>
-            </div>
+
+            {/* Register Phone Panel */}
+            {showRegister && !registerSuccess && (
+              <div className="p-6 bg-surface border border-border rounded-2xl space-y-4">
+                <div className="flex items-center gap-3">
+                  <KeyRound className="w-5 h-5 text-jade" />
+                  <p className="font-bold font-syne">Register Phone Number with Meta</p>
+                </div>
+
+                <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl text-xs text-text-muted space-y-1.5">
+                  <p className="font-bold text-amber-500 uppercase tracking-wider">Why is this needed?</p>
+                  <p>Meta requires phone numbers to be registered via the Cloud API before they can send/receive messages. This fixes the "Pending" status in WhatsApp Manager.</p>
+                  <p className="mt-2 font-bold text-text-primary">Set a 6-digit 2FA PIN for your WhatsApp Business number. Remember this PIN — you'll need it if you ever re-register.</p>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-xs font-bold text-text-muted uppercase tracking-wider">2FA PIN (6 digits)</label>
+                  <input
+                    type="password"
+                    maxLength={6}
+                    value={registerPin}
+                    onChange={e => setRegisterPin(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                    placeholder="e.g. 123456"
+                    className="input-field w-full text-sm font-mono tracking-widest"
+                  />
+                  {registerError && <p className="text-xs text-red-500">{registerError}</p>}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={handleRegisterPhone}
+                    disabled={isRegistering || registerPin.length !== 6}
+                    className="btn-primary flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isRegistering && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {isRegistering ? 'Registering...' : 'Register Phone Number'}
+                  </button>
+                  <button onClick={() => { setShowRegister(false); setRegisterPin(''); setRegisterError(''); }} className="btn-secondary text-sm">
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {registerSuccess && (
+              <div className="p-4 bg-jade/5 border border-jade/10 rounded-2xl flex items-center gap-3">
+                <CheckCircle className="w-5 h-5 text-jade" />
+                <p className="text-sm text-jade font-semibold">Phone number registered successfully! The "Pending" status in Meta should update within a few minutes.</p>
+              </div>
+            )}
           </div>
         )}
 
@@ -205,7 +294,7 @@ export default function ConnectPage() {
           </div>
         )}
 
-        {/* Saving */}
+        {/* Connecting */}
         {status === 'connecting' && (
           <div className="p-8 bg-surface border border-border rounded-2xl flex flex-col items-center text-center space-y-4">
             <Loader2 className="w-10 h-10 text-jade animate-spin" />
@@ -224,7 +313,6 @@ export default function ConnectPage() {
               Enter your <strong className="text-text-primary">Phone Number ID</strong> from Meta Business Manager to complete the connection.
             </p>
 
-            {/* Step-by-step guide */}
             <div className="p-4 bg-jade/5 border border-jade/10 rounded-xl space-y-2 text-xs text-text-muted">
               <p className="font-bold text-text-primary text-xs uppercase tracking-wider mb-2">How to find your Phone Number ID</p>
               <p>1. Go to <a href="https://business.facebook.com/settings/whatsapp-business-accounts" target="_blank" rel="noopener noreferrer" className="text-jade hover:underline inline-flex items-center gap-0.5">Meta Business Settings <ExternalLink className="w-3 h-3" /></a></p>
