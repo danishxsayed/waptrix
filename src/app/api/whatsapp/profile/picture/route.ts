@@ -68,10 +68,12 @@ export async function POST(request: Request) {
 
     if (!uploadRes.ok) {
       const err = await uploadRes.json();
-      return NextResponse.json({ error: err.error?.message || 'Failed to upload image' }, { status: uploadRes.status });
+      console.error('Media upload error:', JSON.stringify(err));
+      return NextResponse.json({ error: err.error?.message || 'Failed to upload image', details: err }, { status: uploadRes.status });
     }
 
     const uploadData = await uploadRes.json();
+    console.log('Media upload response:', JSON.stringify(uploadData));
     const mediaHandle = uploadData.h || uploadData.id;
 
     if (!mediaHandle) {
