@@ -242,12 +242,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
-    // Auto-subscribe WABA to this app's webhook so Meta delivers events
+    // Auto-subscribe WABA to this app's webhook so Meta delivers events.
+    // Uses META_SYSTEM_TOKEN (platform-level) if available — otherwise falls back
+    // to the user's token (works when coming from a fresh Embedded Signup).
     if (wabaId && wabaId !== 'manual') {
       try {
+        const subscriptionToken = process.env.META_SYSTEM_TOKEN || longLivedToken;
         const subRes = await fetch(
           `https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`,
-          { method: 'POST', headers: { Authorization: `Bearer ${longLivedToken}` } }
+          { method: 'POST', headers: { Authorization: `Bearer ${subscriptionToken}` } }
         );
         const subData = await subRes.json();
         console.log('WABA webhook subscription:', JSON.stringify(subData));

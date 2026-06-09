@@ -40,12 +40,15 @@ export async function POST() {
       return NextResponse.json({ error: 'WABA ID not available. Please reconnect.' }, { status: 400 });
     }
 
-    // Subscribe WABA to this app's webhook
+    // Use platform System User token if available (works for all WABAs connected to this app).
+    // Falls back to tenant's token (works for fresh Embedded Signup connections).
+    const subscriptionToken = process.env.META_SYSTEM_TOKEN || conn.access_token;
+
     const res = await fetch(
       `https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`,
       {
         method: 'POST',
-        headers: { Authorization: `Bearer ${conn.access_token}` },
+        headers: { Authorization: `Bearer ${subscriptionToken}` },
       }
     );
 
