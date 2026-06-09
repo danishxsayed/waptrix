@@ -19,6 +19,10 @@ export default function ConnectPage() {
   const [registerError, setRegisterError] = useState("");
   const [registerSuccess, setRegisterSuccess] = useState(false);
 
+  // Webhook subscription state
+  const [isSubscribing, setIsSubscribing] = useState(false);
+  const [subscribeMsg, setSubscribeMsg] = useState("");
+
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const code = params.get('code');
@@ -136,6 +140,24 @@ export default function ConnectPage() {
     }
   }
 
+  async function handleSubscribeWebhook() {
+    setIsSubscribing(true);
+    setSubscribeMsg('');
+    try {
+      const res = await fetch('/api/whatsapp/subscribe-webhook', { method: 'POST' });
+      const data = await res.json();
+      if (!res.ok) {
+        setSubscribeMsg(`Error: ${data.error || 'Subscription failed'}`);
+      } else {
+        setSubscribeMsg('Webhook subscribed! Messages will now appear in your inbox.');
+      }
+    } catch (err: any) {
+      setSubscribeMsg(`Error: ${err.message}`);
+    } finally {
+      setIsSubscribing(false);
+    }
+  }
+
   async function handleRegisterPhone() {
     if (!/^\d{6}$/.test(registerPin)) {
       setRegisterError('Enter a 6-digit PIN');
@@ -200,18 +222,33 @@ export default function ConnectPage() {
                   <p className="font-semibold text-text-primary mt-1">{connectionInfo.businessName || '—'}</p>
                 </div>
               </div>
-              <div className="flex items-center justify-between pt-2">
-                <button
-                  onClick={() => { setShowRegister(!showRegister); setRegisterError(''); }}
-                  className="text-xs font-bold text-jade hover:text-jade/80 hover:underline transition-all flex items-center gap-1.5"
-                >
-                  <KeyRound className="w-3.5 h-3.5" />
-                  {registerSuccess ? 'Phone Registered ✓' : 'Register Phone Number (fix Pending status)'}
-                </button>
+              <div className="flex items-center justify-between pt-2 flex-wrap gap-2">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <button
+                    onClick={() => { setShowRegister(!showRegister); setRegisterError(''); }}
+                    className="text-xs font-bold text-jade hover:text-jade/80 hover:underline transition-all flex items-center gap-1.5"
+                  >
+                    <KeyRound className="w-3.5 h-3.5" />
+                    {registerSuccess ? 'Phone Registered ✓' : 'Register Phone Number (fix Pending status)'}
+                  </button>
+                  <button
+                    onClick={handleSubscribeWebhook}
+                    disabled={isSubscribing}
+                    className="text-xs font-bold text-blue-400 hover:text-blue-300 hover:underline transition-all flex items-center gap-1.5 disabled:opacity-50"
+                  >
+                    {isSubscribing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                    {isSubscribing ? 'Subscribing...' : 'Subscribe Webhook (fix inbox)'}
+                  </button>
+                </div>
                 <button onClick={handleDisconnect} className="text-xs font-bold text-red-500 hover:text-red-400 hover:underline transition-all">
                   Disconnect Account
                 </button>
               </div>
+              {subscribeMsg && (
+                <p className={`text-xs mt-1 ${subscribeMsg.startsWith('Error') ? 'text-red-400' : 'text-jade'}`}>
+                  {subscribeMsg}
+                </p>
+              )}
             </div>
 
             {/* Register Phone Panel */}

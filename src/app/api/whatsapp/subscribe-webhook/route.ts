@@ -33,8 +33,28 @@ export async function POST() {
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
     }
 
-    const wabaId = conn.waba_id && !['pending', 'manual'].includes(conn.waba_id)
+    let wabaId: string | null = conn.waba_id && !['pending', 'manual'].includes(conn.waba_id)
       ? conn.waba_id : null;
+
+    // If waba_id is 'manual', look up real WABA ID from phone_number_id via Meta API
+    if (!wabaId && conn.phone_number_id && conn.phone_number_id !== 'pending') {
+      const lookupToken = process.env.META_SYSTEM_TOKEN || conn.access_token;
+      try {
+        const lookupRes = await fetch(
+          `https://graph.facebook.com/v19.0/${conn.phone_number_id}?fields=whatsapp_business_account&access_token=${lookupToken}`
+        );
+        const lookupData = await lookupRes.json();
+        console.log('WABA lookup from phone:', JSON.stringify(lookupData).substring(0, 300));
+        if (lookupData?.whatsapp_business_account?.id) {
+          wabaId = lookupData.whatsapp_business_account.id;
+          // Persist so future calls don't need to look it up again
+          await db.from('wa_connections').update({ waba_id: wabaId }).eq('tenant_id', user.id);
+          console.log(`Updated waba_id to ${wabaId} for tenant ${user.id}`);
+        }
+      } catch (e) {
+        console.warn('WABA lookup failed:', e);
+      }
+    }
 
     if (!wabaId) {
       return NextResponse.json({ error: 'WABA ID not available. Please reconnect.' }, { status: 400 });

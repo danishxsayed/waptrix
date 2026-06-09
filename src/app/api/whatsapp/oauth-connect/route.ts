@@ -242,6 +242,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
+    // If waba_id is still unknown, try to resolve from phone number via system token
+    if ((!wabaId || wabaId === 'manual') && phoneNumberId && phoneNumberId !== 'pending') {
+      try {
+        const lookupToken = process.env.META_SYSTEM_TOKEN || longLivedToken;
+        const r = await fetch(
+          `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=whatsapp_business_account&access_token=${lookupToken}`
+        );
+        const d = await r.json();
+        console.log('WABA lookup from phone (oauth):', JSON.stringify(d).substring(0, 300));
+        if (d?.whatsapp_business_account?.id) {
+          wabaId = d.whatsapp_business_account.id;
+        }
+      } catch (_) {}
+    }
+
     // Auto-subscribe WABA to this app's webhook so Meta delivers events.
     // Uses META_SYSTEM_TOKEN (platform-level) if available — otherwise falls back
     // to the user's token (works when coming from a fresh Embedded Signup).
