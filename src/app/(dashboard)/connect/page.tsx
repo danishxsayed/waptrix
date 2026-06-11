@@ -55,7 +55,7 @@ export default function ConnectPage() {
     try {
       const res = await fetch('/api/whatsapp/connection');
       const data = await res.json();
-      if (data?.connected && data.wabaId && data.wabaId !== 'pending') {
+      if (data?.connected && data.phoneNumberId && data.phoneNumberId !== 'pending') {
         setStatus('connected');
         setConnectionInfo({ phoneNumber: data.phoneNumber, businessName: data.businessName });
       } else {

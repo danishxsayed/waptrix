@@ -35,7 +35,7 @@ export async function GET() {
 
     const { data, error } = await serviceClient
       .from('wa_connections')
-      .select('waba_id, phone_number_id, phone_number, business_name')
+      .select('waba_id, phone_number_id, phone_number, business_name, access_token')
       .eq('tenant_id', user.id)
       .single()
 
@@ -43,12 +43,35 @@ export async function GET() {
       return NextResponse.json({ connected: false })
     }
 
+    let phoneNumber = data.phone_number || ''
+    let businessName = data.business_name || ''
+
+    // Backfill missing display fields from Meta API on the fly
+    if ((!phoneNumber || !businessName) && data.phone_number_id && data.phone_number_id !== 'pending') {
+      try {
+        const token = process.env.META_SYSTEM_TOKEN || data.access_token
+        const r = await fetch(
+          `https://graph.facebook.com/v19.0/${data.phone_number_id}?fields=display_phone_number,verified_name&access_token=${token}`
+        )
+        const d = await r.json()
+        if (d.display_phone_number || d.verified_name) {
+          if (!phoneNumber) phoneNumber = d.display_phone_number || ''
+          if (!businessName) businessName = d.verified_name || ''
+          // Persist so next load is instant
+          await serviceClient
+            .from('wa_connections')
+            .update({ phone_number: phoneNumber, business_name: businessName })
+            .eq('tenant_id', user.id)
+        }
+      } catch (_) {}
+    }
+
     return NextResponse.json({
       connected: true,
       wabaId: data.waba_id,
       phoneNumberId: data.phone_number_id,
-      phoneNumber: data.phone_number,
-      businessName: data.business_name,
+      phoneNumber,
+      businessName,
     })
 
   } catch (err: any) {
