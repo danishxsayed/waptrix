@@ -61,7 +61,7 @@ export async function GET(request: Request) {
         for (const contact of contacts) {
           try {
             const response = await metaApi.sendTemplateMessage(
-              waConnection.access_token,
+              process.env.META_SYSTEM_TOKEN || waConnection.access_token,
               waConnection.phone_number_id,
               {
                 to: contact.phone,

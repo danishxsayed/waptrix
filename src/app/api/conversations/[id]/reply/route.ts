@@ -50,8 +50,11 @@ export async function POST(
     const { type = 'text', content, templateName, languageCode, components, mediaUrl, mediaMimeType } = body;
 
     const baseUrl = `https://graph.facebook.com/v19.0/${waConn.phone_number_id}/messages`;
+    // Use META_SYSTEM_TOKEN if available — it has send permissions on all WABAs connected to this app.
+    // Falls back to the tenant's stored token.
+    const sendToken = process.env.META_SYSTEM_TOKEN || waConn.access_token;
     const headers = {
-      Authorization: `Bearer ${waConn.access_token}`,
+      Authorization: `Bearer ${sendToken}`,
       'Content-Type': 'application/json',
     };
 
@@ -92,7 +95,7 @@ export async function POST(
           `https://graph.facebook.com/v19.0/${waConn.phone_number_id}/media`,
           {
             method: 'POST',
-            headers: { Authorization: `Bearer ${waConn.access_token}` },
+            headers: { Authorization: `Bearer ${sendToken}` },
             body: (() => {
               const fd = new FormData();
               fd.append('messaging_product', 'whatsapp');
