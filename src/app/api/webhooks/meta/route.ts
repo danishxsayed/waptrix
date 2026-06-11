@@ -183,6 +183,7 @@ async function handleMessages(db: ReturnType<typeof createClient>, value: any) {
 // ──────────────────────────────────────────────────────────
 async function handleTemplateStatusUpdate(db: ReturnType<typeof createClient>, value: any, wabaId: string) {
   const metaTemplateId = String(value.message_template_id ?? '');
+  const templateName: string = value.message_template_name ?? '';
   const event: string = value.event ?? '';
   const reason: string = value.reason ?? '';
 
@@ -204,15 +205,72 @@ async function handleTemplateStatusUpdate(db: ReturnType<typeof createClient>, v
   const updateData: Record<string, any> = { meta_status: newStatus };
   if (reason) updateData.rejection_reason = reason;
 
-  const { error } = await db
+  // Update template row and return id + tenant_id for notification
+  const { data: updatedTemplate, error } = await db
     .from('templates')
     .update(updateData)
-    .eq('meta_template_id', metaTemplateId);
+    .eq('meta_template_id', metaTemplateId)
+    .select('id, tenant_id, name')
+    .single();
 
   if (error) {
     console.error('Template status update failed:', error.message);
-  } else {
-    console.log(`Template ${metaTemplateId} → ${newStatus}${reason ? ` (${reason})` : ''}`);
+    return;
+  }
+
+  console.log(`Template ${metaTemplateId} → ${newStatus}${reason ? ` (${reason})` : ''}`);
+
+  // ── Create a notification for the tenant ──────────────────
+  const tenantId = updatedTemplate?.tenant_id;
+  const displayName = updatedTemplate?.name || templateName || metaTemplateId;
+
+  const notifMap: Record<string, { title: string; body: string }> = {
+    APPROVED: {
+      title: '✅ Template Approved',
+      body: `Your template "${displayName}" has been approved by Meta and is ready to use.`,
+    },
+    REJECTED: {
+      title: '❌ Template Rejected',
+      body: `Your template "${displayName}" was rejected by Meta.${reason ? ` Reason: ${reason}` : ' Please review and resubmit.'}`,
+    },
+    FLAGGED: {
+      title: '⚠️ Template Flagged',
+      body: `Your template "${displayName}" has been flagged by Meta. Review your content.`,
+    },
+    PAUSED: {
+      title: '⏸️ Template Paused',
+      body: `Your template "${displayName}" has been paused by Meta due to low quality ratings.`,
+    },
+    DISABLED: {
+      title: '🚫 Template Disabled',
+      body: `Your template "${displayName}" has been disabled by Meta.`,
+    },
+    PENDING_DELETION: {
+      title: '🗑️ Template Pending Deletion',
+      body: `Your template "${displayName}" is pending deletion.`,
+    },
+  };
+
+  const notif = notifMap[newStatus] ?? {
+    title: '🔄 Template Status Updated',
+    body: `Your template "${displayName}" status changed to ${newStatus}.`,
+  };
+
+  if (tenantId) {
+    const { error: notifErr } = await db.from('notifications').insert({
+      tenant_id: tenantId,
+      type: 'template_status',
+      title: notif.title,
+      body: notif.body,
+      meta: {
+        template_id: updatedTemplate?.id ?? null,
+        meta_template_id: metaTemplateId,
+        template_name: displayName,
+        status: newStatus,
+        reason: reason || null,
+      },
+    });
+    if (notifErr) console.error('Notification insert failed:', notifErr.message);
   }
 }
 

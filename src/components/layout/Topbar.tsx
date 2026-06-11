@@ -1,8 +1,9 @@
 "use client";
 
-import { Bell, Search, User, Loader2 } from "lucide-react";
+import { Search, User, Loader2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useTenant } from "@/context/TenantContext";
+import NotificationBell from "@/components/layout/NotificationBell";
 
 export default function Topbar() {
   const pathname = usePathname();
@@ -42,10 +43,7 @@ export default function Topbar() {
           />
         </div>
 
-        <button className="relative p-2 text-text-muted hover:text-jade transition-colors">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-jade rounded-full border-2 border-surface"></span>
-        </button>
+        <NotificationBell />
 
         <div className="h-8 w-[1px] bg-border mx-2"></div>
 
