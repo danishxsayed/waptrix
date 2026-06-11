@@ -251,8 +251,14 @@ export async function POST(req: Request) {
         );
         const d = await r.json();
         console.log('WABA lookup from phone (oauth):', JSON.stringify(d).substring(0, 300));
-        if (d?.whatsapp_business_account?.id) {
+        if (d?.whatsapp_business_account?.id && d.whatsapp_business_account.id !== phoneNumberId) {
           wabaId = d.whatsapp_business_account.id;
+          // Persist the resolved WABA ID — previous save used 'manual' as placeholder
+          await db
+            .from('wa_connections')
+            .update({ waba_id: wabaId })
+            .eq('tenant_id', user.id);
+          console.log('Saved resolved WABA ID to DB:', wabaId);
         }
       } catch (_) { }
     }
