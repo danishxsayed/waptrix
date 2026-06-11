@@ -61,6 +61,7 @@ export async function POST(
     let metaPayload: any;
     let storedType = type;
     let storedContent = content || '';
+    let mediaId: string | null = null; // declared at function scope so it's always accessible
 
     if (type === 'text') {
       // ── Free-text message (within 24h customer service window)
@@ -87,7 +88,6 @@ export async function POST(
 
     } else if (['image', 'document', 'video', 'audio'].includes(type)) {
       // ── Media message — upload file to Meta first if raw URL provided
-      let mediaId: string | null = null;
 
       if (mediaUrl) {
         // mediaUrl is a base64 data URL — convert to binary bytes for upload
