@@ -128,47 +128,53 @@ export default function InboxPanel({
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
 
   // ── Notification sound — warm C-E-G chime
-  // AudioContext is reused (browser blocks audio until first user interaction)
-  const playNotificationSound = useCallback(async () => {
+  const playNotificationSound = useCallback(() => {
     try {
-      if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AC = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AC) return;
+      if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+        audioCtxRef.current = new AC();
       }
       const ctx = audioCtxRef.current;
-      // Resume if browser suspended it (autoplay policy)
-      if (ctx.state === 'suspended') await ctx.resume();
-
-      const t = ctx.currentTime;
-      [
-        { freq: 523.25, delay: 0,    dur: 0.45 },
-        { freq: 659.25, delay: 0.10, dur: 0.45 },
-        { freq: 783.99, delay: 0.20, dur: 0.60 },
-      ].forEach(({ freq, delay, dur }) => {
-        const osc  = ctx.createOscillator();
-        const gain = ctx.createGain();
-        osc.type = 'sine';
-        osc.frequency.value = freq;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        gain.gain.setValueAtTime(0, t + delay);
-        gain.gain.linearRampToValueAtTime(0.22, t + delay + 0.012);
-        gain.gain.exponentialRampToValueAtTime(0.001, t + delay + dur);
-        osc.start(t + delay);
-        osc.stop(t + delay + dur + 0.05);
-      });
+      const play = () => {
+        const t = ctx.currentTime;
+        [
+          { freq: 523.25, delay: 0,    dur: 0.45 },
+          { freq: 659.25, delay: 0.10, dur: 0.45 },
+          { freq: 783.99, delay: 0.20, dur: 0.60 },
+        ].forEach(({ freq, delay, dur }) => {
+          const osc  = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = 'sine';
+          osc.frequency.value = freq;
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          gain.gain.setValueAtTime(0, t + delay);
+          gain.gain.linearRampToValueAtTime(0.22, t + delay + 0.012);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + delay + dur);
+          osc.start(t + delay);
+          osc.stop(t + delay + dur + 0.05);
+        });
+      };
+      ctx.state === 'suspended' ? ctx.resume().then(play) : play();
     } catch (_) {}
   }, []);
 
-  // ── Prime AudioContext on first user click (browser autoplay policy)
+  // ── Unlock AudioContext on any user interaction
   useEffect(() => {
-    const prime = () => {
+    const unlock = () => {
       if (!audioCtxRef.current) {
-        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const AC = window.AudioContext || (window as any).webkitAudioContext;
+        if (AC) audioCtxRef.current = new AC();
       }
-      if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume();
+      if (audioCtxRef.current?.state === 'suspended') audioCtxRef.current.resume();
     };
-    window.addEventListener('click', prime, { once: true });
-    return () => window.removeEventListener('click', prime);
+    document.addEventListener('click', unlock);
+    document.addEventListener('keydown', unlock);
+    return () => {
+      document.removeEventListener('click', unlock);
+      document.removeEventListener('keydown', unlock);
+    };
   }, []);
 
   // ── Fetch conversations
@@ -207,6 +213,43 @@ export default function InboxPanel({
     fetchConversations();
     fetchTemplates();
   }, [fetchConversations, fetchTemplates]);
+
+  // ── Polling fallback — guarantees updates even if Supabase Realtime is down
+  useEffect(() => {
+    const poll = async () => {
+      // Refresh conversations and check for new unread
+      const res = await fetch('/api/conversations');
+      if (!res.ok) return;
+      const fresh: Conversation[] = await res.json();
+
+      setConversations(prev => {
+        const prevUnread = prev.reduce((s, c) => s + (c.unread_count || 0), 0);
+        const newUnread  = fresh.reduce((s, c) => s + (c.unread_count || 0), 0);
+        if (newUnread > prevUnread) playNotificationSound();
+        // Only update state if something actually changed
+        const changed = JSON.stringify(fresh.map(c => `${c.id}:${c.last_message_at}:${c.unread_count}`))
+                     !== JSON.stringify(prev.map(c => `${c.id}:${c.last_message_at}:${c.unread_count}`));
+        return changed ? fresh : prev;
+      });
+
+      // Refresh active conversation messages
+      const conv = activeConvRef.current;
+      if (!conv) return;
+      const mRes = await fetch(`/api/conversations/${conv.id}/messages`);
+      if (!mRes.ok) return;
+      const freshMsgs: ChatMessage[] = await mRes.json();
+      setMessages(prev => {
+        if (freshMsgs.length === prev.filter(m => !m.id.startsWith('temp-')).length) return prev;
+        // Merge: keep optimistic temp messages, add new real ones
+        const realIds = new Set(prev.filter(m => !m.id.startsWith('temp-')).map(m => m.id));
+        const newReal = freshMsgs.filter(m => !realIds.has(m.id));
+        return newReal.length > 0 ? [...prev.filter(m => !m.id.startsWith('temp-')), ...freshMsgs.slice(-200)] : prev;
+      });
+    };
+
+    const interval = setInterval(poll, 3000);
+    return () => clearInterval(interval);
+  }, [playNotificationSound]);
 
   // ── Select a conversation
   const selectConversation = useCallback(
