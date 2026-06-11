@@ -148,21 +148,35 @@ export async function POST(req: Request) {
             // Update status to 'sending'
             await serviceClient.from('campaigns').update({ status: 'sending' }).eq('id', campaign.id);
 
+            // Use META_SYSTEM_TOKEN for sends — falls back to tenant token if not set
+            const sendToken = process.env.META_SYSTEM_TOKEN || waConnection.access_token;
+
             let sentCount = 0;
             let failedCount = 0;
 
             for (const contact of contacts) {
               try {
-                const response = await metaApi.sendTemplateMessage(
-                  waConnection.access_token,
-                  waConnection.phone_number_id,
-                  {
-                    to: contact.phone,
-                    templateName: template.name,
-                    languageCode: template.language,
-                    components: template.components || [],
+                let response;
+                try {
+                  response = await metaApi.sendTemplateMessage(
+                    sendToken,
+                    waConnection.phone_number_id,
+                    { to: contact.phone, templateName: template.name, languageCode: template.language, components: template.components || [] }
+                  );
+                } catch (firstErr: any) {
+                  // If system token gets #200 permissions error, retry with tenant token
+                  const errCode = firstErr?.response?.data?.error?.code;
+                  if (errCode === 200 && process.env.META_SYSTEM_TOKEN) {
+                    console.warn(`System token #200 for ${contact.phone}, retrying with tenant token`);
+                    response = await metaApi.sendTemplateMessage(
+                      waConnection.access_token,
+                      waConnection.phone_number_id,
+                      { to: contact.phone, templateName: template.name, languageCode: template.language, components: template.components || [] }
+                    );
+                  } else {
+                    throw firstErr;
                   }
-                );
+                }
                 
                 const metaMsgId = response?.messages?.[0]?.id || null;
 
