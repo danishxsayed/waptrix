@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   MessageSquare, Send, Paperclip, Search, CheckCheck, Check,
@@ -119,23 +119,31 @@ export default function InboxPanel({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const activeConvRef = useRef<Conversation | null>(null); // stable ref to avoid stale closures
-  const supabase = createClient();
+  const activeConvRef = useRef<Conversation | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  // ── Stable client: MUST NOT be re-created on every render or realtime breaks
+  const supabase = useMemo(() => createClient(), []);
 
   // Keep ref in sync with state
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
 
-  // ── Notification sound — warm 3-note chime (C-E-G arpeggio)
-  const playNotificationSound = useCallback(() => {
+  // ── Notification sound — warm C-E-G chime
+  // AudioContext is reused (browser blocks audio until first user interaction)
+  const playNotificationSound = useCallback(async () => {
     try {
-      const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      const ctx = audioCtxRef.current;
+      // Resume if browser suspended it (autoplay policy)
+      if (ctx.state === 'suspended') await ctx.resume();
+
       const t = ctx.currentTime;
-      const notes = [
-        { freq: 523.25, delay: 0,    dur: 0.45 }, // C5
-        { freq: 659.25, delay: 0.10, dur: 0.45 }, // E5
-        { freq: 783.99, delay: 0.20, dur: 0.60 }, // G5
-      ];
-      notes.forEach(({ freq, delay, dur }) => {
+      [
+        { freq: 523.25, delay: 0,    dur: 0.45 },
+        { freq: 659.25, delay: 0.10, dur: 0.45 },
+        { freq: 783.99, delay: 0.20, dur: 0.60 },
+      ].forEach(({ freq, delay, dur }) => {
         const osc  = ctx.createOscillator();
         const gain = ctx.createGain();
         osc.type = 'sine';
@@ -149,6 +157,18 @@ export default function InboxPanel({
         osc.stop(t + delay + dur + 0.05);
       });
     } catch (_) {}
+  }, []);
+
+  // ── Prime AudioContext on first user click (browser autoplay policy)
+  useEffect(() => {
+    const prime = () => {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+      }
+      if (audioCtxRef.current.state === 'suspended') audioCtxRef.current.resume();
+    };
+    window.addEventListener('click', prime, { once: true });
+    return () => window.removeEventListener('click', prime);
   }, []);
 
   // ── Fetch conversations
