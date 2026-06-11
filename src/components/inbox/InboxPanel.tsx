@@ -119,22 +119,35 @@ export default function InboxPanel({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const activeConvRef = useRef<Conversation | null>(null); // stable ref to avoid stale closures
   const supabase = createClient();
 
-  // ── Notification sound (Web Audio API — no external file needed)
+  // Keep ref in sync with state
+  useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
+
+  // ── Notification sound — warm 3-note chime (C-E-G arpeggio)
   const playNotificationSound = useCallback(() => {
     try {
       const ctx = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.frequency.setValueAtTime(880, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(440, ctx.currentTime + 0.15);
-      gain.gain.setValueAtTime(0.3, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.3);
-      osc.start(ctx.currentTime);
-      osc.stop(ctx.currentTime + 0.3);
+      const t = ctx.currentTime;
+      const notes = [
+        { freq: 523.25, delay: 0,    dur: 0.45 }, // C5
+        { freq: 659.25, delay: 0.10, dur: 0.45 }, // E5
+        { freq: 783.99, delay: 0.20, dur: 0.60 }, // G5
+      ];
+      notes.forEach(({ freq, delay, dur }) => {
+        const osc  = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = 'sine';
+        osc.frequency.value = freq;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        gain.gain.setValueAtTime(0, t + delay);
+        gain.gain.linearRampToValueAtTime(0.22, t + delay + 0.012);
+        gain.gain.exponentialRampToValueAtTime(0.001, t + delay + dur);
+        osc.start(t + delay);
+        osc.stop(t + delay + dur + 0.05);
+      });
     } catch (_) {}
   }, []);
 
@@ -207,74 +220,68 @@ export default function InboxPanel({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // ── Supabase Realtime — listen for new messages
+  // ── Supabase Realtime — single stable subscription (no re-mount on conv change)
+  // Uses activeConvRef to avoid stale closures when switching conversations.
   useEffect(() => {
     const channel = supabase
-      .channel("inbox-realtime")
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "chat_messages",
-        },
-        (payload) => {
-          const newMsg = payload.new as ChatMessage;
+      .channel(`inbox-${Date.now()}`) // unique name prevents ghost subscriptions
+      // New inbound/outbound messages
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
+        const newMsg = payload.new as ChatMessage;
+        const currentConv = activeConvRef.current;
 
-          // If message is for the active conversation, append it
-          if (newMsg.conversation_id === activeConv?.id) {
-            setMessages((prev) => {
-              if (prev.find((m) => m.id === newMsg.id)) return prev;
-              return [...prev, newMsg];
-            });
-          }
-
-          // Update conversation list
-          if (newMsg.direction === "inbound") {
-            playNotificationSound();
-            setConversations((prev) => {
-              const updated = prev.map((c) => {
-                if (c.id === newMsg.conversation_id) {
-                  const isActive = activeConv?.id === c.id;
-                  return {
-                    ...c,
-                    last_message: newMsg.content,
-                    last_message_at: newMsg.created_at,
-                    unread_count: isActive ? 0 : (c.unread_count || 0) + 1,
-                  };
-                }
-                return c;
-              });
-              // Re-sort by latest
-              return updated.sort(
-                (a, b) =>
-                  new Date(b.last_message_at).getTime() -
-                  new Date(a.last_message_at).getTime()
-              );
-            });
-          }
+        // Append to active conversation's message list
+        if (newMsg.conversation_id === currentConv?.id) {
+          setMessages((prev) => prev.find((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]);
         }
-      )
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "chat_messages",
-        },
-        (payload) => {
-          const updated = payload.new as ChatMessage;
-          setMessages((prev) =>
-            prev.map((m) => (m.id === updated.id ? updated : m))
-          );
-        }
-      )
-      .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [activeConv?.id, playNotificationSound]);
+        // Update conversation sidebar for inbound messages
+        if (newMsg.direction === "inbound") {
+          playNotificationSound();
+          setConversations((prev) => {
+            const exists = prev.find((c) => c.id === newMsg.conversation_id);
+            if (!exists) {
+              // Unknown conversation — re-fetch the full list
+              fetchConversations();
+              return prev;
+            }
+            return prev
+              .map((c) => c.id === newMsg.conversation_id ? {
+                ...c,
+                last_message: newMsg.content,
+                last_message_at: newMsg.created_at,
+                unread_count: currentConv?.id === c.id ? 0 : (c.unread_count || 0) + 1,
+              } : c)
+              .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+          });
+        }
+      })
+      // Message status updates (sent → delivered → read)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_messages" }, (payload) => {
+        const updated = payload.new as ChatMessage;
+        setMessages((prev) => prev.map((m) => m.id === updated.id ? { ...m, status: updated.status } : m));
+      })
+      // New conversations (first message from a new contact)
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "conversations" }, (payload) => {
+        const newConv = payload.new as Conversation;
+        setConversations((prev) => prev.find((c) => c.id === newConv.id) ? prev : [newConv, ...prev]);
+      })
+      // Conversation updates (last_message, unread_count)
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations" }, (payload) => {
+        const updated = payload.new as Conversation;
+        setConversations((prev) =>
+          prev
+            .map((c) => c.id === updated.id ? { ...c, ...updated } : c)
+            .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
+        );
+      })
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') console.log('Inbox realtime connected');
+        if (status === 'CHANNEL_ERROR') console.error('Inbox realtime error — falling back to polling');
+      });
+
+    return () => { supabase.removeChannel(channel); };
+  }, []); // ← empty deps: subscribe ONCE for the lifetime of the component
 
   // ── Send reply — optimistic UI for instant feel
   const sendReply = async () => {
