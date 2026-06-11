@@ -1,6 +1,22 @@
 import { NextResponse } from 'next/server';
 import { metaApi } from '@/lib/meta';
 
+function buildRuntimeComponents(
+  templateBody: string,
+  variableMapping: Record<string, string>,
+  contact: Record<string, any>
+): any[] {
+  const varMatches = templateBody.match(/\{\{(\d+)\}\}/g) || [];
+  if (varMatches.length === 0) return [];
+  const parameters = varMatches.map((v) => {
+    const num = v.replace('{{', '').replace('}}', '');
+    const fieldName = variableMapping[num] || '';
+    const value = contact[fieldName] || fieldName || `{{${num}}}`;
+    return { type: 'text', text: String(value) };
+  });
+  return [{ type: 'body', parameters }];
+}
+
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
@@ -46,7 +62,7 @@ export async function GET(request: Request) {
       // Fetch contacts for the specific campaign segment
       let contactsQuery = serviceClient
         .from('contacts')
-        .select('id, phone')
+        .select('id, phone, name, email, custom1, custom2, custom3')
         .eq('tenant_id', campaign.tenant_id);
 
       if (campaign.segment_id) {
@@ -60,6 +76,12 @@ export async function GET(request: Request) {
         let failedCount = 0;
         for (const contact of contacts) {
           try {
+            const runtimeComponents = buildRuntimeComponents(
+              campaign.templates.body || '',
+              campaign.variable_mapping || {},
+              contact
+            );
+
             const response = await metaApi.sendTemplateMessage(
               process.env.META_SYSTEM_TOKEN || waConnection.access_token,
               waConnection.phone_number_id,
@@ -67,7 +89,7 @@ export async function GET(request: Request) {
                 to: contact.phone,
                 templateName: campaign.templates.name.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
                 languageCode: campaign.templates.language,
-                components: campaign.templates.components || [],
+                components: runtimeComponents,
               }
             );
             

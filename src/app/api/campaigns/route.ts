@@ -6,6 +6,27 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server';
 import { metaApi } from '@/lib/meta';
 
+// Build Meta runtime components for template message sends.
+// variable_mapping: { "1": "name", "2": "phone", ... }
+// contact: { name, phone, email, custom1, custom2, custom3 }
+function buildRuntimeComponents(
+  templateBody: string,
+  variableMapping: Record<string, string>,
+  contact: Record<string, any>
+): any[] {
+  const varMatches = templateBody.match(/\{\{(\d+)\}\}/g) || [];
+  if (varMatches.length === 0) return [];
+
+  const parameters = varMatches.map((v) => {
+    const num = v.replace('{{', '').replace('}}', '');
+    const fieldName = variableMapping[num] || '';
+    const value = contact[fieldName] || fieldName || `{{${num}}}`;
+    return { type: 'text', text: String(value) };
+  });
+
+  return [{ type: 'body', parameters }];
+}
+
 export async function GET() {
   try {
     const cookieStore = await cookies()
@@ -132,10 +153,10 @@ export async function POST(req: Request) {
           .single();
 
         if (template && waConnection) {
-          // 3. Fetch contacts in segment
+          // 3. Fetch contacts in segment (include all fields for variable substitution)
           let contactsQuery = serviceClient
             .from('contacts')
-            .select('id, phone')
+            .select('id, phone, name, email, custom1, custom2, custom3')
             .eq('tenant_id', user.id);
 
           if (segment_id) {
@@ -157,6 +178,13 @@ export async function POST(req: Request) {
 
             for (const contact of contacts) {
               try {
+                // Build runtime components from variable_mapping + contact data
+                const runtimeComponents = buildRuntimeComponents(
+                  template.body || '',
+                  variable_mapping || {},
+                  contact
+                );
+
                 const response = await metaApi.sendTemplateMessage(
                   sendToken,
                   waConnection.phone_number_id,
@@ -164,7 +192,7 @@ export async function POST(req: Request) {
                     to: contact.phone,
                     templateName: template.name.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
                     languageCode: template.language,
-                    components: template.components || [],
+                    components: runtimeComponents,
                   }
                 );
                 
