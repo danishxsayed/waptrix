@@ -65,7 +65,7 @@ export async function GET(request: Request) {
               waConnection.phone_number_id,
               {
                 to: contact.phone,
-                templateName: campaign.templates.name,
+                templateName: campaign.templates.name.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
                 languageCode: campaign.templates.language,
                 components: campaign.templates.components || [],
               }

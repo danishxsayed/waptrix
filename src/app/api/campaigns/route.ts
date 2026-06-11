@@ -160,7 +160,12 @@ export async function POST(req: Request) {
                 const response = await metaApi.sendTemplateMessage(
                   sendToken,
                   waConnection.phone_number_id,
-                  { to: contact.phone, templateName: template.name, languageCode: template.language, components: template.components || [] }
+                  {
+                    to: contact.phone,
+                    templateName: template.name.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
+                    languageCode: template.language,
+                    components: template.components || [],
+                  }
                 );
                 
                 const metaMsgId = response?.messages?.[0]?.id || null;
