@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   MessageSquare, Send, Paperclip, Search, CheckCheck, Check,
-  Clock, FileText, Mic, X, Loader2
+  Clock, FileText, Mic, X, Loader2, Download, Play
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 
@@ -86,13 +86,11 @@ function avatarInitials(name: string) {
 // ─── Status icon ─────────────────────────────────────────────────────────────
 
 function StatusIcon({ status }: { status: string }) {
-  if (status === "read")
-    return <CheckCheck className="w-3.5 h-3.5 text-blue-400" />;
-  if (status === "delivered")
-    return <CheckCheck className="w-3.5 h-3.5 text-text-muted" />;
+  if (status === "read") return <CheckCheck className="w-3.5 h-3.5 text-blue-400" />;
+  if (status === "delivered") return <CheckCheck className="w-3.5 h-3.5 text-text-muted" />;
   if (status === "sent") return <Check className="w-3.5 h-3.5 text-text-muted" />;
-  if (status === "failed")
-    return <X className="w-3.5 h-3.5 text-red-400" />;
+  if (status === "failed") return <X className="w-3.5 h-3.5 text-red-400" />;
+  if (status === "sending") return <Loader2 className="w-3 h-3 text-background/60 animate-spin" />;
   return <Clock className="w-3 h-3 text-text-muted" />;
 }
 
@@ -278,80 +276,93 @@ export default function InboxPanel({
     };
   }, [activeConv?.id, playNotificationSound]);
 
-  // ── Send reply
+  // ── Send reply — optimistic UI for instant feel
   const sendReply = async () => {
     if (!activeConv) return;
-
     if (replyMode === "text" && !replyText.trim()) return;
     if (replyMode === "template" && !selectedTemplate) return;
     if (replyMode === "media" && !mediaFile && !mediaPreview) return;
 
+    let body: any = {};
+    let optimisticContent = "";
+
+    if (replyMode === "text") {
+      optimisticContent = replyText.trim();
+      body = { type: "text", content: optimisticContent };
+    } else if (replyMode === "template" && selectedTemplate) {
+      optimisticContent = `[Template: ${selectedTemplate.name}]`;
+      body = {
+        type: "template",
+        templateName: selectedTemplate.name,
+        languageCode: selectedTemplate.language || "en_US",
+        components: [],
+      };
+    } else if (replyMode === "media" && mediaFile) {
+      const mediaType = mediaFile.type.startsWith("image/") ? "image"
+        : mediaFile.type.startsWith("video/") ? "video"
+        : mediaFile.type.startsWith("audio/") ? "audio"
+        : "document";
+      optimisticContent = `[${mediaType}]`;
+
+      const dataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.readAsDataURL(mediaFile);
+      });
+      body = { type: mediaType, mediaUrl: dataUrl, mediaMimeType: mediaFile.type };
+    }
+
+    // ── Optimistic: show message instantly with "sending" status
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: ChatMessage = {
+      id: tempId,
+      conversation_id: activeConv.id,
+      direction: "outbound",
+      type: body.type || "text",
+      content: optimisticContent,
+      status: "sending",
+      created_at: new Date().toISOString(),
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setReplyText("");
+    setMediaFile(null);
+    setMediaPreview("");
+    setSelectedTemplate(null);
+
     setIsSending(true);
-
     try {
-      let body: any = {};
-
-      if (replyMode === "text") {
-        body = { type: "text", content: replyText.trim() };
-      } else if (replyMode === "template" && selectedTemplate) {
-        body = {
-          type: "template",
-          templateName: selectedTemplate.name,
-          languageCode: selectedTemplate.language || "en_US",
-          components: [],
-        };
-      } else if (replyMode === "media" && mediaFile) {
-        // Convert file to base64 data URL for upload
-        const dataUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result as string);
-          reader.readAsDataURL(mediaFile);
-        });
-
-        const mediaType = mediaFile.type.startsWith("image/")
-          ? "image"
-          : mediaFile.type.startsWith("video/")
-          ? "video"
-          : mediaFile.type.startsWith("audio/")
-          ? "audio"
-          : "document";
-
-        body = {
-          type: mediaType,
-          mediaUrl: dataUrl,
-          mediaMimeType: mediaFile.type,
-        };
-      }
-
       const res = await fetch(`/api/conversations/${activeConv.id}/reply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
-
       const data = await res.json();
 
       if (!res.ok) {
+        // Replace optimistic message with failed status
+        setMessages((prev) =>
+          prev.map((m) => m.id === tempId ? { ...m, status: "failed" } : m)
+        );
         alert(data.error || "Failed to send");
         return;
       }
 
-      // Append the sent message optimistically
-      setMessages((prev) => [...prev, data]);
-      setReplyText("");
-      setMediaFile(null);
-      setMediaPreview("");
-      setSelectedTemplate(null);
+      // Replace optimistic message with real one from server
+      setMessages((prev) =>
+        prev.map((m) => m.id === tempId ? { ...data, id: data.id || tempId } : m)
+      );
 
-      // Update conversation last message
       setConversations((prev) =>
         prev.map((c) =>
           c.id === activeConv.id
-            ? { ...c, last_message: data.content, last_message_at: data.created_at }
+            ? { ...c, last_message: optimisticContent, last_message_at: new Date().toISOString() }
             : c
         )
       );
     } catch (err: any) {
+      setMessages((prev) =>
+        prev.map((m) => m.id === tempId ? { ...m, status: "failed" } : m)
+      );
       alert(err.message || "Failed to send");
     } finally {
       setIsSending(false);
@@ -526,29 +537,66 @@ export default function InboxPanel({
                                 : "bg-card border border-border text-text-primary rounded-bl-sm"
                             }`}
                           >
-                            {/* Media badge */}
-                            {msg.type === "image" && (
-                              <div className="flex items-center gap-1.5 mb-1 opacity-70">
-                                <FileText className="w-3.5 h-3.5" />
-                                <span className="text-[10px] font-semibold uppercase">Photo</span>
+                            {/* Media rendering */}
+                            {msg.type === "image" && msg.media_id && (
+                              <div className="mb-2 rounded-xl overflow-hidden max-w-[240px]">
+                                <img
+                                  src={`/api/whatsapp/media/${msg.media_id}`}
+                                  alt="Photo"
+                                  className="w-full h-auto object-cover rounded-xl cursor-pointer"
+                                  onClick={() => window.open(`/api/whatsapp/media/${msg.media_id}`, '_blank')}
+                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                />
                               </div>
                             )}
-                            {msg.type === "document" && (
-                              <div className="flex items-center gap-1.5 mb-1 opacity-70">
-                                <FileText className="w-3.5 h-3.5" />
-                                <span className="text-[10px] font-semibold uppercase">Document</span>
+                            {msg.type === "video" && msg.media_id && (
+                              <div className="mb-2 rounded-xl overflow-hidden max-w-[240px]">
+                                <video
+                                  controls
+                                  className="w-full h-auto rounded-xl"
+                                  src={`/api/whatsapp/media/${msg.media_id}`}
+                                />
                               </div>
                             )}
-                            {msg.type === "audio" && (
-                              <div className="flex items-center gap-1.5 mb-1 opacity-70">
-                                <Mic className="w-3.5 h-3.5" />
-                                <span className="text-[10px] font-semibold uppercase">Voice message</span>
+                            {msg.type === "audio" && msg.media_id && (
+                              <div className="mb-2">
+                                <audio controls className="w-full max-w-[220px]" src={`/api/whatsapp/media/${msg.media_id}`} />
+                              </div>
+                            )}
+                            {msg.type === "document" && msg.media_id && (
+                              <a
+                                href={`/api/whatsapp/media/${msg.media_id}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className={`flex items-center gap-2 mb-2 px-3 py-2 rounded-xl border ${
+                                  msg.direction === "outbound"
+                                    ? "border-background/20 text-background/80 hover:text-background"
+                                    : "border-border text-text-muted hover:text-text-primary"
+                                } transition-colors`}
+                              >
+                                <FileText className="w-4 h-4 flex-shrink-0" />
+                                <span className="text-xs font-medium truncate max-w-[160px]">
+                                  {msg.content || "Document"}
+                                </span>
+                                <Download className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
+                              </a>
+                            )}
+                            {msg.type === "sticker" && msg.media_id && (
+                              <div className="mb-2 w-20 h-20">
+                                <img
+                                  src={`/api/whatsapp/media/${msg.media_id}`}
+                                  alt="Sticker"
+                                  className="w-full h-full object-contain"
+                                />
                               </div>
                             )}
 
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                              {msg.content}
-                            </p>
+                            {/* Text content — show for text messages and as caption for media */}
+                            {(msg.type === "text" || (msg.content && !["[image]","[video]","[audio]","[document]","[sticker]"].includes(msg.content))) && (
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
+                                {msg.content}
+                              </p>
+                            )}
 
                             <div
                               className={`flex items-center gap-1 mt-1 ${
