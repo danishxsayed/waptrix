@@ -121,11 +121,13 @@ export default function InboxPanel({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeConvRef = useRef<Conversation | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const onUnreadChangeRef = useRef(onUnreadChange);
   // ── Stable client: MUST NOT be re-created on every render or realtime breaks
   const supabase = useMemo(() => createClient(), []);
 
-  // Keep ref in sync with state
+  // Keep refs in sync with latest props/state
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
+  useEffect(() => { onUnreadChangeRef.current = onUnreadChange; }, [onUnreadChange]);
 
   // ── Notification sound — warm C-E-G chime
   const playNotificationSound = useCallback(() => {
@@ -222,15 +224,18 @@ export default function InboxPanel({
       if (!res.ok) return;
       const fresh: Conversation[] = await res.json();
 
+      const newTotal = fresh.reduce((s, c) => s + (c.unread_count || 0), 0);
+
       setConversations(prev => {
         const prevUnread = prev.reduce((s, c) => s + (c.unread_count || 0), 0);
-        const newUnread  = fresh.reduce((s, c) => s + (c.unread_count || 0), 0);
-        if (newUnread > prevUnread) playNotificationSound();
-        // Only update state if something actually changed
+        if (newTotal > prevUnread) playNotificationSound();
         const changed = JSON.stringify(fresh.map(c => `${c.id}:${c.last_message_at}:${c.unread_count}`))
                      !== JSON.stringify(prev.map(c => `${c.id}:${c.last_message_at}:${c.unread_count}`));
         return changed ? fresh : prev;
       });
+
+      // Always sync sidebar badge with latest server count
+      onUnreadChangeRef.current?.(newTotal);
 
       // Refresh active conversation messages
       const conv = activeConvRef.current;
