@@ -160,20 +160,44 @@ export async function POST(
     const metaMessageId = sendData.messages?.[0]?.id ?? null;
 
     // Save outbound message to DB
-    const { data: savedMsg } = await db
+    const insertPayload: Record<string, any> = {
+      tenant_id: user.id,
+      conversation_id: conversationId,
+      direction: 'outbound',
+      meta_message_id: metaMessageId,
+      type: storedType,
+      content: storedContent,
+      status: 'sent',
+    };
+    // Only include media_id if we have one (column may not exist in older schemas)
+    if (mediaId) insertPayload.media_id = mediaId;
+
+    const { data: savedMsg, error: insertErr } = await db
       .from('chat_messages')
-      .insert({
-        tenant_id: user.id,
-        conversation_id: conversationId,
-        direction: 'outbound',
-        meta_message_id: metaMessageId,
-        type: storedType,
-        content: storedContent,
-        media_id: mediaId ?? null,
-        status: 'sent',
-      })
+      .insert(insertPayload)
       .select()
       .single();
+
+    if (insertErr) {
+      // If media_id column doesn't exist, retry without it
+      if (insertErr.message?.includes('media_id') || insertErr.code === '42703') {
+        delete insertPayload.media_id;
+        const { data: retryMsg } = await db
+          .from('chat_messages')
+          .insert(insertPayload)
+          .select()
+          .single();
+
+        await db.from('conversations').update({
+          last_message: storedContent.slice(0, 120),
+          last_message_at: new Date().toISOString(),
+        }).eq('id', conversationId);
+
+        // Attach mediaId manually so frontend can display the media
+        return NextResponse.json({ ...(retryMsg ?? insertPayload), media_id: mediaId ?? null });
+      }
+      console.error('chat_messages insert error:', insertErr.message);
+    }
 
     // Update conversation last_message
     await db
@@ -184,7 +208,7 @@ export async function POST(
       })
       .eq('id', conversationId);
 
-    return NextResponse.json(savedMsg);
+    return NextResponse.json({ ...(savedMsg ?? insertPayload), media_id: mediaId ?? null });
   } catch (err: any) {
     console.error('Reply error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
