@@ -148,9 +148,9 @@ export async function POST(req: Request) {
             // Update status to 'sending'
             await serviceClient.from('campaigns').update({ status: 'sending' }).eq('id', campaign.id);
 
-            // Use tenant's own token for sends — it has explicit send permissions from OAuth.
-            // META_SYSTEM_TOKEN is for webhook/template ops only (requires WABA asset assignment to send).
-            const sendToken = waConnection.access_token;
+            // META_SYSTEM_TOKEN has send permissions granted via Embedded Signup.
+            // Falls back to tenant's own token if system token not configured.
+            const sendToken = process.env.META_SYSTEM_TOKEN || waConnection.access_token;
 
             let sentCount = 0;
             let failedCount = 0;
