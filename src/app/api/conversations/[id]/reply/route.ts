@@ -90,23 +90,32 @@ export async function POST(
       let mediaId: string | null = null;
 
       if (mediaUrl) {
-        // Upload to Meta media API
-        const uploadRes = await fetch(
-          `https://graph.facebook.com/v19.0/${waConn.phone_number_id}/media`,
-          {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${sendToken}` },
-            body: (() => {
-              const fd = new FormData();
-              fd.append('messaging_product', 'whatsapp');
-              fd.append('type', mediaMimeType || 'image/jpeg');
-              fd.append('file_url', mediaUrl);
-              return fd;
-            })(),
+        // mediaUrl is a base64 data URL — convert to binary bytes for upload
+        const base64Match = mediaUrl.match(/^data:([^;]+);base64,(.+)$/);
+        if (base64Match) {
+          const mimeType = base64Match[1];
+          const binaryData = Buffer.from(base64Match[2], 'base64');
+          const blob = new Blob([binaryData], { type: mimeType });
+
+          const fd = new FormData();
+          fd.append('messaging_product', 'whatsapp');
+          fd.append('file', blob, 'upload');
+
+          const uploadRes = await fetch(
+            `https://graph.facebook.com/v19.0/${waConn.phone_number_id}/media`,
+            {
+              method: 'POST',
+              headers: { Authorization: `Bearer ${sendToken}` },
+              body: fd,
+            }
+          );
+          const uploadData = await uploadRes.json();
+          console.log('Media upload result:', JSON.stringify(uploadData).substring(0, 200));
+          mediaId = uploadData?.id ?? null;
+          if (!mediaId) {
+            return NextResponse.json({ error: uploadData?.error?.message || 'Media upload failed' }, { status: 400 });
           }
-        );
-        const uploadData = await uploadRes.json();
-        mediaId = uploadData?.id ?? null;
+        }
       }
 
       metaPayload = {
