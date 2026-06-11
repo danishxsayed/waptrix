@@ -320,6 +320,8 @@ export default function InboxPanel({
       direction: "outbound",
       type: body.type || "text",
       content: optimisticContent,
+      // For media: use local object URL so image shows immediately
+      media_url: replyMode === "media" && mediaPreview ? mediaPreview : undefined,
       status: "sending",
       created_at: new Date().toISOString(),
     };
@@ -538,53 +540,57 @@ export default function InboxPanel({
                             }`}
                           >
                             {/* Media rendering */}
-                            {msg.type === "image" && msg.media_id && (
-                              <div className="mb-2 rounded-xl overflow-hidden max-w-[240px]">
-                                <img
-                                  src={`/api/whatsapp/media/${msg.media_id}`}
-                                  alt="Photo"
-                                  className="w-full h-auto object-cover rounded-xl cursor-pointer"
-                                  onClick={() => window.open(`/api/whatsapp/media/${msg.media_id}`, '_blank')}
-                                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                                />
-                              </div>
-                            )}
-                            {msg.type === "video" && msg.media_id && (
+                            {msg.type === "image" && (msg.media_id || msg.media_url) && (() => {
+                              const src = msg.media_url || `/api/whatsapp/media/${msg.media_id}`;
+                              return (
+                                <div className="mb-2 rounded-xl overflow-hidden max-w-[240px]">
+                                  <img
+                                    src={src}
+                                    alt="Photo"
+                                    className="w-full h-auto object-cover rounded-xl cursor-pointer"
+                                    onClick={() => window.open(src, '_blank')}
+                                    onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                  />
+                                </div>
+                              );
+                            })()}
+                            {msg.type === "video" && (msg.media_id || msg.media_url) && (
                               <div className="mb-2 rounded-xl overflow-hidden max-w-[240px]">
                                 <video
                                   controls
                                   className="w-full h-auto rounded-xl"
-                                  src={`/api/whatsapp/media/${msg.media_id}`}
+                                  src={msg.media_url || `/api/whatsapp/media/${msg.media_id}`}
                                 />
                               </div>
                             )}
-                            {msg.type === "audio" && msg.media_id && (
+                            {msg.type === "audio" && (msg.media_id || msg.media_url) && (
                               <div className="mb-2">
-                                <audio controls className="w-full max-w-[220px]" src={`/api/whatsapp/media/${msg.media_id}`} />
+                                <audio controls className="w-full max-w-[220px]"
+                                  src={msg.media_url || `/api/whatsapp/media/${msg.media_id}`} />
                               </div>
                             )}
-                            {msg.type === "document" && msg.media_id && (
-                              <a
-                                href={`/api/whatsapp/media/${msg.media_id}`}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className={`flex items-center gap-2 mb-2 px-3 py-2 rounded-xl border ${
-                                  msg.direction === "outbound"
-                                    ? "border-background/20 text-background/80 hover:text-background"
-                                    : "border-border text-text-muted hover:text-text-primary"
-                                } transition-colors`}
-                              >
-                                <FileText className="w-4 h-4 flex-shrink-0" />
-                                <span className="text-xs font-medium truncate max-w-[160px]">
-                                  {msg.content || "Document"}
-                                </span>
-                                <Download className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
-                              </a>
-                            )}
-                            {msg.type === "sticker" && msg.media_id && (
+                            {msg.type === "document" && (msg.media_id || msg.media_url) && (() => {
+                              const href = msg.media_url || `/api/whatsapp/media/${msg.media_id}`;
+                              return (
+                                <a href={href} target="_blank" rel="noopener noreferrer"
+                                  className={`flex items-center gap-2 mb-2 px-3 py-2 rounded-xl border ${
+                                    msg.direction === "outbound"
+                                      ? "border-background/20 text-background/80 hover:text-background"
+                                      : "border-border text-text-muted hover:text-text-primary"
+                                  } transition-colors`}
+                                >
+                                  <FileText className="w-4 h-4 flex-shrink-0" />
+                                  <span className="text-xs font-medium truncate max-w-[160px]">
+                                    {msg.content || "Document"}
+                                  </span>
+                                  <Download className="w-3.5 h-3.5 flex-shrink-0 opacity-60" />
+                                </a>
+                              );
+                            })()}
+                            {msg.type === "sticker" && (msg.media_id || msg.media_url) && (
                               <div className="mb-2 w-20 h-20">
                                 <img
-                                  src={`/api/whatsapp/media/${msg.media_id}`}
+                                  src={msg.media_url || `/api/whatsapp/media/${msg.media_id}`}
                                   alt="Sticker"
                                   className="w-full h-full object-contain"
                                 />

@@ -169,6 +169,7 @@ export async function POST(
         meta_message_id: metaMessageId,
         type: storedType,
         content: storedContent,
+        media_id: mediaId ?? null,
         status: 'sent',
       })
       .select()
