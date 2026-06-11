@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { Link2, Shield, AlertTriangle, CheckCircle, Loader2, ExternalLink, KeyRound } from "lucide-react";
 
 export default function ConnectPage() {
-  const [status, setStatus] = useState<'idle' | 'connecting' | 'need-phone-id' | 'connected' | 'error'>('idle');
+  const [status, setStatus] = useState<'loading' | 'idle' | 'connecting' | 'need-phone-id' | 'connected' | 'error'>('loading');
   const [connectionInfo, setConnectionInfo] = useState<any>(null);
   const [errorMsg, setErrorMsg] = useState("");
   const [phoneNumberId, setPhoneNumberId] = useState("");
@@ -214,6 +214,9 @@ export default function ConnectPage() {
           {status === 'connected' && (
             <div className="badge-jade flex items-center gap-1.5 py-1 px-3">Connected</div>
           )}
+          {status === 'loading' && (
+            <div className="w-6 h-6" />
+          )}
         </div>
 
         {/* Connected */}
@@ -370,6 +373,13 @@ export default function ConnectPage() {
             <button onClick={launchSignup} className="btn-primary flex items-center gap-2 mt-4">
               Connect WhatsApp Business
             </button>
+          </div>
+        )}
+
+        {/* Loading (initial check) */}
+        {status === 'loading' && (
+          <div className="p-8 flex items-center justify-center">
+            <Loader2 className="w-8 h-8 text-jade animate-spin" />
           </div>
         )}
 
