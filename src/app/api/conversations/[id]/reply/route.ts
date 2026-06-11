@@ -121,16 +121,27 @@ export async function POST(
       return NextResponse.json({ error: `Unsupported message type: ${type}` }, { status: 400 });
     }
 
-    // Send via Meta API
-    const sendRes = await fetch(baseUrl, {
+    // Send via Meta API — try system token first, fall back to tenant token
+    let sendRes = await fetch(baseUrl, {
       method: 'POST',
       headers,
       body: JSON.stringify(metaPayload),
     });
-    const sendData = await sendRes.json();
+    let sendData = await sendRes.json();
+
+    // If system token failed with permissions error, retry with tenant's own token
+    if (sendData.error && process.env.META_SYSTEM_TOKEN && sendData.error.code === 200) {
+      console.warn('System token send failed (#200), retrying with tenant token');
+      sendRes = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${waConn.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(metaPayload),
+      });
+      sendData = await sendRes.json();
+    }
 
     if (sendData.error) {
-      console.error('Meta send error:', sendData.error);
+      console.error('Meta send error:', JSON.stringify(sendData.error));
       return NextResponse.json({
         error: sendData.error.message || 'Failed to send message',
         metaError: sendData.error,

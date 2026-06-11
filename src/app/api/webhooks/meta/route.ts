@@ -141,9 +141,22 @@ async function handleMessages(db: ReturnType<typeof createClient>, value: any) {
       conversationId = newConv.id;
     }
 
-    await db
+    // Check for duplicate before inserting (partial unique index only covers non-null meta_message_id)
+    if (metaMessageId) {
+      const { data: existing } = await db
+        .from('chat_messages')
+        .select('id')
+        .eq('meta_message_id', metaMessageId)
+        .maybeSingle();
+      if (existing) {
+        console.log(`Duplicate message skipped: ${metaMessageId}`);
+        continue;
+      }
+    }
+
+    const { error: insertErr } = await db
       .from('chat_messages')
-      .upsert({
+      .insert({
         tenant_id: tenantId,
         conversation_id: conversationId,
         direction: 'inbound',
@@ -154,7 +167,11 @@ async function handleMessages(db: ReturnType<typeof createClient>, value: any) {
         media_mime: mediaMime,
         status: 'delivered',
         created_at: msgTimestamp,
-      }, { onConflict: 'meta_message_id', ignoreDuplicates: true });
+      });
+
+    if (insertErr) {
+      console.error('chat_messages insert error:', insertErr.message, insertErr.code);
+    }
   }
 }
 
