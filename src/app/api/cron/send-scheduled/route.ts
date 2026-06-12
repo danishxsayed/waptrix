@@ -94,6 +94,53 @@ export async function GET(request: Request) {
             );
             
             const metaMsgId = response?.messages?.[0]?.id || null;
+            const now = new Date().toISOString();
+            const messageContent = `[Template: ${campaign.templates.name}]`;
+
+            // ── Sync to inbox ─────────────────────────────────────
+            const { data: existingConv } = await serviceClient
+              .from('conversations')
+              .select('id')
+              .eq('tenant_id', campaign.tenant_id)
+              .eq('contact_phone', contact.phone)
+              .single();
+
+            let conversationId: string;
+            if (existingConv) {
+              conversationId = existingConv.id;
+              await serviceClient.from('conversations').update({
+                contact_name: contact.name || contact.phone,
+                last_message: messageContent,
+                last_message_at: now,
+              }).eq('id', conversationId);
+            } else {
+              const { data: newConv } = await serviceClient
+                .from('conversations')
+                .insert({
+                  tenant_id: campaign.tenant_id,
+                  contact_phone: contact.phone,
+                  contact_name: contact.name || contact.phone,
+                  last_message: messageContent,
+                  last_message_at: now,
+                  unread_count: 0,
+                  status: 'open',
+                })
+                .select('id')
+                .single();
+              conversationId = newConv!.id;
+            }
+
+            await serviceClient.from('chat_messages').insert({
+              tenant_id: campaign.tenant_id,
+              conversation_id: conversationId,
+              direction: 'outbound',
+              meta_message_id: metaMsgId,
+              type: 'template',
+              content: messageContent,
+              status: 'sent',
+              created_at: now,
+            });
+            // ─────────────────────────────────────────────────────
 
             await serviceClient.from('message_logs').insert({
               campaign_id: campaign.id,
@@ -102,7 +149,7 @@ export async function GET(request: Request) {
               phone: contact.phone,
               status: 'sent',
               meta_msg_id: metaMsgId,
-              sent_at: new Date().toISOString()
+              sent_at: now,
             });
             sentCount++;
           } catch (sendErr: any) {
