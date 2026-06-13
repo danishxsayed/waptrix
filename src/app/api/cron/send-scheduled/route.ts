@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { metaApi } from '@/lib/meta';
 
+function normalizePhone(phone: string): string {
+  return phone.replace(/^\+/, '');
+}
+
 function buildRuntimeComponents(
   templateBody: string,
   variableMapping: Record<string, string>,
@@ -96,13 +100,14 @@ export async function GET(request: Request) {
             const metaMsgId = response?.messages?.[0]?.id || null;
             const now = new Date().toISOString();
             const messageContent = `[Template: ${campaign.templates.name}]`;
+            const normalizedPhone = normalizePhone(contact.phone);
 
             // ── Sync to inbox ─────────────────────────────────────
             const { data: existingConv } = await serviceClient
               .from('conversations')
               .select('id')
               .eq('tenant_id', campaign.tenant_id)
-              .eq('contact_phone', contact.phone)
+              .or(`contact_phone.eq.${normalizedPhone},contact_phone.eq.+${normalizedPhone}`)
               .single();
 
             let conversationId: string;
@@ -118,8 +123,8 @@ export async function GET(request: Request) {
                 .from('conversations')
                 .insert({
                   tenant_id: campaign.tenant_id,
-                  contact_phone: contact.phone,
-                  contact_name: contact.name || contact.phone,
+                  contact_phone: normalizedPhone,
+                  contact_name: contact.name || normalizedPhone,
                   last_message: messageContent,
                   last_message_at: now,
                   unread_count: 0,

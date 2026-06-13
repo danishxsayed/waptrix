@@ -6,6 +6,11 @@ import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server';
 import { metaApi } from '@/lib/meta';
 
+// Normalize phone to digits-only without leading + so lookups match regardless of format
+function normalizePhone(phone: string): string {
+  return phone.replace(/^\+/, '');
+}
+
 // Build Meta runtime components for template message sends.
 // variable_mapping: { "1": "name", "2": "phone", ... }
 // contact: { name, phone, email, custom1, custom2, custom3 }
@@ -189,7 +194,7 @@ export async function POST(req: Request) {
                   sendToken,
                   waConnection.phone_number_id,
                   {
-                    to: contact.phone,
+                    to: normalizedPhone,
                     templateName: template.name.toLowerCase().replace(/[^a-z0-9_]/g, '_'),
                     languageCode: template.language,
                     components: runtimeComponents,
@@ -199,21 +204,23 @@ export async function POST(req: Request) {
                 const metaMsgId = response?.messages?.[0]?.id || null;
                 const now = new Date().toISOString();
                 const messageContent = `[Template: ${template.name}]`;
+                // Normalize: Meta stores/sends without leading +
+                const normalizedPhone = normalizePhone(contact.phone);
 
                 // ── Sync to inbox ─────────────────────────────────────
-                // Upsert conversation so inbox shows this contact
+                // Search both formats to avoid duplicate conversations
                 const { data: existingConv } = await serviceClient
                   .from('conversations')
                   .select('id, unread_count')
                   .eq('tenant_id', user.id)
-                  .eq('contact_phone', contact.phone)
+                  .or(`contact_phone.eq.${normalizedPhone},contact_phone.eq.+${normalizedPhone}`)
                   .single();
 
                 let conversationId: string;
                 if (existingConv) {
                   conversationId = existingConv.id;
                   await serviceClient.from('conversations').update({
-                    contact_name: contact.name || contact.phone,
+                    contact_name: contact.name || normalizedPhone,
                     last_message: messageContent,
                     last_message_at: now,
                   }).eq('id', conversationId);
@@ -222,8 +229,8 @@ export async function POST(req: Request) {
                     .from('conversations')
                     .insert({
                       tenant_id: user.id,
-                      contact_phone: contact.phone,
-                      contact_name: contact.name || contact.phone,
+                      contact_phone: normalizedPhone, // store without + to match Meta webhook format
+                      contact_name: contact.name || normalizedPhone,
                       last_message: messageContent,
                       last_message_at: now,
                       unread_count: 0,
