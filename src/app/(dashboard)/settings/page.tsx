@@ -38,7 +38,8 @@ interface WhatsAppProfile {
 }
 
 export default function SettingsPage() {
-  const [copied, setCopied] = useState(false);
+  const [copiedCallback, setCopiedCallback] = useState(false);
+  const [copiedToken, setCopiedToken] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -113,10 +114,16 @@ export default function SettingsPage() {
     }
   }
 
-  const copyToClipboard = (text: string) => {
+  const copyCallbackUrl = (text: string) => {
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setCopiedCallback(true);
+    setTimeout(() => setCopiedCallback(false), 2000);
+  };
+
+  const copyVerifyToken = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedToken(true);
+    setTimeout(() => setCopiedToken(false), 2000);
   };
 
   const handleSave = async () => {
@@ -472,10 +479,10 @@ export default function SettingsPage() {
                 className="input-field flex-1 text-sm bg-surface font-mono"
               />
               <button
-                onClick={() => copyToClipboard(`${process.env.NEXT_PUBLIC_APP_URL || 'https://waptrix.in'}/api/webhooks/meta`)}
+                onClick={() => copyCallbackUrl(`${process.env.NEXT_PUBLIC_APP_URL || 'https://waptrix.in'}/api/webhooks/meta`)}
                 className="btn-secondary p-2.5 flex items-center gap-2 text-xs"
               >
-                {copied ? <CheckCircle2 className="w-4 h-4 text-jade" /> : <Copy className="w-4 h-4" />}
+                {copiedCallback ? <CheckCircle2 className="w-4 h-4 text-jade" /> : <Copy className="w-4 h-4" />}
                 Copy
               </button>
             </div>
@@ -496,10 +503,10 @@ export default function SettingsPage() {
                 className="input-field flex-1 text-sm bg-surface font-mono"
               />
               <button
-                onClick={() => copyToClipboard(process.env.NEXT_PUBLIC_META_VERIFY_TOKEN || 'waptrix_v_882930219')}
+                onClick={() => copyVerifyToken(process.env.NEXT_PUBLIC_META_VERIFY_TOKEN || 'waptrix_v_882930219')}
                 className="btn-secondary p-2.5 flex items-center gap-2 text-xs"
               >
-                {copied ? <CheckCircle2 className="w-4 h-4 text-jade" /> : <Copy className="w-4 h-4" />}
+                {copiedToken ? <CheckCircle2 className="w-4 h-4 text-jade" /> : <Copy className="w-4 h-4" />}
                 Copy
               </button>
             </div>

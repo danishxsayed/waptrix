@@ -193,7 +193,7 @@ export async function POST(req: Request) {
       const existingPhoneId = existing?.phone_number_id && existing.phone_number_id !== 'pending'
         ? existing.phone_number_id : null;
 
-      if (existingPhoneId) {
+      if (existing && existingPhoneId) {
         // Tenant already has a valid phone number ID — just refresh the token
         console.log('Auto-detect failed but existing connection found — refreshing token only');
         await db.from('wa_connections').update({

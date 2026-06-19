@@ -91,16 +91,25 @@ export default function DashboardPage() {
 
   const chartData = data?.chartData || [];
 
+  const colorMap: Record<string, { bg: string; border: string; text: string }> = {
+    jade: { bg: "bg-jade/10", border: "border-jade/20", text: "text-jade" },
+    info: { bg: "bg-info/10", border: "border-info/20", text: "text-info" },
+    warning: { bg: "bg-warning/10", border: "border-warning/20", text: "text-warning" },
+    danger: { bg: "bg-danger/10", border: "border-danger/20", text: "text-danger" }
+  };
+
   return (
     <div className="space-y-8">
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {stats.map((stat) => (
-          <div key={stat.name} className="glass-card flex flex-col gap-4">
-            <div className="flex justify-between items-start">
-              <div className={`p-2 rounded-lg bg-${stat.color}/10 border border-${stat.color}/20`}>
-                <stat.icon className={`w-5 h-5 text-${stat.color}`} />
-              </div>
+        {stats.map((stat) => {
+          const colors = colorMap[stat.color] || colorMap.jade;
+          return (
+            <div key={stat.name} className="glass-card flex flex-col gap-4">
+              <div className="flex justify-between items-start">
+                <div className={`p-2 rounded-lg border ${colors.bg} ${colors.border}`}>
+                  <stat.icon className={`w-5 h-5 ${colors.text}`} />
+                </div>
               <div
                 className={`flex items-center gap-1 text-xs font-bold ${
                   stat.trend === "up" ? "text-jade" : "text-danger"
@@ -119,7 +128,8 @@ export default function DashboardPage() {
               <h3 className="text-3xl font-bold mt-1 font-syne">{stat.value}</h3>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

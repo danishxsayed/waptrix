@@ -128,7 +128,9 @@ export async function GET() {
         deliveryRate: Number(deliveryRate.toFixed(1)),
         totalContacts: contactsCount || 0,
         activeTemplates: templatesCount || 0,
-        totalRead
+        totalRead,
+        totalDelivered,
+        totalFailed
       },
       chartData: finalizedChartData
     });

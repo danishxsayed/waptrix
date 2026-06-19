@@ -27,6 +27,7 @@ export default function MediaPage() {
           <MediaLibrary
             onClose={() => {}}
             selectionMode={false}
+            isInline={true}
           />
         )}
         {!open && (

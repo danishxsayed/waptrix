@@ -36,6 +36,7 @@ interface MediaLibraryProps {
   filterCategory?: MediaCategory;
   onClose: () => void;
   selectionMode?: boolean; // true = picker mode, false = full manager
+  isInline?: boolean;
 }
 
 export default function MediaLibrary({
@@ -43,6 +44,7 @@ export default function MediaLibrary({
   filterCategory,
   onClose,
   selectionMode = false,
+  isInline = false,
 }: MediaLibraryProps) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [search, setSearch] = useState("");
@@ -159,246 +161,256 @@ export default function MediaLibrary({
     );
   };
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-4xl h-[82vh] bg-surface border border-border rounded-3xl overflow-hidden shadow-2xl flex flex-col">
+  const content = (
+    <div className={`relative w-full ${isInline ? "h-full" : "max-w-4xl h-[82vh] border border-border rounded-3xl shadow-2xl"} bg-surface overflow-hidden flex flex-col`}>
 
-        {/* Header */}
-        <div className="flex items-center justify-between px-7 py-5 border-b border-border bg-card flex-shrink-0">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-jade/10 border border-jade/20 flex items-center justify-center">
-              <FolderOpen className="w-5 h-5 text-jade" />
-            </div>
-            <div>
-              <h2 className="text-lg font-bold font-syne">Media Library</h2>
-              <p className="text-xs text-text-muted">{items.length} file{items.length !== 1 ? "s" : ""} stored locally</p>
-            </div>
+      {/* Header */}
+      <div className="flex items-center justify-between px-7 py-5 border-b border-border bg-card flex-shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-jade/10 border border-jade/20 flex items-center justify-center">
+            <FolderOpen className="w-5 h-5 text-jade" />
           </div>
-          <div className="flex items-center gap-3">
-            {/* View toggle */}
-            <div className="flex border border-border rounded-lg overflow-hidden">
-              <button onClick={() => setViewMode("grid")} className={`p-2 ${viewMode === "grid" ? "bg-jade/10 text-jade" : "text-text-muted hover:bg-surface"}`}>
-                <Grid3X3 className="w-4 h-4" />
-              </button>
-              <button onClick={() => setViewMode("list")} className={`p-2 ${viewMode === "list" ? "bg-jade/10 text-jade" : "text-text-muted hover:bg-surface"}`}>
-                <List className="w-4 h-4" />
-              </button>
-            </div>
-            {/* Upload */}
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept={ACCEPT[activeTab]}
-              className="hidden"
-              onChange={(e) => e.target.files && uploadFiles(e.target.files)}
-            />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              className="btn-primary flex items-center gap-2 text-sm px-4 py-2"
-            >
-              <UploadCloud className="w-4 h-4" />
-              Upload
+          <div>
+            <h2 className="text-lg font-bold font-syne">Media Library</h2>
+            <p className="text-xs text-text-muted">{items.length} file{items.length !== 1 ? "s" : ""} stored locally</p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          {/* View toggle */}
+          <div className="flex border border-border rounded-lg overflow-hidden">
+            <button onClick={() => setViewMode("grid")} className={`p-2 ${viewMode === "grid" ? "bg-jade/10 text-jade" : "text-text-muted hover:bg-surface"}`}>
+              <Grid3X3 className="w-4 h-4" />
             </button>
+            <button onClick={() => setViewMode("list")} className={`p-2 ${viewMode === "list" ? "bg-jade/10 text-jade" : "text-text-muted hover:bg-surface"}`}>
+              <List className="w-4 h-4" />
+            </button>
+          </div>
+          {/* Upload */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ACCEPT[activeTab]}
+            className="hidden"
+            onChange={(e) => e.target.files && uploadFiles(e.target.files)}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="btn-primary flex items-center gap-2 text-sm px-4 py-2"
+          >
+            <UploadCloud className="w-4 h-4" />
+            Upload
+          </button>
+          {!isInline && (
             <button onClick={onClose} className="p-2 text-text-muted hover:bg-surface rounded-lg">
               <X className="w-5 h-5" />
             </button>
-          </div>
+          )}
         </div>
+      </div>
 
-        {/* Tabs + Search */}
-        <div className="flex items-center justify-between px-7 py-3 border-b border-border bg-card/50 flex-shrink-0 gap-4">
-          <div className="flex gap-1">
-            {tabs.map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                  activeTab === tab
-                    ? "bg-jade/10 border border-jade/30 text-jade"
-                    : "text-text-muted hover:bg-surface border border-transparent"
+      {/* Tabs + Search */}
+      <div className="flex items-center justify-between px-7 py-3 border-b border-border bg-card/50 flex-shrink-0 gap-4">
+        <div className="flex gap-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                activeTab === tab
+                  ? "bg-jade/10 border border-jade/30 text-jade"
+                  : "text-text-muted hover:bg-surface border border-transparent"
+              }`}
+            >
+              {tab !== "ALL" && CAT_ICONS[tab as MediaCategory]}
+              {tabLabel[tab]}
+              <span className="opacity-60">({items.filter(m => tab === "ALL" || m.category === tab).length})</span>
+            </button>
+          ))}
+        </div>
+        <div className="relative w-52">
+          <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search files..."
+            className="input-field text-xs pl-9 w-full py-2"
+          />
+        </div>
+      </div>
+
+      {/* Drop zone + content */}
+      <div
+        className="flex-1 overflow-y-auto p-6 relative"
+        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+        onDragLeave={() => setIsDragging(false)}
+        onDrop={handleDrop}
+      >
+        {/* Drag overlay */}
+        {isDragging && (
+          <div className="absolute inset-0 z-10 bg-jade/10 border-2 border-dashed border-jade rounded-2xl flex items-center justify-center">
+            <div className="text-center">
+              <UploadCloud className="w-12 h-12 text-jade mx-auto mb-2" />
+              <p className="text-jade font-bold">Drop files here to upload</p>
+            </div>
+          </div>
+        )}
+
+        {uploading && (
+          <div className="flex items-center gap-2 mb-4 text-jade text-sm">
+            <div className="w-4 h-4 border-2 border-jade border-t-transparent rounded-full animate-spin" />
+            Uploading…
+          </div>
+        )}
+
+        {filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-center py-16">
+            <FolderOpen className="w-14 h-14 text-text-muted opacity-20" />
+            <div>
+              <p className="font-semibold text-text-muted">No media files yet</p>
+              <p className="text-xs text-text-muted mt-1">Upload images, videos, or documents to reuse across templates</p>
+            </div>
+            <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center gap-2 mt-2">
+              <UploadCloud className="w-4 h-4" /> Upload your first file
+            </button>
+          </div>
+        ) : viewMode === "grid" ? (
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+            {filtered.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => handleSelect(item)}
+                className={`relative group rounded-xl overflow-hidden border cursor-pointer transition-all ${
+                  selected === item.id
+                    ? "border-jade shadow-[0_0_12px_rgba(16,185,129,0.3)] ring-2 ring-jade/30"
+                    : "border-border hover:border-jade/30"
                 }`}
               >
-                {tab !== "ALL" && CAT_ICONS[tab as MediaCategory]}
-                {tabLabel[tab]}
-                <span className="opacity-60">({items.filter(m => tab === "ALL" || m.category === tab).length})</span>
-              </button>
-            ))}
-          </div>
-          <div className="relative w-52">
-            <Search className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search files..."
-              className="input-field text-xs pl-9 w-full py-2"
-            />
-          </div>
-        </div>
-
-        {/* Drop zone + content */}
-        <div
-          className="flex-1 overflow-y-auto p-6 relative"
-          onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
-          onDragLeave={() => setIsDragging(false)}
-          onDrop={handleDrop}
-        >
-          {/* Drag overlay */}
-          {isDragging && (
-            <div className="absolute inset-0 z-10 bg-jade/10 border-2 border-dashed border-jade rounded-2xl flex items-center justify-center">
-              <div className="text-center">
-                <UploadCloud className="w-12 h-12 text-jade mx-auto mb-2" />
-                <p className="text-jade font-bold">Drop files here to upload</p>
-              </div>
-            </div>
-          )}
-
-          {uploading && (
-            <div className="flex items-center gap-2 mb-4 text-jade text-sm">
-              <div className="w-4 h-4 border-2 border-jade border-t-transparent rounded-full animate-spin" />
-              Uploading…
-            </div>
-          )}
-
-          {filtered.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-full gap-4 text-center py-16">
-              <FolderOpen className="w-14 h-14 text-text-muted opacity-20" />
-              <div>
-                <p className="font-semibold text-text-muted">No media files yet</p>
-                <p className="text-xs text-text-muted mt-1">Upload images, videos, or documents to reuse across templates</p>
-              </div>
-              <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center gap-2 mt-2">
-                <UploadCloud className="w-4 h-4" /> Upload your first file
-              </button>
-            </div>
-          ) : viewMode === "grid" ? (
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
-              {filtered.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => handleSelect(item)}
-                  className={`relative group rounded-xl overflow-hidden border cursor-pointer transition-all ${
-                    selected === item.id
-                      ? "border-jade shadow-[0_0_12px_rgba(16,185,129,0.3)] ring-2 ring-jade/30"
-                      : "border-border hover:border-jade/30"
-                  }`}
-                >
-                  {renderThumbnail(item)}
-                  {/* Overlay on hover */}
-                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
-                    {selectionMode && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); handleSelect(item); }}
-                        className="px-3 py-1.5 bg-jade text-background text-xs font-bold rounded-lg w-full"
-                      >
-                        Use this
-                      </button>
-                    )}
+                {renderThumbnail(item)}
+                {/* Overlay on hover */}
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+                  {selectionMode && (
                     <button
-                      onClick={(e) => { e.stopPropagation(); setDeleteConfirm(item.id); }}
-                      className="px-3 py-1.5 bg-danger/80 text-white text-xs font-bold rounded-lg w-full flex items-center justify-center gap-1"
+                      onClick={(e) => { e.stopPropagation(); handleSelect(item); }}
+                      className="px-3 py-1.5 bg-jade text-background text-xs font-bold rounded-lg w-full"
                     >
-                      <Trash2 className="w-3 h-3" /> Delete
-                    </button>
-                  </div>
-                  {/* Selected checkmark */}
-                  {selected === item.id && (
-                    <div className="absolute top-2 right-2 w-6 h-6 bg-jade rounded-full flex items-center justify-center shadow-lg">
-                      <CheckCircle2 className="w-4 h-4 text-background" />
-                    </div>
-                  )}
-                  {/* Category badge */}
-                  <div className="p-2 bg-card border-t border-border">
-                    <p className="text-[10px] text-text-muted truncate font-medium">{item.name}</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${CAT_COLORS[item.category]}`}>
-                        {item.category}
-                      </span>
-                      <span className="text-[9px] text-text-muted">{formatFileSize(item.sizeBytes)}</span>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {filtered.map((item) => (
-                <div
-                  key={item.id}
-                  onClick={() => handleSelect(item)}
-                  className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-all ${
-                    selected === item.id
-                      ? "border-jade bg-jade/5"
-                      : "border-border hover:border-jade/30 hover:bg-card/50"
-                  }`}
-                >
-                  {renderThumbnail(item, "sm")}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-text-primary truncate">{item.name}</p>
-                    <p className="text-xs text-text-muted">{formatFileSize(item.sizeBytes)} · {new Date(item.uploadedAt).toLocaleDateString()}</p>
-                  </div>
-                  <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border ${CAT_COLORS[item.category]}`}>
-                    {item.category}
-                  </span>
-                  {selected === item.id && onSelect && selectionMode && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onSelect(item); onClose(); }}
-                      className="px-3 py-1.5 bg-jade text-background text-xs font-bold rounded-lg"
-                    >
-                      Use
+                      Use this
                     </button>
                   )}
                   <button
                     onClick={(e) => { e.stopPropagation(); setDeleteConfirm(item.id); }}
-                    className="p-1.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                    className="px-3 py-1.5 bg-danger/80 text-white text-xs font-bold rounded-lg w-full flex items-center justify-center gap-1"
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3 h-3" /> Delete
                   </button>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        {selectionMode && (
-          <div className="flex items-center justify-between px-7 py-4 border-t border-border bg-card flex-shrink-0">
-            <p className="text-xs text-text-muted">
-              {selected ? "1 file selected" : "Click a file to select it"}
-            </p>
-            <div className="flex gap-3">
-              <button onClick={onClose} className="btn-secondary px-5">Cancel</button>
-              <button
-                onClick={handleConfirmSelect}
-                disabled={!selected}
-                className="btn-primary px-5 disabled:opacity-40"
-              >
-                Use Selected
-              </button>
-            </div>
+                {/* Selected checkmark */}
+                {selected === item.id && (
+                  <div className="absolute top-2 right-2 w-6 h-6 bg-jade rounded-full flex items-center justify-center shadow-lg">
+                    <CheckCircle2 className="w-4 h-4 text-background" />
+                  </div>
+                )}
+                {/* Category badge */}
+                <div className="p-2 bg-card border-t border-border">
+                  <p className="text-[10px] text-text-muted truncate font-medium">{item.name}</p>
+                  <div className="flex items-center justify-between mt-1">
+                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${CAT_COLORS[item.category]}`}>
+                      {item.category}
+                    </span>
+                    <span className="text-[9px] text-text-muted">{formatFileSize(item.sizeBytes)}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
           </div>
-        )}
-
-        {/* Delete Confirm Dialog */}
-        {deleteConfirm && (
-          <div className="absolute inset-0 z-20 bg-background/70 backdrop-blur-sm flex items-center justify-center p-6">
-            <div className="bg-surface border border-border rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center space-y-4">
-              <div className="w-12 h-12 bg-danger/10 rounded-full flex items-center justify-center mx-auto">
-                <Trash2 className="w-6 h-6 text-danger" />
+        ) : (
+          <div className="space-y-2">
+            {filtered.map((item) => (
+              <div
+                key={item.id}
+                onClick={() => handleSelect(item)}
+                className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-all ${
+                  selected === item.id
+                    ? "border-jade bg-jade/5"
+                    : "border-border hover:border-jade/30 hover:bg-card/50"
+                }`}
+              >
+                {renderThumbnail(item, "sm")}
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-text-primary truncate">{item.name}</p>
+                  <p className="text-xs text-text-muted">{formatFileSize(item.sizeBytes)} · {new Date(item.uploadedAt).toLocaleDateString()}</p>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border ${CAT_COLORS[item.category]}`}>
+                  {item.category}
+                </span>
+                {selected === item.id && onSelect && selectionMode && (
+                  <button
+                    onClick={(e) => { e.stopPropagation(); onSelect(item); onClose(); }}
+                    className="px-3 py-1.5 bg-jade text-background text-xs font-bold rounded-lg"
+                  >
+                    Use
+                  </button>
+                )}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setDeleteConfirm(item.id); }}
+                  className="p-1.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
               </div>
-              <div>
-                <p className="font-bold text-sm">Delete this file?</p>
-                <p className="text-xs text-text-muted mt-1">This cannot be undone. Templates using this file will lose their media.</p>
-              </div>
-              <div className="flex gap-3">
-                <button onClick={() => setDeleteConfirm(null)} className="btn-secondary flex-1">Cancel</button>
-                <button onClick={() => handleDelete(deleteConfirm)} className="flex-1 px-4 py-2 bg-danger text-white rounded-xl text-sm font-semibold hover:bg-danger/90">Delete</button>
-              </div>
-            </div>
+            ))}
           </div>
         )}
       </div>
+
+      {/* Footer */}
+      {selectionMode && (
+        <div className="flex items-center justify-between px-7 py-4 border-t border-border bg-card flex-shrink-0">
+          <p className="text-xs text-text-muted">
+            {selected ? "1 file selected" : "Click a file to select it"}
+          </p>
+          <div className="flex gap-3">
+            <button onClick={onClose} className="btn-secondary px-5">Cancel</button>
+            <button
+              onClick={handleConfirmSelect}
+              disabled={!selected}
+              className="btn-primary px-5 disabled:opacity-40"
+            >
+              Use Selected
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Delete Confirm Dialog */}
+      {deleteConfirm && (
+        <div className="absolute inset-0 z-20 bg-background/70 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-surface border border-border rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center space-y-4">
+            <div className="w-12 h-12 bg-danger/10 rounded-full flex items-center justify-center mx-auto">
+              <Trash2 className="w-6 h-6 text-danger" />
+            </div>
+            <div>
+              <p className="font-bold text-sm">Delete this file?</p>
+              <p className="text-xs text-text-muted mt-1">This cannot be undone. Templates using this file will lose their media.</p>
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteConfirm(null)} className="btn-secondary flex-1">Cancel</button>
+              <button onClick={() => handleDelete(deleteConfirm)} className="flex-1 px-4 py-2 bg-danger text-white rounded-xl text-sm font-semibold hover:bg-danger/90">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  if (isInline) {
+    return content;
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
+      {content}
     </div>
   );
 }

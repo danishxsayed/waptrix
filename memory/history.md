@@ -1,12 +1,24 @@
 # Implementation History
 
-## [2026-06-19] - Campaign Delivery/Read Webhook Updates & Dropdown Positioning
+## [2026-06-19] - Campaign Delivery/Read Webhook Updates & Dashboard Verification/Polish
 - **Webhook Status Synchronization**:
   - Enhanced `/api/webhooks/meta` webhook handler to update campaign delivery metrics (`delivered_count` and `read_count`) dynamically as incoming Meta status event payloads are processed.
   - Linked message log status tracking directly to `message_logs` in addition to real-time chat messages.
+  - Statically queries both metrics to resolve TypeScript union type-indexing constraints.
 - **Campaign UI and Variable Fixes**:
   - Resolved UI menu dropdown clipping on the campaigns management dashboard page (`src/app/(dashboard)/campaigns/page.tsx`) by positioning action menus above the targeted row.
   - Refactored `normalizedPhone` instantiation sequence inside `/api/campaigns` controller to prevent reference order discrepancies during instant dispatch.
+- **TypeScript & Build Error Resolution**:
+  - Fixed database generic client parameter typing inside `src/app/api/webhooks/meta/route.ts` by using `SupabaseClient`.
+  - Added null checks for existing connection queries in `src/app/api/whatsapp/oauth-connect/route.ts`.
+- **Dynamic Analytics Integration**:
+  - Updated `/api/analytics` to expose total delivered and total failed metrics.
+  - Rewrote the `/analytics` front-end page to dynamically fetch from `/api/analytics` and `/api/campaigns` instead of using static constants.
+- **Media Library Inline Layout Polish**:
+  - Added `isInline` prop support to `MediaLibrary` to strip the centering container and absolute backdrop.
+  - Passed `isInline={true}` to `MediaLibrary` inside `/media` page wrapper to resolve viewport blocking that prevented navigation.
+- **Settings Clipboard States Separation**:
+  - Split `copied` state into `copiedCallback` and `copiedToken` to avoid matching checkmark badges on both inputs.
 
 ## [2026-06-08] - WhatsApp Business Profile Management & Signup Flow Refinement
 - **WhatsApp Business Profile Integration**:

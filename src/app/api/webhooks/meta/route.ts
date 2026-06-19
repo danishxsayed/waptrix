@@ -1,6 +1,6 @@
 export const dynamic = "force-dynamic";
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 
@@ -34,7 +34,7 @@ export async function GET(request: Request) {
 // ──────────────────────────────────────────────────────────
 // Helper: look up tenant by WABA ID
 // ──────────────────────────────────────────────────────────
-async function getTenantByWaba(db: ReturnType<typeof createClient>, wabaId: string): Promise<string | null> {
+async function getTenantByWaba(db: SupabaseClient, wabaId: string): Promise<string | null> {
   const { data } = await db
     .from('wa_connections')
     .select('tenant_id')
@@ -46,7 +46,7 @@ async function getTenantByWaba(db: ReturnType<typeof createClient>, wabaId: stri
 // ──────────────────────────────────────────────────────────
 // Handler: messages (inbound + delivery status)
 // ──────────────────────────────────────────────────────────
-async function handleMessages(db: ReturnType<typeof createClient>, value: any) {
+async function handleMessages(db: SupabaseClient, value: any) {
   const phoneNumberId: string = value?.metadata?.phone_number_id;
 
   const { data: conn } = await db
@@ -88,14 +88,15 @@ async function handleMessages(db: ReturnType<typeof createClient>, value: any) {
       if (log?.campaign_id) {
         const { data: camp } = await db
           .from('campaigns')
-          .select(column)
+          .select('delivered_count, read_count')
           .eq('id', log.campaign_id)
           .single();
 
         if (camp) {
+          const currentVal = column === 'delivered_count' ? camp.delivered_count : camp.read_count;
           await db
             .from('campaigns')
-            .update({ [column]: (camp[column] ?? 0) + 1 })
+            .update({ [column]: (currentVal ?? 0) + 1 })
             .eq('id', log.campaign_id);
         }
       }
@@ -213,7 +214,7 @@ async function handleMessages(db: ReturnType<typeof createClient>, value: any) {
 // Payload: { message_template_id, message_template_name, event, reason? }
 // event: APPROVED | REJECTED | PENDING_DELETION | FLAGGED | PAUSED | REINSTATED | DISABLED
 // ──────────────────────────────────────────────────────────
-async function handleTemplateStatusUpdate(db: ReturnType<typeof createClient>, value: any, wabaId: string) {
+async function handleTemplateStatusUpdate(db: SupabaseClient, value: any, wabaId: string) {
   const metaTemplateId = String(value.message_template_id ?? '');
   const templateName: string = value.message_template_name ?? '';
   const event: string = value.event ?? '';
@@ -311,7 +312,7 @@ async function handleTemplateStatusUpdate(db: ReturnType<typeof createClient>, v
 // Logs critical account alerts so tenants can be notified
 // Payload: { alert_severity, alert_type, alert_description, waba_info }
 // ──────────────────────────────────────────────────────────
-async function handleAccountAlert(db: ReturnType<typeof createClient>, value: any, wabaId: string) {
+async function handleAccountAlert(db: SupabaseClient, value: any, wabaId: string) {
   const tenantId = await getTenantByWaba(db, wabaId);
   if (!tenantId) return;
 
@@ -334,7 +335,7 @@ async function handleAccountAlert(db: ReturnType<typeof createClient>, value: an
 // Payload: { display_phone_number, phone_number_id, event, current_limit }
 // event: FLAGGED | UNFLAGGED | LIMITED
 // ──────────────────────────────────────────────────────────
-async function handlePhoneQualityUpdate(db: ReturnType<typeof createClient>, value: any) {
+async function handlePhoneQualityUpdate(db: SupabaseClient, value: any) {
   const phoneNumberId: string = value.phone_number_id ?? '';
   const event: string = value.event ?? '';
   const currentLimit: string = value.current_limit ?? '';
@@ -355,7 +356,7 @@ async function handlePhoneQualityUpdate(db: ReturnType<typeof createClient>, val
 // Payload: { display_phone_number, phone_number_id, decision, requested_verified_name }
 // decision: APPROVED | REJECTED
 // ──────────────────────────────────────────────────────────
-async function handlePhoneNameUpdate(db: ReturnType<typeof createClient>, value: any) {
+async function handlePhoneNameUpdate(db: SupabaseClient, value: any) {
   const phoneNumberId: string = value.phone_number_id ?? '';
   const decision: string = value.decision ?? '';
   const approvedName: string = value.requested_verified_name ?? '';
@@ -377,7 +378,7 @@ async function handlePhoneNameUpdate(db: ReturnType<typeof createClient>, value:
 // Logs when Meta restricts / reinstates the WABA
 // Payload: { decision } — decision: APPROVED | REJECTED
 // ──────────────────────────────────────────────────────────
-async function handleAccountReviewUpdate(db: ReturnType<typeof createClient>, value: any, wabaId: string) {
+async function handleAccountReviewUpdate(db: SupabaseClient, value: any, wabaId: string) {
   const decision: string = value.decision ?? '';
   const tenantId = await getTenantByWaba(db, wabaId);
 
