@@ -64,10 +64,42 @@ async function handleMessages(db: ReturnType<typeof createClient>, value: any) {
 
   // Delivery / read status updates
   for (const status of value?.statuses ?? []) {
+    // Update chat message status
     await db
       .from('chat_messages')
       .update({ status: status.status })
       .eq('meta_message_id', status.id);
+
+    // Update message_log status
+    await db
+      .from('message_logs')
+      .update({ status: status.status })
+      .eq('meta_msg_id', status.id);
+
+    // Increment campaign delivered_count / read_count
+    if (status.status === 'delivered' || status.status === 'read') {
+      const column = status.status === 'delivered' ? 'delivered_count' : 'read_count';
+      const { data: log } = await db
+        .from('message_logs')
+        .select('campaign_id')
+        .eq('meta_msg_id', status.id)
+        .single();
+
+      if (log?.campaign_id) {
+        const { data: camp } = await db
+          .from('campaigns')
+          .select(column)
+          .eq('id', log.campaign_id)
+          .single();
+
+        if (camp) {
+          await db
+            .from('campaigns')
+            .update({ [column]: (camp[column] ?? 0) + 1 })
+            .eq('id', log.campaign_id);
+        }
+      }
+    }
   }
 
   // Incoming messages

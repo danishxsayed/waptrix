@@ -187,7 +187,7 @@ export default function CampaignsPage() {
                       className="fixed inset-0 z-10" 
                       onClick={() => setActiveMenuCampaignId(null)}
                     />
-                    <div className="absolute right-0 mt-2 w-48 rounded-xl bg-card border border-border p-1.5 shadow-xl z-20 space-y-0.5 backdrop-blur-md">
+                    <div className="absolute right-0 bottom-full mb-2 w-48 rounded-xl bg-card border border-border p-1.5 shadow-xl z-20 space-y-0.5 backdrop-blur-md">
                       <button
                         onClick={() => {
                           setSelectedCampaignForLogs(campaign);

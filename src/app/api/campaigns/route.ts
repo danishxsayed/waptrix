@@ -190,6 +190,9 @@ export async function POST(req: Request) {
                   contact
                 );
 
+                // Normalize: Meta stores/sends without leading +
+                const normalizedPhone = normalizePhone(contact.phone);
+
                 const response = await metaApi.sendTemplateMessage(
                   sendToken,
                   waConnection.phone_number_id,
@@ -200,12 +203,10 @@ export async function POST(req: Request) {
                     components: runtimeComponents,
                   }
                 );
-                
+
                 const metaMsgId = response?.messages?.[0]?.id || null;
                 const now = new Date().toISOString();
                 const messageContent = `[Template: ${template.name}]`;
-                // Normalize: Meta stores/sends without leading +
-                const normalizedPhone = normalizePhone(contact.phone);
 
                 // ── Sync to inbox ─────────────────────────────────────
                 // Search both formats to avoid duplicate conversations

@@ -1,5 +1,13 @@
 # Implementation History
 
+## [2026-06-19] - Campaign Delivery/Read Webhook Updates & Dropdown Positioning
+- **Webhook Status Synchronization**:
+  - Enhanced `/api/webhooks/meta` webhook handler to update campaign delivery metrics (`delivered_count` and `read_count`) dynamically as incoming Meta status event payloads are processed.
+  - Linked message log status tracking directly to `message_logs` in addition to real-time chat messages.
+- **Campaign UI and Variable Fixes**:
+  - Resolved UI menu dropdown clipping on the campaigns management dashboard page (`src/app/(dashboard)/campaigns/page.tsx`) by positioning action menus above the targeted row.
+  - Refactored `normalizedPhone` instantiation sequence inside `/api/campaigns` controller to prevent reference order discrepancies during instant dispatch.
+
 ## [2026-06-08] - WhatsApp Business Profile Management & Signup Flow Refinement
 - **WhatsApp Business Profile Integration**:
   - Implemented the WhatsApp profile display and editing UI on `/settings`, showcasing connection state, synchronized business details (avatar, name, phone, last sync time).
