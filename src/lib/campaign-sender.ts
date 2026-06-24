@@ -34,10 +34,10 @@ export async function executeCampaignSend(campaignId: string): Promise<void> {
     process.env.SUPABASE_SERVICE_KEY!
   );
 
-  // Fetch campaign + joined template + wa_connection
+  // Fetch campaign
   const { data: campaign } = await db
     .from('campaigns')
-    .select('*, templates(*), wa_connections(*)')
+    .select('*')
     .eq('id', campaignId)
     .single();
 
@@ -46,8 +46,11 @@ export async function executeCampaignSend(campaignId: string): Promise<void> {
     return;
   }
 
-  const template    = campaign.templates;
-  const waConnection = campaign.wa_connections;
+  // Fetch template and wa_connection separately (campaigns has no FK to wa_connections)
+  const [{ data: template }, { data: waConnection }] = await Promise.all([
+    db.from('templates').select('*').eq('id', campaign.template_id).single(),
+    db.from('wa_connections').select('*').eq('tenant_id', campaign.tenant_id).single(),
+  ]);
 
   if (!template || !waConnection) {
     await db.from('campaigns').update({ status: 'failed' }).eq('id', campaignId);

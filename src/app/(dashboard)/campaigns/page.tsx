@@ -17,7 +17,8 @@ import {
   X,
   Info,
   Eye,
-  PackageCheck
+  PackageCheck,
+  Calendar
 } from "lucide-react";
 import axios from "axios";
 import CampaignWizard from "@/components/campaigns/CampaignWizard";
@@ -107,6 +108,8 @@ export default function CampaignsPage() {
         return <span className="bg-sky-500/10 text-sky-500 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border border-sky-500/20 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Sent</span>;
       case 'queued':
         return <span className="bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border border-amber-500/20 flex items-center gap-1"><Clock className="w-3 h-3" /> Queued</span>;
+      case 'scheduled':
+        return <span className="bg-violet-500/10 text-violet-400 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border border-violet-500/20 flex items-center gap-1"><Calendar className="w-3 h-3" /> Scheduled</span>;
       case 'failed':
         return <span className="bg-rose-500/10 text-rose-500 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase border border-rose-500/20 flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Failed</span>;
       default:
@@ -183,6 +186,12 @@ export default function CampaignsPage() {
                 <div className="flex items-center justify-center md:justify-start gap-4 text-xs text-text-muted">
                   <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {campaign.segment?.name || "All Contacts"}</span>
                   <span className="flex items-center gap-1"><BarChart2 className="w-3 h-3" /> {campaign.template?.name}</span>
+                  {campaign.status === 'scheduled' && campaign.scheduled_at && (
+                    <span className="flex items-center gap-1 text-violet-400 font-semibold">
+                      <Calendar className="w-3 h-3" />
+                      Launches {new Date(campaign.scheduled_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
