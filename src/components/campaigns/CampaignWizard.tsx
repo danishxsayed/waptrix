@@ -51,6 +51,7 @@ export default function CampaignWizard({ onClose, onLaunch }: { onClose: () => v
     setIsSubmitting(true);
     try {
       await axios.post("/api/campaigns", formData);
+      // Close immediately — sending runs in background via waitUntil
       onLaunch();
       onClose();
     } catch (err: any) {
@@ -59,7 +60,6 @@ export default function CampaignWizard({ onClose, onLaunch }: { onClose: () => v
         err.message ||
         "Failed to launch campaign. Please try again.";
       setLaunchError(msg);
-    } finally {
       setIsSubmitting(false);
     }
   };

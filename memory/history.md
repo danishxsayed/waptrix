@@ -15,7 +15,13 @@
 - **Campaign Log Detail Upgrades**:
   - Enhanced campaign dispatch endpoint to parse and store specific Meta Graph API error codes and subcode messages (`[code] message`) when immediate send jobs fail.
   - Re-rendered Campaign log visual statuses to support granular delivery states (`read`, `delivered`, `sent`, `failed`, `queued`) via inline icons and lowercase normalization.
-
+- **Background Campaign Execution & Worker**:
+  - Extracted shared campaign sending logic to a unified client-and-worker helper in `src/lib/campaign-sender.ts`.
+  - Created a minute-by-minute cron worker at `src/app/api/worker/campaigns/route.ts` to process pending scheduled campaigns, securing access with `CRON_SECRET` validation.
+  - Updated Vercel configuration (`vercel.json`) to trigger the campaigns cron worker every minute.
+  - Refactored the campaigns route handler to launch immediate dispatches asynchronously using Vercel's `waitUntil` function, optimizing client response times.
+  - Handled incoming Meta webhook message failures by incrementing `failed_count` and adjusting `sent_count` metrics dynamically.
+  - Added real-time success toasts in the Campaigns UI upon background campaign execution start.
 ## [2026-06-19] - Campaign Delivery/Read Webhook Updates & Dashboard Verification/Polish
 - **Webhook Status Synchronization**:
   - Enhanced `/api/webhooks/meta` webhook handler to update campaign delivery metrics (`delivered_count` and `read_count`) dynamically as incoming Meta status event payloads are processed.

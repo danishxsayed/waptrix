@@ -76,9 +76,9 @@ async function handleMessages(db: SupabaseClient, value: any) {
       .update({ status: status.status })
       .eq('meta_msg_id', status.id);
 
-    // Increment campaign delivered_count / read_count
-    if (status.status === 'delivered' || status.status === 'read') {
-      const column = status.status === 'delivered' ? 'delivered_count' : 'read_count';
+    // Increment campaign counters based on delivery status
+    const s = status.status;
+    if (s === 'delivered' || s === 'read' || s === 'failed') {
       const { data: log } = await db
         .from('message_logs')
         .select('campaign_id')
@@ -88,16 +88,22 @@ async function handleMessages(db: SupabaseClient, value: any) {
       if (log?.campaign_id) {
         const { data: camp } = await db
           .from('campaigns')
-          .select('delivered_count, read_count')
+          .select('delivered_count, read_count, failed_count, sent_count')
           .eq('id', log.campaign_id)
           .single();
 
         if (camp) {
-          const currentVal = column === 'delivered_count' ? camp.delivered_count : camp.read_count;
-          await db
-            .from('campaigns')
-            .update({ [column]: (currentVal ?? 0) + 1 })
-            .eq('id', log.campaign_id);
+          const updates: Record<string, number> = {};
+          if (s === 'delivered') {
+            updates.delivered_count = (camp.delivered_count ?? 0) + 1;
+          } else if (s === 'read') {
+            updates.read_count = (camp.read_count ?? 0) + 1;
+          } else if (s === 'failed') {
+            updates.failed_count  = (camp.failed_count  ?? 0) + 1;
+            // A message that Meta marks failed was previously counted as sent — correct it
+            updates.sent_count = Math.max((camp.sent_count ?? 1) - 1, 0);
+          }
+          await db.from('campaigns').update(updates).eq('id', log.campaign_id);
         }
       }
     }

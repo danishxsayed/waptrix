@@ -34,6 +34,12 @@ export default function CampaignsPage() {
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
   const [fetchError, setFetchError] = useState("");
   const [deleteError, setDeleteError] = useState("");
+  const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
+
+  const showToast = (msg: string, type: 'success' | 'error' = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => {
     fetchCampaigns();
@@ -118,6 +124,19 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Toast notification */}
+      {toast && (
+        <div className={`fixed bottom-6 right-6 z-[200] flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-2xl text-sm font-medium transition-all
+          ${toast.type === 'success'
+            ? 'bg-jade text-white border border-jade/30'
+            : 'bg-danger text-white border border-danger/30'}`}>
+          {toast.type === 'success'
+            ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+            : <AlertCircle className="w-4 h-4 shrink-0" />}
+          {toast.msg}
+        </div>
+      )}
+
       {/* Error banners */}
       {fetchError && (
         <div className="flex items-center gap-3 p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm">
@@ -248,9 +267,12 @@ export default function CampaignsPage() {
       </div>
 
       {isWizardOpen && (
-        <CampaignWizard 
-          onClose={() => setIsWizardOpen(false)} 
-          onLaunch={fetchCampaigns}
+        <CampaignWizard
+          onClose={() => setIsWizardOpen(false)}
+          onLaunch={() => {
+            fetchCampaigns();
+            showToast("🚀 Campaign launched! Messages are being sent in the background.");
+          }}
         />
       )}
 

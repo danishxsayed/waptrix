@@ -6,8 +6,8 @@
   "devCommand": "npm run dev",
   "crons": [
     {
-      "path": "/api/cron/send-scheduled",
-      "schedule": "0 6 * * *"
+      "path": "/api/worker/campaigns",
+      "schedule": "* * * * *"
     },
     {
       "path": "/api/cron/refresh-tokens",
