@@ -295,7 +295,7 @@ export default function InboxPanel({
     const channel = supabase
       .channel(`inbox-${Date.now()}`) // unique name prevents ghost subscriptions
       // New inbound/outbound messages
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload) => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "chat_messages" }, (payload: any) => {
         const newMsg = payload.new as ChatMessage;
         const currentConv = activeConvRef.current;
 
@@ -326,17 +326,17 @@ export default function InboxPanel({
         }
       })
       // Message status updates (sent → delivered → read)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_messages" }, (payload) => {
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "chat_messages" }, (payload: any) => {
         const updated = payload.new as ChatMessage;
         setMessages((prev) => prev.map((m) => m.id === updated.id ? { ...m, status: updated.status } : m));
       })
       // New conversations (first message from a new contact)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "conversations" }, (payload) => {
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "conversations" }, (payload: any) => {
         const newConv = payload.new as Conversation;
         setConversations((prev) => prev.find((c) => c.id === newConv.id) ? prev : [newConv, ...prev]);
       })
       // Conversation updates (last_message, unread_count)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations" }, (payload) => {
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "conversations" }, (payload: any) => {
         const updated = payload.new as Conversation;
         setConversations((prev) =>
           prev
@@ -344,7 +344,7 @@ export default function InboxPanel({
             .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
         );
       })
-      .subscribe((status) => {
+      .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') console.log('Inbox realtime connected');
         if (status === 'CHANNEL_ERROR') console.error('Inbox realtime error — falling back to polling');
       });

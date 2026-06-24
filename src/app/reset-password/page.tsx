@@ -18,7 +18,7 @@ export default function ResetPasswordPage() {
     // Supabase automatically handles the session when clicking the email link
     // We just need to make sure the user is actually authenticated
     const supabase = createClient();
-    supabase.auth.onAuthStateChange(async (event, session) => {
+    supabase.auth.onAuthStateChange(async (event: string, session: any) => {
       if (event === "PASSWORD_RECOVERY") {
         console.log("Password recovery flow active");
       }

@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 
 import InboxPanel from "@/components/inbox/InboxPanel";
 import { useState } from "react";
