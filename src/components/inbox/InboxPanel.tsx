@@ -116,6 +116,7 @@ export default function InboxPanel({
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>("");
+  const [sendError, setSendError] = useState<string>("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -252,7 +253,7 @@ export default function InboxPanel({
       });
     };
 
-    const interval = setInterval(poll, 3000);
+    const interval = setInterval(poll, 8000);
     return () => clearInterval(interval);
   }, [playNotificationSound]);
 
@@ -405,6 +406,7 @@ export default function InboxPanel({
     setMediaFile(null);
     setMediaPreview("");
     setSelectedTemplate(null);
+    setSendError("");
 
     setIsSending(true);
     try {
@@ -420,7 +422,7 @@ export default function InboxPanel({
         setMessages((prev) =>
           prev.map((m) => m.id === tempId ? { ...m, status: "failed" } : m)
         );
-        alert(data.error || "Failed to send");
+        setSendError(data.error || "Failed to send message. Please try again.");
         return;
       }
 
@@ -440,7 +442,7 @@ export default function InboxPanel({
       setMessages((prev) =>
         prev.map((m) => m.id === tempId ? { ...m, status: "failed" } : m)
       );
-      alert(err.message || "Failed to send");
+      setSendError(err.message || "Failed to send message. Please try again.");
     } finally {
       setIsSending(false);
     }
@@ -707,6 +709,14 @@ export default function InboxPanel({
 
             {/* ── Reply bar ──────────────────────────────────────── */}
             <div className="border-t border-border bg-card p-4 space-y-3">
+              {/* Send error */}
+              {sendError && (
+                <div className="flex items-center gap-2 text-danger text-xs bg-danger/10 border border-danger/20 rounded-lg px-3 py-2">
+                  <X className="w-3.5 h-3.5 shrink-0" />
+                  <span className="flex-1">{sendError}</span>
+                  <button onClick={() => setSendError("")} className="opacity-60 hover:opacity-100"><X className="w-3 h-3" /></button>
+                </div>
+              )}
               {/* Mode tabs */}
               <div className="flex items-center gap-1">
                 {(["text", "template", "media"] as const).map((mode) => (

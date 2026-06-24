@@ -30,6 +30,8 @@ export default function CampaignsPage() {
   const [selectedCampaignForLogs, setSelectedCampaignForLogs] = useState<any | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [fetchError, setFetchError] = useState("");
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     fetchCampaigns();
@@ -55,11 +57,12 @@ export default function CampaignsPage() {
   }, []);
 
   const fetchCampaigns = async () => {
+    setFetchError("");
     try {
       const res = await axios.get("/api/campaigns");
-      setCampaigns(res.data);
-    } catch (err) {
-      console.error("Failed to fetch campaigns", err);
+      setCampaigns(res.data || []);
+    } catch (err: any) {
+      setFetchError(err.response?.data?.error || "Failed to load campaigns. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -78,14 +81,13 @@ export default function CampaignsPage() {
   };
 
   const handleDeleteCampaign = async (campaignId: string) => {
-    if (confirm("Are you sure you want to delete this campaign? This will also delete all associated logs.")) {
-      try {
-        await axios.delete(`/api/campaigns/${campaignId}`);
-        fetchCampaigns();
-      } catch (err) {
-        console.error("Failed to delete campaign", err);
-        alert("Failed to delete campaign");
-      }
+    if (!confirm("Are you sure you want to delete this campaign? This will also delete all associated logs.")) return;
+    setDeleteError("");
+    try {
+      await axios.delete(`/api/campaigns/${campaignId}`);
+      setCampaigns(prev => prev.filter(c => c.id !== campaignId));
+    } catch (err: any) {
+      setDeleteError(err.response?.data?.error || "Failed to delete campaign. Please try again.");
     }
   };
 
@@ -114,6 +116,22 @@ export default function CampaignsPage() {
 
   return (
     <div className="space-y-6">
+      {/* Error banners */}
+      {fetchError && (
+        <div className="flex items-center gap-3 p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <span className="flex-1">{fetchError}</span>
+          <button onClick={fetchCampaigns} className="btn-secondary text-xs shrink-0">Retry</button>
+        </div>
+      )}
+      {deleteError && (
+        <div className="flex items-center gap-3 p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm">
+          <AlertCircle className="w-5 h-5 shrink-0" />
+          <span className="flex-1">{deleteError}</span>
+          <button onClick={() => setDeleteError("")} className="text-xs opacity-60 hover:opacity-100"><X className="w-4 h-4" /></button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold font-syne">Marketing Campaigns</h2>

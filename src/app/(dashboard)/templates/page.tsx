@@ -24,6 +24,14 @@ export default function TemplatesPage() {
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [fetchError, setFetchError] = useState("");
+  const [deleteError, setDeleteError] = useState<{ id: string; msg: string } | null>(null);
+  const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+
+  const showToast = (msg: string, type: "success" | "error" = "success") => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 3500);
+  };
 
   useEffect(() => {
     fetchTemplates();
@@ -32,14 +40,12 @@ export default function TemplatesPage() {
   const fetchTemplates = async (quiet = false) => {
     if (quiet) setIsRefreshing(true);
     else setIsLoading(true);
+    setFetchError("");
     try {
       const res = await axios.get("/api/templates");
-      const data = res.data || [];
-      console.log('templates loaded:', data[0]);
-      setTemplates(data);
+      setTemplates(res.data || []);
     } catch (err: any) {
-      console.error('API Error:', err?.response?.status, err?.response?.data);
-      console.error("Failed to fetch templates", err);
+      setFetchError(err.response?.data?.error || "Failed to load templates. Please try again.");
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -47,19 +53,17 @@ export default function TemplatesPage() {
   };
 
   const handleDelete = async (id: string) => {
-    if (!id) {
-      console.error('Template id is missing');
-      return;
-    }
+    if (!id) return;
     if (!confirm("Are you sure you want to delete this template?")) return;
+    setDeleteError(null);
     try {
       await axios.delete(`/api/templates/${id}`);
       setTemplates(prev => prev.filter(t => t.id !== id));
+      showToast("Template deleted.");
     } catch (err: any) {
-      console.error('API Error:', err?.response?.status, err?.response?.data);
-      const msg = err.response?.data?.error || err.message || "Failed to delete template";
-      console.error("Delete failed:", msg);
-      alert(msg);
+      const msg = err.response?.data?.error || err.message || "Failed to delete template.";
+      setDeleteError({ id, msg });
+      showToast(msg, "error");
     }
   };
 
@@ -91,6 +95,30 @@ export default function TemplatesPage() {
 
   return (
     <div className="space-y-6">
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-xl border text-sm font-semibold transition-all ${
+          toast.type === "success"
+            ? "bg-jade/10 border-jade/30 text-jade"
+            : "bg-danger/10 border-danger/30 text-danger"
+        }`}>
+          {toast.type === "success" ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Fetch error */}
+      {fetchError && (
+        <div className="flex items-start gap-3 p-4 bg-danger/10 border border-danger/20 rounded-xl text-danger text-sm">
+          <XCircle className="w-5 h-5 shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <p className="font-bold">Could not load templates</p>
+            <p className="text-xs mt-0.5 opacity-80">{fetchError}</p>
+          </div>
+          <button onClick={() => fetchTemplates()} className="btn-secondary text-xs shrink-0">Retry</button>
+        </div>
+      )}
+
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold font-syne">Message Templates</h2>

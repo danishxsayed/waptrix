@@ -821,6 +821,7 @@ export default function ContactsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [showQuickCreateSegment, setShowQuickCreateSegment] = useState(false);
+  const [fetchError, setFetchError] = useState("");
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -869,11 +870,12 @@ export default function ContactsPage() {
 
   const fetchContacts = async () => {
     setIsLoading(true);
+    setFetchError("");
     try {
-      const res = await axios.get("/api/contacts", { timeout: 10000 });
+      const res = await axios.get("/api/contacts", { timeout: 15000 });
       setContacts(res.data || []);
-    } catch (err) {
-      console.error("Failed to fetch contacts", err);
+    } catch (err: any) {
+      setFetchError(err.response?.data?.error || "Failed to load contacts. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -1064,6 +1066,15 @@ export default function ContactsPage() {
             {isLoading ? (
               <div className="py-20 flex items-center justify-center">
                 <Loader2 className="w-8 h-8 text-jade animate-spin" />
+              </div>
+            ) : fetchError ? (
+              <div className="py-16 flex flex-col items-center gap-4 text-center px-6">
+                <AlertCircle className="w-10 h-10 text-danger opacity-70" />
+                <div>
+                  <p className="text-sm font-semibold text-text-primary">Failed to load contacts</p>
+                  <p className="text-xs text-text-muted mt-1">{fetchError}</p>
+                </div>
+                <button onClick={fetchContacts} className="btn-primary text-sm">Retry</button>
               </div>
             ) : (
               <table className="w-full text-left">

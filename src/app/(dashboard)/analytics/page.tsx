@@ -2,23 +2,24 @@
 export const dynamic = "force-dynamic";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import axios from "axios";
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell
 } from 'recharts';
-import { 
-  Send, 
-  CheckCircle2, 
-  Eye, 
+import {
+  Send,
+  CheckCircle2,
+  Eye,
   AlertCircle,
   TrendingUp,
   Download,
@@ -65,25 +66,30 @@ const colorMap: Record<string, { bg: string; border: string; text: string }> = {
 };
 
 export default function AnalyticsPage() {
+  const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
+
+  const loadData = async () => {
+    setFetchError("");
+    setIsLoading(true);
+    try {
+      const [analyticsRes, campaignsRes] = await Promise.all([
+        axios.get("/api/analytics"),
+        axios.get("/api/campaigns")
+      ]);
+      setData(analyticsRes.data);
+      setCampaigns(campaignsRes.data || []);
+    } catch (err: any) {
+      setFetchError(err.response?.data?.error || "Failed to load analytics data.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function loadData() {
-      try {
-        const [analyticsRes, campaignsRes] = await Promise.all([
-          axios.get("/api/analytics"),
-          axios.get("/api/campaigns")
-        ]);
-        setData(analyticsRes.data);
-        setCampaigns(campaignsRes.data || []);
-      } catch (err) {
-        console.error("Failed to load analytics data", err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
     loadData();
   }, []);
 
@@ -95,6 +101,25 @@ export default function AnalyticsPage() {
           <p className="text-text-muted text-sm font-medium animate-pulse font-syne">
             Loading analytics dashboard...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+          <div className="w-14 h-14 bg-danger/10 border border-danger/20 rounded-2xl flex items-center justify-center">
+            <AlertCircle className="w-7 h-7 text-danger" />
+          </div>
+          <div>
+            <p className="font-bold text-text-primary font-syne">Failed to load analytics</p>
+            <p className="text-sm text-text-muted mt-1">{fetchError}</p>
+          </div>
+          <button onClick={loadData} className="btn-primary flex items-center gap-2">
+            <Loader2 className="w-4 h-4" /> Retry
+          </button>
         </div>
       </div>
     );
@@ -148,9 +173,30 @@ export default function AnalyticsPage() {
           <h2 className="text-xl font-bold font-syne">Analytics Dashboard</h2>
           <p className="text-sm text-text-muted">In-depth performance insights of your WhatsApp campaigns.</p>
         </div>
-        <button className="btn-secondary flex items-center gap-2">
+        <button
+          onClick={() => {
+            const rows = [
+              ["Metric", "Value"],
+              ["Total Sent", totalSent],
+              ["Delivered", totalDelivered],
+              ["Read", totalRead],
+              ["Failed", totalFailed],
+              ["Delivery Rate", `${deliveryRate}%`],
+              ["Read Rate", `${readRate}%`],
+            ];
+            const csv = rows.map(r => r.join(",")).join("\n");
+            const blob = new Blob([csv], { type: "text/csv" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `waptrix-analytics-${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+          className="btn-secondary flex items-center gap-2"
+        >
           <Download className="w-4 h-4" />
-          Export Report
+          Export CSV
         </button>
       </div>
 
@@ -268,7 +314,10 @@ export default function AnalyticsPage() {
       <div className="glass-card overflow-hidden !p-0">
         <div className="p-6 border-b border-border flex justify-between items-center">
           <h3 className="text-lg font-bold font-syne">Campaign Performance</h3>
-          <button className="text-xs font-bold text-jade flex items-center gap-1 hover:underline">
+          <button
+            onClick={() => router.push("/campaigns")}
+            className="text-xs font-bold text-jade flex items-center gap-1 hover:underline"
+          >
             View All Campaigns <TrendingUp className="w-3 h-3" />
           </button>
         </div>

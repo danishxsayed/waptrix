@@ -11,7 +11,8 @@ import {
   MessageSquare,
   ArrowUpRight,
   ArrowDownRight,
-  Plus
+  Plus,
+  AlertCircle
 } from "lucide-react";
 import {
   AreaChart,
@@ -26,18 +27,22 @@ export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [fetchError, setFetchError] = useState("");
+
+  const fetchAnalytics = async () => {
+    setFetchError("");
+    setIsLoading(true);
+    try {
+      const res = await axios.get("/api/analytics");
+      setData(res.data);
+    } catch (err: any) {
+      setFetchError(err.response?.data?.error || "Failed to load dashboard metrics.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchAnalytics() {
-      try {
-        const res = await axios.get("/api/analytics");
-        setData(res.data);
-      } catch (err) {
-        console.error("Failed to fetch analytics", err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
     fetchAnalytics();
   }, []);
 
@@ -49,6 +54,23 @@ export default function DashboardPage() {
           <p className="text-text-muted text-sm font-medium animate-pulse font-syne">
             Loading dashboard metrics...
           </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="flex flex-col items-center gap-4 text-center max-w-sm">
+          <div className="w-14 h-14 bg-danger/10 border border-danger/20 rounded-2xl flex items-center justify-center">
+            <AlertCircle className="w-7 h-7 text-danger" />
+          </div>
+          <div>
+            <p className="font-bold text-text-primary font-syne">Failed to load dashboard</p>
+            <p className="text-sm text-text-muted mt-1">{fetchError}</p>
+          </div>
+          <button onClick={fetchAnalytics} className="btn-primary">Retry</button>
         </div>
       </div>
     );

@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   User,
   Building,
@@ -61,7 +61,7 @@ export default function SettingsPage() {
   const [picPreview, setPicPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function fetchProfile() {

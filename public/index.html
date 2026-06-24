@@ -1,0 +1,1871 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- ═══════════════════════════════════════════════ SEO META ═══ -->
+  <title>Waptrix — WhatsApp Marketing Platform | Bulk Campaigns, Inbox & Automation</title>
+  <meta name="description" content="Waptrix is the all-in-one WhatsApp Business API platform for bulk campaigns, team inbox, template management, and marketing automation. Trusted by 10,000+ businesses. Start free today." />
+  <meta name="keywords" content="WhatsApp marketing platform, WhatsApp Business API, WhatsApp bulk messaging, WhatsApp campaign automation, WhatsApp CRM, WhatsApp inbox, WhatsApp template messages, WhatsApp business tool, WA marketing software, Waptrix" />
+  <meta name="author" content="Waptrix" />
+  <meta name="robots" content="index, follow" />
+  <link rel="canonical" href="https://waptrix.com/" />
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://waptrix.com/" />
+  <meta property="og:title" content="Waptrix — WhatsApp Marketing Platform" />
+  <meta property="og:description" content="Send bulk campaigns, manage your inbox, automate follow-ups and grow revenue on WhatsApp. Official Meta Business Partner." />
+  <meta property="og:image" content="https://waptrix.com/og-image.png" />
+  <meta property="og:site_name" content="Waptrix" />
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="Waptrix — WhatsApp Marketing Platform" />
+  <meta name="twitter:description" content="Send bulk campaigns, manage your inbox, automate follow-ups and grow revenue on WhatsApp." />
+  <meta name="twitter:image" content="https://waptrix.com/og-image.png" />
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Waptrix",
+    "url": "https://waptrix.com",
+    "description": "All-in-one WhatsApp Business API marketing platform for bulk campaigns, team inbox, and automation.",
+    "applicationCategory": "BusinessApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "description": "Free plan available. Paid plans from $29/month."
+    },
+    "aggregateRating": {
+      "@type": "AggregateRating",
+      "ratingValue": "4.9",
+      "reviewCount": "2400"
+    },
+    "publisher": {
+      "@type": "Organization",
+      "name": "Waptrix",
+      "url": "https://waptrix.com",
+      "logo": "https://waptrix.com/logo.png"
+    }
+  }
+  </script>
+
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ══════════════════════════════════════════════════ ROOT ══ */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --green:   #25D366;
+      --green-2: #128C7E;
+      --green-3: #075E54;
+      --electric:#00FF88;
+      --bg:      #050A12;
+      --bg-2:    #0A1220;
+      --bg-3:    #0F1A2E;
+      --card:    #111B2E;
+      --border:  rgba(255,255,255,0.07);
+      --text:    #F0F4FF;
+      --muted:   #8899BB;
+      --accent:  #7C3AED;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    h1,h2,h3,h4,h5 { font-family: 'Space Grotesk', sans-serif; line-height: 1.15; }
+
+    a { color: inherit; text-decoration: none; }
+
+    img { display: block; max-width: 100%; }
+
+    /* ══════════════════════════════════════════════ UTILITIES ══ */
+    .container { max-width: 1200px; margin: 0 auto; padding: 0 24px; }
+    .container--wide { max-width: 1400px; margin: 0 auto; padding: 0 24px; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 14px;
+      border: 1px solid rgba(37,211,102,0.3);
+      background: rgba(37,211,102,0.08);
+      border-radius: 999px;
+      font-size: 12px; font-weight: 600; color: var(--green);
+      letter-spacing: 0.04em; text-transform: uppercase;
+    }
+    .badge::before { content:''; width:6px; height:6px; background:var(--green); border-radius:50%; animation: pulse-dot 2s infinite; }
+
+    @keyframes pulse-dot {
+      0%,100% { box-shadow: 0 0 0 0 rgba(37,211,102,0.6); }
+      50%      { box-shadow: 0 0 0 5px rgba(37,211,102,0); }
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 14px 28px; border-radius: 12px;
+      font-size: 15px; font-weight: 600; font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer; border: none; transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+      white-space: nowrap;
+    }
+    .btn:hover { transform: translateY(-2px); }
+    .btn:active { transform: translateY(0); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--green) 0%, #0EA56B 100%);
+      color: #fff;
+      box-shadow: 0 4px 24px rgba(37,211,102,0.35);
+    }
+    .btn-primary:hover { box-shadow: 0 8px 32px rgba(37,211,102,0.5); }
+
+    .btn-outline {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+    .btn-outline:hover { border-color: rgba(255,255,255,0.25); background: rgba(255,255,255,0.05); }
+
+    .section { padding: 96px 0; }
+    .section--sm { padding: 64px 0; }
+
+    .section-label {
+      font-size: 11px; font-weight: 700; letter-spacing: 0.15em; text-transform: uppercase;
+      color: var(--green); margin-bottom: 14px;
+    }
+
+    .section-title {
+      font-size: clamp(32px, 5vw, 56px);
+      font-weight: 800; color: var(--text);
+      margin-bottom: 20px;
+    }
+
+    .section-subtitle {
+      font-size: 18px; color: var(--muted); max-width: 600px;
+      line-height: 1.7;
+    }
+
+    .text-green { color: var(--green); }
+    .text-center { text-align: center; }
+
+    /* Gradient text */
+    .grad-text {
+      background: linear-gradient(135deg, #fff 0%, var(--green) 60%, #00D4AA 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+    }
+
+    /* Reveal on scroll */
+    .reveal {
+      opacity: 0; transform: translateY(32px);
+      transition: opacity 0.7s ease, transform 0.7s ease;
+    }
+    .reveal.visible { opacity: 1; transform: none; }
+    .reveal-delay-1 { transition-delay: 0.1s; }
+    .reveal-delay-2 { transition-delay: 0.2s; }
+    .reveal-delay-3 { transition-delay: 0.3s; }
+    .reveal-delay-4 { transition-delay: 0.4s; }
+    .reveal-delay-5 { transition-delay: 0.5s; }
+
+    /* ══════════════════════════════════════════════════ NAV ══ */
+    nav {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+      padding: 16px 0;
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid transparent;
+      transition: all 0.3s ease;
+    }
+    nav.scrolled {
+      background: rgba(5,10,18,0.92);
+      border-bottom-color: var(--border);
+    }
+
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .nav-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-family: 'Space Grotesk', sans-serif;
+      font-weight: 800; font-size: 22px;
+    }
+
+    .logo-icon {
+      width: 38px; height: 38px;
+      background: linear-gradient(135deg, var(--green), #0EA56B);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+    }
+
+    .logo-icon svg { width: 20px; height: 20px; fill: #fff; }
+
+    .nav-links {
+      display: flex; align-items: center; gap: 8px;
+      list-style: none;
+    }
+
+    .nav-links a {
+      padding: 8px 14px; border-radius: 8px;
+      font-size: 14px; font-weight: 500; color: var(--muted);
+      transition: all 0.2s;
+    }
+    .nav-links a:hover { color: var(--text); background: rgba(255,255,255,0.05); }
+
+    .nav-cta { display: flex; align-items: center; gap: 10px; }
+
+    /* Mobile hamburger */
+    .hamburger {
+      display: none; flex-direction: column; gap: 5px;
+      background: none; border: none; cursor: pointer; padding: 4px;
+    }
+    .hamburger span { display: block; width: 24px; height: 2px; background: var(--text); border-radius: 2px; transition: all 0.3s; }
+
+    /* ══════════════════════════════════════════════════ HERO ══ */
+    #hero {
+      position: relative;
+      min-height: 100vh;
+      display: flex; align-items: center;
+      padding-top: 100px;
+      overflow: hidden;
+    }
+
+    .hero-inner {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      align-items: center;
+      gap: 64px;
+      width: 100%;
+    }
+
+    @media (max-width: 960px) {
+      .hero-inner { grid-template-columns: 1fr; }
+    }
+
+    /* Background grid */
+    #hero::before {
+      content: '';
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(37,211,102,0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(37,211,102,0.04) 1px, transparent 1px);
+      background-size: 64px 64px;
+      mask-image: radial-gradient(ellipse 80% 60% at 50% 40%, black, transparent);
+    }
+
+    /* Glow orbs */
+    .orb {
+      position: absolute; border-radius: 50%; filter: blur(80px);
+      pointer-events: none;
+    }
+    .orb-1 {
+      width: 600px; height: 600px;
+      background: radial-gradient(circle, rgba(37,211,102,0.15) 0%, transparent 70%);
+      top: -100px; left: -100px;
+      animation: float-orb 12s ease-in-out infinite;
+    }
+    .orb-2 {
+      width: 500px; height: 500px;
+      background: radial-gradient(circle, rgba(124,58,237,0.12) 0%, transparent 70%);
+      top: 100px; right: -150px;
+      animation: float-orb 15s ease-in-out infinite reverse;
+    }
+    .orb-3 {
+      width: 400px; height: 400px;
+      background: radial-gradient(circle, rgba(37,211,102,0.08) 0%, transparent 70%);
+      bottom: 0; left: 40%;
+      animation: float-orb 10s ease-in-out infinite 3s;
+    }
+
+    @keyframes float-orb {
+      0%,100% { transform: translate(0,0); }
+      33%      { transform: translate(30px,-20px); }
+      66%      { transform: translate(-20px,30px); }
+    }
+
+    .hero-content { position: relative; z-index: 2; }
+
+    .hero-badge { margin-bottom: 28px; }
+
+    .hero-title {
+      font-size: clamp(36px, 4.5vw, 64px);
+      font-weight: 900;
+      letter-spacing: -0.03em;
+      margin-bottom: 24px;
+      line-height: 1.05;
+    }
+
+    .hero-sub {
+      font-size: 20px; color: var(--muted);
+      max-width: 600px; line-height: 1.7;
+      margin-bottom: 40px;
+    }
+
+    .hero-ctas { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+
+    .hero-social-proof {
+      margin-top: 56px;
+      display: flex; align-items: center; gap: 24px; flex-wrap: wrap;
+    }
+
+    .avatars {
+      display: flex;
+    }
+    .avatars span {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 2px solid var(--bg);
+      background: linear-gradient(135deg, var(--green-2), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: #fff;
+      margin-left: -8px;
+    }
+    .avatars span:first-child { margin-left: 0; }
+
+    .sp-text { font-size: 13px; color: var(--muted); }
+    .sp-text strong { color: var(--text); }
+
+    .sp-divider { width: 1px; height: 32px; background: var(--border); }
+
+    .stars { color: #FFC107; font-size: 14px; letter-spacing: 1px; }
+
+    /* Floating phone mockup */
+    .hero-visual {
+      position: relative;
+      z-index: 1;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 960px) {
+      .hero-visual { display: none; }
+    }
+
+    .phone-frame {
+      width: 300px;
+      background: #1A2235;
+      border-radius: 40px;
+      border: 1px solid rgba(255,255,255,0.12);
+      padding: 20px 12px;
+      box-shadow:
+        0 40px 80px rgba(0,0,0,0.6),
+        inset 0 1px 0 rgba(255,255,255,0.08);
+      animation: float-phone 6s ease-in-out infinite;
+    }
+
+    @keyframes float-phone {
+      0%,100% { transform: translateY(0); }
+      50%      { transform: translateY(-16px); }
+    }
+
+    .phone-notch {
+      width: 80px; height: 6px;
+      background: #0D1520; border-radius: 4px;
+      margin: 0 auto 16px;
+    }
+
+    .chat-bubble {
+      border-radius: 12px 12px 12px 2px;
+      padding: 10px 14px;
+      font-size: 12px; line-height: 1.5;
+      margin-bottom: 8px; max-width: 90%;
+    }
+    .chat-in {
+      background: #2A3547;
+      color: #C8D5EE;
+    }
+    .chat-out {
+      background: linear-gradient(135deg, var(--green-2), var(--green-3));
+      color: #fff;
+      margin-left: auto;
+      border-radius: 12px 12px 2px 12px;
+    }
+    .chat-meta { font-size: 10px; color: rgba(255,255,255,0.4); text-align: right; margin-top: 2px; }
+
+    .typing {
+      display: flex; gap: 4px; padding: 10px 14px;
+      background: #2A3547; border-radius: 12px 12px 12px 2px;
+      width: fit-content; margin-top: 4px;
+    }
+    .typing span {
+      width: 6px; height: 6px; background: var(--muted); border-radius: 50%;
+      animation: bounce 1.2s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%,60%,100% { transform: translateY(0); }
+      30%          { transform: translateY(-6px); }
+    }
+
+    .phone-stat {
+      margin-top: 12px;
+      background: rgba(37,211,102,0.1);
+      border: 1px solid rgba(37,211,102,0.2);
+      border-radius: 12px; padding: 10px 14px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .phone-stat-val { font-size: 18px; font-weight: 800; color: var(--green); font-family: 'Space Grotesk', sans-serif; }
+    .phone-stat-label { font-size: 10px; color: var(--muted); }
+
+    /* ═══════════════════════════════════════════════ LOGOS ══ */
+    #logos { padding: 40px 0 72px; }
+
+    .logos-label {
+      text-align: center; font-size: 13px; color: var(--muted);
+      letter-spacing: 0.1em; text-transform: uppercase;
+      margin-bottom: 32px; font-weight: 500;
+    }
+
+    .logos-track {
+      display: flex; align-items: center;
+      gap: 48px; flex-wrap: wrap; justify-content: center;
+    }
+
+    .logo-pill {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 24px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      font-size: 14px; font-weight: 700; color: var(--muted);
+      transition: all 0.25s;
+    }
+    .logo-pill:hover { border-color: rgba(37,211,102,0.3); color: var(--text); }
+
+    .logo-pill .icon {
+      width: 28px; height: 28px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+
+    /* ═══════════════════════════════════════════ STATS BAR ══ */
+    #stats {
+      padding: 72px 0;
+      background: linear-gradient(135deg, rgba(37,211,102,0.05) 0%, rgba(124,58,237,0.05) 100%);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1px;
+      background: var(--border);
+      border-radius: 20px;
+      overflow: hidden;
+    }
+
+    .stat-item {
+      background: var(--card);
+      padding: 40px 32px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stat-item::before {
+      content: '';
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 60%; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--green), transparent);
+      opacity: 0;
+      transition: opacity 0.4s;
+    }
+    .stat-item:hover::before { opacity: 1; }
+
+    .stat-num {
+      font-size: 52px; font-weight: 900;
+      font-family: 'Space Grotesk', sans-serif;
+      background: linear-gradient(135deg, #fff 0%, var(--green) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      line-height: 1;
+      margin-bottom: 8px;
+    }
+    .stat-label { font-size: 14px; color: var(--muted); font-weight: 500; }
+
+    /* ═══════════════════════════════════════════ FEATURES ══ */
+    #features { padding: 96px 0; }
+
+    .features-header { margin-bottom: 72px; }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+    }
+
+    .feat-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 36px;
+      transition: all 0.3s;
+      position: relative; overflow: hidden;
+    }
+
+    .feat-card::after {
+      content: '';
+      position: absolute; inset: 0;
+      background: radial-gradient(circle at 0% 0%, rgba(37,211,102,0.06) 0%, transparent 60%);
+      opacity: 0; transition: opacity 0.3s;
+    }
+    .feat-card:hover { border-color: rgba(37,211,102,0.3); transform: translateY(-4px); box-shadow: 0 20px 40px rgba(0,0,0,0.3); }
+    .feat-card:hover::after { opacity: 1; }
+
+    .feat-icon {
+      width: 52px; height: 52px;
+      border-radius: 14px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 24px; margin-bottom: 20px;
+      background: rgba(37,211,102,0.1);
+      border: 1px solid rgba(37,211,102,0.2);
+    }
+
+    .feat-card h3 {
+      font-size: 20px; font-weight: 700; margin-bottom: 10px;
+    }
+    .feat-card p {
+      font-size: 14px; color: var(--muted); line-height: 1.7;
+    }
+
+    .feat-tag {
+      display: inline-block; margin-top: 18px;
+      font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: var(--green); padding: 4px 10px;
+      background: rgba(37,211,102,0.08); border-radius: 6px;
+    }
+
+    /* Featured card (wide) */
+    .feat-card--wide {
+      grid-column: span 2;
+      display: grid; grid-template-columns: 1fr 1fr; gap: 32px; align-items: center;
+    }
+
+    .feat-card--wide .feat-visual {
+      background: var(--bg-2);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 20px;
+      height: 220px;
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+
+    .bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .bar-label { font-size: 11px; color: var(--muted); width: 70px; text-align: right; }
+    .bar-track { flex: 1; height: 8px; background: rgba(255,255,255,0.06); border-radius: 4px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 4px; }
+    .bar-pct { font-size: 11px; font-weight: 700; color: var(--text); width: 36px; }
+
+    /* ═══════════════════════════════════════════ HOW IT WORKS ══ */
+    #how {
+      padding: 96px 0;
+      background: linear-gradient(180deg, transparent, rgba(37,211,102,0.03) 50%, transparent);
+    }
+
+    .steps {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 2px;
+      position: relative;
+      margin-top: 64px;
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute; top: 40px; left: 10%; right: 10%; height: 2px;
+      background: linear-gradient(90deg, var(--green) 0%, rgba(37,211,102,0.1) 100%);
+      z-index: 0;
+    }
+
+    .step {
+      text-align: center; padding: 0 16px;
+      position: relative; z-index: 1;
+    }
+
+    .step-num {
+      width: 80px; height: 80px; border-radius: 50%;
+      background: var(--card);
+      border: 2px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+      font-size: 28px; font-weight: 900;
+      font-family: 'Space Grotesk', sans-serif;
+      position: relative;
+      transition: all 0.3s;
+    }
+
+    .step:hover .step-num {
+      border-color: var(--green);
+      box-shadow: 0 0 30px rgba(37,211,102,0.3);
+      background: rgba(37,211,102,0.1);
+    }
+
+    .step-num .icon { font-size: 32px; }
+
+    .step h3 { font-size: 18px; font-weight: 700; margin-bottom: 10px; }
+    .step p { font-size: 13px; color: var(--muted); line-height: 1.7; }
+
+    /* ══════════════════════════════════════════ INDUSTRIES ══ */
+    #industries { padding: 96px 0; }
+
+    .industry-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-top: 56px;
+    }
+
+    .industry-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+    .industry-card:hover {
+      border-color: rgba(37,211,102,0.4);
+      background: rgba(37,211,102,0.06);
+      transform: translateY(-4px);
+    }
+
+    .industry-emoji { font-size: 36px; margin-bottom: 12px; }
+    .industry-card h4 { font-size: 14px; font-weight: 700; color: var(--text); }
+    .industry-card p { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+    /* ══════════════════════════════════════════ TESTIMONIALS ══ */
+    #testimonials { padding: 96px 0; }
+
+    .testi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 24px;
+      margin-top: 56px;
+    }
+
+    .testi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 32px;
+      position: relative;
+      transition: all 0.3s;
+    }
+    .testi-card:hover { border-color: rgba(37,211,102,0.25); transform: translateY(-2px); }
+
+    .testi-quote {
+      font-size: 40px; line-height: 1;
+      color: var(--green); margin-bottom: 16px;
+      font-family: Georgia, serif;
+    }
+
+    .testi-text {
+      font-size: 15px; color: var(--muted);
+      line-height: 1.75; margin-bottom: 24px;
+    }
+
+    .testi-author {
+      display: flex; align-items: center; gap: 14px;
+      border-top: 1px solid var(--border);
+      padding-top: 20px;
+    }
+
+    .testi-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--green-2), var(--accent));
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700; font-size: 16px; color: #fff; flex-shrink: 0;
+    }
+
+    .testi-name { font-size: 14px; font-weight: 700; }
+    .testi-role { font-size: 12px; color: var(--muted); }
+
+    .testi-stars { color: #FFC107; font-size: 13px; margin-bottom: 2px; }
+
+    /* ══════════════════════════════════════════════ PRICING ══ */
+    #pricing { padding: 96px 0; }
+
+    .pricing-toggle {
+      display: flex; align-items: center; gap: 12px;
+      justify-content: center; margin-top: 32px;
+    }
+
+    .toggle-label { font-size: 14px; font-weight: 600; color: var(--muted); }
+    .toggle-label.active { color: var(--text); }
+
+    .toggle-switch {
+      width: 52px; height: 28px; background: var(--card);
+      border: 1px solid var(--border); border-radius: 14px;
+      cursor: pointer; position: relative; transition: background 0.3s;
+    }
+    .toggle-switch.on { background: rgba(37,211,102,0.2); border-color: rgba(37,211,102,0.4); }
+
+    .toggle-knob {
+      width: 20px; height: 20px; background: var(--muted);
+      border-radius: 50%; position: absolute; top: 3px; left: 4px;
+      transition: all 0.3s; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+    }
+    .toggle-switch.on .toggle-knob { left: 28px; background: var(--green); }
+
+    .save-badge {
+      font-size: 11px; font-weight: 700; padding: 3px 10px;
+      background: rgba(37,211,102,0.12); border: 1px solid rgba(37,211,102,0.25);
+      border-radius: 999px; color: var(--green);
+    }
+
+    .pricing-grid {
+      display: grid; grid-template-columns: repeat(3, 1fr);
+      gap: 24px; margin-top: 56px; align-items: center;
+    }
+
+    .price-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 24px; padding: 40px;
+      position: relative; overflow: hidden;
+      transition: all 0.3s;
+    }
+    .price-card:hover { transform: translateY(-4px); }
+
+    .price-card--featured {
+      border-color: rgba(37,211,102,0.5);
+      background: linear-gradient(135deg, rgba(37,211,102,0.08) 0%, var(--card) 100%);
+      box-shadow: 0 0 0 1px rgba(37,211,102,0.15), 0 32px 64px rgba(37,211,102,0.12);
+    }
+
+    .price-card--featured::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--green), transparent);
+    }
+
+    .popular-tag {
+      position: absolute; top: 20px; right: 20px;
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      color: #fff; background: var(--green);
+      padding: 4px 12px; border-radius: 999px; letter-spacing: 0.05em;
+    }
+
+    .price-plan { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 20px; }
+
+    .price-amount {
+      font-size: 56px; font-weight: 900;
+      font-family: 'Space Grotesk', sans-serif;
+      line-height: 1; color: var(--text); margin-bottom: 4px;
+    }
+    .price-amount sup { font-size: 24px; vertical-align: super; }
+    .price-amount span { font-size: 18px; font-weight: 500; color: var(--muted); }
+
+    .price-desc { font-size: 13px; color: var(--muted); margin-bottom: 32px; }
+
+    .price-divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+    .price-features { list-style: none; display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+
+    .price-features li {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 14px; color: var(--muted);
+    }
+
+    .price-features li::before {
+      content: '✓';
+      width: 20px; height: 20px; border-radius: 50%;
+      background: rgba(37,211,102,0.15);
+      color: var(--green); font-size: 11px; font-weight: 900;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .price-features li.dim::before { background: rgba(255,255,255,0.05); color: var(--muted); content: '—'; }
+    .price-features li.dim { opacity: 0.5; }
+
+    /* ══════════════════════════════════════════════════ FAQ ══ */
+    #faq { padding: 96px 0; }
+
+    .faq-list { max-width: 780px; margin: 56px auto 0; }
+
+    .faq-item {
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      margin-bottom: 12px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .faq-item.open { border-color: rgba(37,211,102,0.3); }
+
+    .faq-q {
+      width: 100%; background: none; border: none;
+      padding: 22px 28px; text-align: left;
+      font-size: 16px; font-weight: 600; color: var(--text);
+      font-family: 'Space Grotesk', sans-serif;
+      cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 16px;
+    }
+
+    .faq-q .chevron {
+      width: 24px; height: 24px; flex-shrink: 0;
+      border: 1px solid var(--border); border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.25s; color: var(--muted);
+    }
+    .faq-item.open .faq-q .chevron {
+      transform: rotate(180deg);
+      border-color: rgba(37,211,102,0.4); color: var(--green);
+    }
+
+    .faq-a {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.4s ease, padding 0.3s ease;
+      padding: 0 28px;
+    }
+    .faq-a-inner {
+      font-size: 15px; color: var(--muted); line-height: 1.8;
+      padding-bottom: 22px;
+    }
+    .faq-item.open .faq-a { max-height: 400px; }
+
+    /* ══════════════════════════════════════════════════ CTA ══ */
+    #cta {
+      padding: 96px 0;
+      position: relative; overflow: hidden;
+    }
+
+    #cta::before {
+      content: '';
+      position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(37,211,102,0.08) 0%, rgba(124,58,237,0.08) 100%);
+    }
+
+    .cta-box {
+      position: relative; z-index: 1;
+      border: 1px solid rgba(37,211,102,0.25);
+      border-radius: 32px;
+      padding: 80px 64px;
+      text-align: center;
+      background: var(--card);
+      overflow: hidden;
+    }
+
+    .cta-box::before {
+      content: '';
+      position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+      width: 60%; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--green), transparent);
+    }
+
+    .cta-glow {
+      position: absolute;
+      width: 400px; height: 400px;
+      border-radius: 50%; filter: blur(80px);
+      background: radial-gradient(circle, rgba(37,211,102,0.15) 0%, transparent 70%);
+      top: -100px; left: 50%; transform: translateX(-50%);
+      pointer-events: none;
+    }
+
+    .cta-box h2 { font-size: clamp(32px, 5vw, 52px); font-weight: 900; margin-bottom: 20px; }
+    .cta-box p { font-size: 18px; color: var(--muted); max-width: 520px; margin: 0 auto 40px; }
+
+    .cta-form {
+      display: flex; gap: 12px; max-width: 480px; margin: 0 auto;
+    }
+
+    .cta-form input {
+      flex: 1; padding: 14px 20px;
+      background: var(--bg-2); border: 1px solid var(--border);
+      border-radius: 12px; color: var(--text); font-size: 15px;
+      font-family: 'Inter', sans-serif;
+      outline: none; transition: border-color 0.2s;
+    }
+    .cta-form input::placeholder { color: var(--muted); }
+    .cta-form input:focus { border-color: rgba(37,211,102,0.5); }
+
+    .cta-note {
+      font-size: 12px; color: var(--muted); margin-top: 14px;
+      opacity: 0.7;
+    }
+
+    /* ══════════════════════════════════════════════ FOOTER ══ */
+    footer {
+      background: var(--bg-2);
+      border-top: 1px solid var(--border);
+      padding: 64px 0 40px;
+    }
+
+    .footer-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr 1fr 1fr;
+      gap: 48px;
+      margin-bottom: 56px;
+    }
+
+    .footer-brand p {
+      font-size: 14px; color: var(--muted); line-height: 1.7;
+      margin: 16px 0 24px;
+    }
+
+    .footer-socials { display: flex; gap: 10px; }
+
+    .social-btn {
+      width: 38px; height: 38px; border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--card);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; cursor: pointer; transition: all 0.2s;
+    }
+    .social-btn:hover { border-color: rgba(37,211,102,0.4); background: rgba(37,211,102,0.08); }
+
+    .footer-col h5 {
+      font-size: 13px; font-weight: 700; color: var(--text);
+      text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 20px;
+    }
+
+    .footer-col ul { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+
+    .footer-col ul a {
+      font-size: 14px; color: var(--muted);
+      transition: color 0.2s;
+    }
+    .footer-col ul a:hover { color: var(--text); }
+
+    .footer-bottom {
+      border-top: 1px solid var(--border);
+      padding-top: 32px;
+      display: flex; align-items: center; justify-content: space-between;
+      flex-wrap: wrap; gap: 16px;
+      font-size: 13px; color: var(--muted);
+    }
+
+    .footer-bottom-links { display: flex; gap: 24px; }
+    .footer-bottom-links a:hover { color: var(--text); }
+
+    .wa-badge {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 12px; font-weight: 600;
+      color: var(--green); padding: 5px 14px;
+      border: 1px solid rgba(37,211,102,0.25);
+      border-radius: 999px;
+      background: rgba(37,211,102,0.05);
+    }
+
+    /* ════════════════════════════════════════════ RESPONSIVE ══ */
+    @media (max-width: 1024px) {
+      .features-grid { grid-template-columns: repeat(2, 1fr); }
+      .feat-card--wide { grid-column: span 2; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .steps { grid-template-columns: repeat(2, 1fr); }
+      .steps::before { display: none; }
+      .industry-grid { grid-template-columns: repeat(3, 1fr); }
+      .pricing-grid { grid-template-columns: 1fr; max-width: 460px; margin-left: auto; margin-right: auto; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links, .nav-cta .btn-outline { display: none; }
+      .hamburger { display: flex; }
+
+      .features-grid { grid-template-columns: 1fr; }
+      .feat-card--wide { grid-column: span 1; grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .testi-grid { grid-template-columns: 1fr; }
+      .industry-grid { grid-template-columns: repeat(2, 1fr); }
+
+      .cta-box { padding: 48px 28px; }
+      .cta-form { flex-direction: column; }
+      .footer-grid { grid-template-columns: 1fr; }
+      .footer-bottom { flex-direction: column; text-align: center; }
+      .logos-track { gap: 16px; }
+
+      .hero-title { font-size: 40px; }
+      .section { padding: 64px 0; }
+    }
+
+    /* ══════════════════════════════════════════════ MOBILE NAV ══ */
+    .mobile-menu {
+      display: none; flex-direction: column; gap: 0;
+      position: fixed; inset: 0; z-index: 99;
+      background: var(--bg);
+      padding: 100px 32px 40px;
+    }
+    .mobile-menu.open { display: flex; }
+
+    .mobile-menu a {
+      padding: 18px 0; font-size: 24px; font-weight: 700;
+      border-bottom: 1px solid var(--border);
+      font-family: 'Space Grotesk', sans-serif;
+    }
+
+    /* ════════════════════════════════════════════ SCROLL BAR ══ */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: rgba(37,211,102,0.3); border-radius: 3px; }
+
+    /* ════════════════════════════════════════════ ANIMATIONS ══ */
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+
+    .shimmer {
+      background: linear-gradient(90deg, var(--muted) 25%, var(--text) 50%, var(--muted) 75%);
+      background-size: 200% auto;
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+      animation: shimmer 3s linear infinite;
+    }
+
+    /* Metric counter animation */
+    .count { display: inline-block; }
+  </style>
+</head>
+
+<body>
+
+<!-- ══════════════════════════════════════════════ NAV ══ -->
+<nav id="navbar">
+  <div class="container">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo" aria-label="Waptrix Home">
+        <div class="logo-icon">
+          <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/>
+            <path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.12 1.522 5.857L0 24l6.305-1.503A11.935 11.935 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.802 9.802 0 01-4.998-1.366l-.358-.213-3.741.893.924-3.643-.234-.374A9.793 9.793 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182c5.422 0 9.818 4.396 9.818 9.818 0 5.422-4.396 9.818-9.818 9.818z"/>
+          </svg>
+        </div>
+        Waptrix
+      </a>
+
+      <ul class="nav-links" role="navigation" aria-label="Main navigation">
+        <li><a href="#features">Features</a></li>
+        <li><a href="#how">How it works</a></li>
+        <li><a href="#industries">Industries</a></li>
+        <li><a href="#pricing">Pricing</a></li>
+        <li><a href="#faq">FAQ</a></li>
+      </ul>
+
+      <div class="nav-cta">
+        <a href="/login" class="btn btn-outline" style="padding:10px 20px;font-size:14px;">Log in</a>
+        <a href="/signup" class="btn btn-primary" style="padding:10px 20px;font-size:14px;">Start Free →</a>
+      </div>
+
+      <button class="hamburger" id="hamburgerBtn" aria-label="Open menu" aria-expanded="false">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+  </div>
+</nav>
+
+<!-- Mobile nav -->
+<div class="mobile-menu" id="mobileMenu" role="dialog" aria-label="Mobile navigation">
+  <a href="#features" class="mobile-link">Features</a>
+  <a href="#how" class="mobile-link">How it works</a>
+  <a href="#industries" class="mobile-link">Industries</a>
+  <a href="#pricing" class="mobile-link">Pricing</a>
+  <a href="#faq" class="mobile-link">FAQ</a>
+  <a href="/signup" class="btn btn-primary" style="margin-top:32px;justify-content:center;">Start Free →</a>
+</div>
+
+<!-- ══════════════════════════════════════════════ HERO ══ -->
+<section id="hero" aria-label="Hero">
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+
+  <div class="container">
+    <div class="hero-inner">
+    <div class="hero-content">
+      <div class="hero-badge reveal">
+        <span class="badge">🏆 Official Meta Business Partner</span>
+      </div>
+
+      <h1 class="hero-title reveal reveal-delay-1">
+        Turn WhatsApp Into Your<br />
+        <span class="grad-text">Most Powerful</span><br />
+        Marketing Channel
+      </h1>
+
+      <p class="hero-sub reveal reveal-delay-2">
+        Send bulk campaigns, manage your team inbox, automate follow-ups
+        and track every message — all powered by the official
+        WhatsApp Business API.
+      </p>
+
+      <div class="hero-ctas reveal reveal-delay-3">
+        <a href="/signup" class="btn btn-primary" style="font-size:16px;padding:16px 32px;">
+          🚀 Get Started Free
+        </a>
+        <a href="#how" class="btn btn-outline" style="font-size:16px;padding:16px 32px;">
+          See How It Works
+        </a>
+      </div>
+
+      <div class="hero-social-proof reveal reveal-delay-4">
+        <div class="avatars" aria-label="Happy customers">
+          <span>AK</span><span>SJ</span><span>MR</span><span>PD</span><span>+</span>
+        </div>
+        <div class="sp-text">
+          <strong>10,000+</strong> businesses already growing on WhatsApp
+        </div>
+        <div class="sp-divider"></div>
+        <div>
+          <div class="stars" aria-label="4.9 out of 5 stars">★★★★★</div>
+          <div class="sp-text"><strong>4.9/5</strong> from 2,400+ reviews</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phone mockup -->
+    <div class="hero-visual" aria-hidden="true">
+      <div class="phone-frame">
+        <div class="phone-notch"></div>
+
+        <div class="chat-bubble chat-in">
+          Hi! Is the summer sale still on? 👀
+        </div>
+        <div class="chat-bubble chat-out">
+          Yes! 🎉 Use code SUMMER30 for 30% off everything. Offer ends midnight tonight!
+          <div class="chat-meta">✓✓ 09:41</div>
+        </div>
+        <div class="chat-bubble chat-in">
+          Amazing! Just placed my order 🛒
+        </div>
+        <div class="typing">
+          <span></span><span></span><span></span>
+        </div>
+
+        <div class="phone-stat">
+          <div>
+            <div class="phone-stat-val">98.2%</div>
+            <div class="phone-stat-label">Open rate</div>
+          </div>
+          <div style="text-align:right">
+            <div class="phone-stat-val">4.3×</div>
+            <div class="phone-stat-label">More ROI vs email</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    </div><!-- /hero-inner -->
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ LOGOS ══ -->
+<section id="logos" aria-label="Trusted by businesses">
+  <div class="container">
+    <p class="logos-label">Trusted by businesses across every industry</p>
+    <div class="logos-track">
+      <div class="logo-pill"><span class="icon">🛍️</span> Fashion Boutique</div>
+      <div class="logo-pill"><span class="icon">🏥</span> HealthCare Pro</div>
+      <div class="logo-pill"><span class="icon">🍕</span> FoodDelights</div>
+      <div class="logo-pill"><span class="icon">🏠</span> RealtyGroup</div>
+      <div class="logo-pill"><span class="icon">✈️</span> TravelEase</div>
+      <div class="logo-pill"><span class="icon">💄</span> BeautyStudio</div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ STATS ══ -->
+<section id="stats" aria-label="Platform statistics">
+  <div class="container">
+    <div class="stats-grid">
+      <div class="stat-item reveal">
+        <div class="stat-num"><span class="count" data-target="10">0</span>K+</div>
+        <div class="stat-label">Businesses Trust Waptrix</div>
+      </div>
+      <div class="stat-item reveal reveal-delay-1">
+        <div class="stat-num"><span class="count" data-target="500">0</span>M+</div>
+        <div class="stat-label">Messages Delivered</div>
+      </div>
+      <div class="stat-item reveal reveal-delay-2">
+        <div class="stat-num"><span class="count" data-target="98">0</span>%</div>
+        <div class="stat-label">Average Open Rate</div>
+      </div>
+      <div class="stat-item reveal reveal-delay-3">
+        <div class="stat-num"><span class="count" data-target="4">0</span>.9★</div>
+        <div class="stat-label">Average Customer Rating</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ FEATURES ══ -->
+<section id="features" aria-label="Platform features">
+  <div class="container">
+    <div class="features-header reveal">
+      <p class="section-label">Everything You Need</p>
+      <h2 class="section-title">
+        One platform.<br />
+        <span class="text-green">Infinite possibilities.</span>
+      </h2>
+      <p class="section-subtitle">
+        From bulk campaigns to real-time inbox to template management — Waptrix gives your business the complete WhatsApp marketing stack.
+      </p>
+    </div>
+
+    <div class="features-grid">
+
+      <!-- Wide card — analytics -->
+      <div class="feat-card feat-card--wide reveal">
+        <div>
+          <div class="feat-icon">📊</div>
+          <h3>Real-Time Campaign Analytics</h3>
+          <p>Track sent, delivered, read and failed counts for every campaign. See exactly what's working and double down on it.</p>
+          <span class="feat-tag">Live Tracking</span>
+        </div>
+        <div class="feat-visual" aria-hidden="true">
+          <div>
+            <div class="bar-row">
+              <span class="bar-label">Delivered</span>
+              <div class="bar-track"><div class="bar-fill" style="width:96%;background:linear-gradient(90deg,#25D366,#0EA56B)"></div></div>
+              <span class="bar-pct">96%</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">Read</span>
+              <div class="bar-track"><div class="bar-fill" style="width:78%;background:linear-gradient(90deg,#3B82F6,#0EA5E9)"></div></div>
+              <span class="bar-pct">78%</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">Clicked</span>
+              <div class="bar-track"><div class="bar-fill" style="width:42%;background:linear-gradient(90deg,#A855F7,#7C3AED)"></div></div>
+              <span class="bar-pct">42%</span>
+            </div>
+            <div class="bar-row">
+              <span class="bar-label">Replied</span>
+              <div class="bar-track"><div class="bar-fill" style="width:24%;background:linear-gradient(90deg,#F59E0B,#F97316)"></div></div>
+              <span class="bar-pct">24%</span>
+            </div>
+          </div>
+          <div style="display:flex;gap:12px;">
+            <div style="flex:1;background:rgba(37,211,102,0.08);border:1px solid rgba(37,211,102,0.2);border-radius:10px;padding:12px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#25D366;font-family:'Space Grotesk',sans-serif;">12.4K</div>
+              <div style="font-size:11px;color:#8899BB;">Total Sent</div>
+            </div>
+            <div style="flex:1;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:10px;padding:12px;text-align:center;">
+              <div style="font-size:22px;font-weight:900;color:#3B82F6;font-family:'Space Grotesk',sans-serif;">9.7K</div>
+              <div style="font-size:11px;color:#8899BB;">Read</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="feat-card reveal reveal-delay-1">
+        <div class="feat-icon">💬</div>
+        <h3>Team Inbox</h3>
+        <p>Handle all customer conversations from one shared inbox. Assign threads, reply with templates, and never miss a message.</p>
+        <span class="feat-tag">Real-Time</span>
+      </div>
+
+      <div class="feat-card reveal reveal-delay-2">
+        <div class="feat-icon">📢</div>
+        <h3>Bulk Campaigns</h3>
+        <p>Send personalized WhatsApp campaigns to thousands of contacts at once. Schedule them or launch immediately.</p>
+        <span class="feat-tag">Bulk Send</span>
+      </div>
+
+      <div class="feat-card reveal reveal-delay-3">
+        <div class="feat-icon">📋</div>
+        <h3>Template Manager</h3>
+        <p>Create, submit and manage Meta-approved message templates with a visual builder. Track approval status in real time.</p>
+        <span class="feat-tag">Meta API</span>
+      </div>
+
+      <div class="feat-card reveal reveal-delay-4">
+        <div class="feat-icon">👥</div>
+        <h3>Contact Segments</h3>
+        <p>Import contacts via CSV or Excel. Organize them into segments for laser-focused targeting and better conversions.</p>
+        <span class="feat-tag">CSV / Excel</span>
+      </div>
+
+      <div class="feat-card reveal reveal-delay-5">
+        <div class="feat-icon">🔔</div>
+        <h3>Smart Notifications</h3>
+        <p>Get instant alerts when templates are approved or rejected by Meta — so you can launch campaigns without delays.</p>
+        <span class="feat-tag">Instant</span>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ HOW IT WORKS ══ -->
+<section id="how" aria-label="How Waptrix works">
+  <div class="container">
+    <div class="text-center reveal">
+      <p class="section-label">Simple Setup</p>
+      <h2 class="section-title">Up and running <span class="text-green">in minutes</span></h2>
+      <p class="section-subtitle" style="margin:0 auto 0;">
+        No code. No complex integrations. Connect your WhatsApp Business account and start messaging your customers today.
+      </p>
+    </div>
+
+    <div class="steps">
+      <div class="step reveal reveal-delay-1">
+        <div class="step-num"><span class="icon">🔗</span></div>
+        <h3>Connect Your Account</h3>
+        <p>Link your WhatsApp Business account via Meta's Embedded Signup — takes under 2 minutes, no technical knowledge needed.</p>
+      </div>
+      <div class="step reveal reveal-delay-2">
+        <div class="step-num"><span class="icon">📋</span></div>
+        <h3>Create a Template</h3>
+        <p>Build your message template using our visual editor. Submit for Meta approval — most templates are approved within 24 hours.</p>
+      </div>
+      <div class="step reveal reveal-delay-3">
+        <div class="step-num"><span class="icon">👥</span></div>
+        <h3>Import Contacts</h3>
+        <p>Upload your contact list via CSV or Excel. Organize them into segments for targeted campaigns that actually convert.</p>
+      </div>
+      <div class="step reveal reveal-delay-4">
+        <div class="step-num"><span class="icon">🚀</span></div>
+        <h3>Launch &amp; Track</h3>
+        <p>Send your campaign immediately or schedule it. Watch your delivered, read and reply rates update in real time.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ WHY WHATSAPP ══ -->
+<section style="padding:80px 0;background:linear-gradient(135deg,rgba(37,211,102,0.04) 0%,rgba(124,58,237,0.04) 100%);border-top:1px solid var(--border);border-bottom:1px solid var(--border);" aria-label="WhatsApp vs Email comparison">
+  <div class="container">
+    <div class="text-center reveal" style="margin-bottom:56px;">
+      <p class="section-label">Why WhatsApp Marketing?</p>
+      <h2 class="section-title">WhatsApp <span class="text-green">crushes</span> email every time</h2>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:24px;" class="reveal reveal-delay-1">
+      <div class="card" style="text-align:center;border-color:rgba(37,211,102,0.2);">
+        <div style="font-size:48px;font-weight:900;color:#25D366;font-family:'Space Grotesk',sans-serif;margin-bottom:8px;">98%</div>
+        <div style="font-weight:700;margin-bottom:8px;">Open Rate</div>
+        <div style="font-size:13px;color:var(--muted);">vs 20% average for email marketing</div>
+        <div style="margin-top:16px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;"><div style="width:98%;height:100%;background:linear-gradient(90deg,#25D366,#0EA56B);border-radius:2px;"></div></div>
+      </div>
+      <div class="card" style="text-align:center;border-color:rgba(59,130,246,0.2);">
+        <div style="font-size:48px;font-weight:900;color:#3B82F6;font-family:'Space Grotesk',sans-serif;margin-bottom:8px;">45%</div>
+        <div style="font-weight:700;margin-bottom:8px;">Click-Through Rate</div>
+        <div style="font-size:13px;color:var(--muted);">vs 2.5% average for email CTR</div>
+        <div style="margin-top:16px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;"><div style="width:45%;height:100%;background:linear-gradient(90deg,#3B82F6,#0EA5E9);border-radius:2px;"></div></div>
+      </div>
+      <div class="card" style="text-align:center;border-color:rgba(168,85,247,0.2);">
+        <div style="font-size:48px;font-weight:900;color:#A855F7;font-family:'Space Grotesk',sans-serif;margin-bottom:8px;">4.3×</div>
+        <div style="font-weight:700;margin-bottom:8px;">Higher ROI</div>
+        <div style="font-size:13px;color:var(--muted);">compared to traditional email campaigns</div>
+        <div style="margin-top:16px;height:4px;background:rgba(255,255,255,0.06);border-radius:2px;"><div style="width:85%;height:100%;background:linear-gradient(90deg,#A855F7,#7C3AED);border-radius:2px;"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ INDUSTRIES ══ -->
+<section id="industries" aria-label="Industries using Waptrix">
+  <div class="container">
+    <div class="text-center reveal">
+      <p class="section-label">For Every Business</p>
+      <h2 class="section-title">Built for your <span class="text-green">industry</span></h2>
+      <p class="section-subtitle" style="margin:0 auto;">
+        Whether you're a solo consultant or a 500-person enterprise — Waptrix adapts to how your business communicates.
+      </p>
+    </div>
+
+    <div class="industry-grid">
+      <div class="industry-card reveal reveal-delay-1">
+        <div class="industry-emoji">🛍️</div>
+        <h4>E-Commerce &amp; Retail</h4>
+        <p>Order updates, cart recovery, promotions</p>
+      </div>
+      <div class="industry-card reveal reveal-delay-2">
+        <div class="industry-emoji">🏥</div>
+        <h4>Healthcare &amp; Clinics</h4>
+        <p>Appointment reminders, follow-ups</p>
+      </div>
+      <div class="industry-card reveal reveal-delay-3">
+        <div class="industry-emoji">🍕</div>
+        <h4>Restaurants &amp; Food</h4>
+        <p>Reservations, daily specials, delivery</p>
+      </div>
+      <div class="industry-card reveal reveal-delay-4">
+        <div class="industry-emoji">🏠</div>
+        <h4>Real Estate</h4>
+        <p>Property listings, site visit reminders</p>
+      </div>
+      <div class="industry-card reveal reveal-delay-1">
+        <div class="industry-emoji">✈️</div>
+        <h4>Travel &amp; Tourism</h4>
+        <p>Booking confirmations, travel updates</p>
+      </div>
+      <div class="industry-card reveal reveal-delay-2">
+        <div class="industry-emoji">💄</div>
+        <h4>Beauty &amp; Wellness</h4>
+        <p>Bookings, loyalty offers, tips</p>
+      </div>
+      <div class="industry-card reveal reveal-delay-3">
+        <div class="industry-emoji">🎓</div>
+        <h4>Education &amp; EdTech</h4>
+        <p>Enrollment updates, class reminders</p>
+      </div>
+      <div class="industry-card reveal reveal-delay-4">
+        <div class="industry-emoji">🏦</div>
+        <h4>Finance &amp; Banking</h4>
+        <p>Alerts, statements, support</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ TESTIMONIALS ══ -->
+<section id="testimonials" aria-label="Customer testimonials">
+  <div class="container">
+    <div class="text-center reveal">
+      <p class="section-label">Real Results</p>
+      <h2 class="section-title">Businesses love <span class="text-green">Waptrix</span></h2>
+    </div>
+
+    <div class="testi-grid">
+
+      <div class="testi-card reveal reveal-delay-1">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-quote">"</div>
+        <p class="testi-text">
+          We went from sending 200 emails nobody opened to WhatsApp campaigns with 94% open rates. Waptrix literally changed our business. Our abandoned cart recovery alone pays for the subscription 10x over.
+        </p>
+        <div class="testi-author">
+          <div class="testi-avatar">AK</div>
+          <div>
+            <div class="testi-name">Ahmed Khan</div>
+            <div class="testi-role">Founder, StyleVault — Fashion E-Commerce</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testi-card reveal reveal-delay-2">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-quote">"</div>
+        <p class="testi-text">
+          Setting up Waptrix took us 20 minutes. The first campaign we sent brought in 3x more bookings than our previous SMS campaign. The template builder is super clean and the support team is incredibly responsive.
+        </p>
+        <div class="testi-author">
+          <div class="testi-avatar">SP</div>
+          <div>
+            <div class="testi-name">Sara Patel</div>
+            <div class="testi-role">Owner, The Glow Studio — Beauty Salon</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="testi-card reveal reveal-delay-3">
+        <div class="testi-stars">★★★★★</div>
+        <div class="testi-quote">"</div>
+        <p class="testi-text">
+          Our patient appointment no-show rate dropped 67% after we started sending WhatsApp reminders via Waptrix. The two-way inbox is amazing — patients actually reply and we handle it all from one screen.
+        </p>
+        <div class="testi-author">
+          <div class="testi-avatar">DR</div>
+          <div>
+            <div class="testi-name">Dr. Raza Mirza</div>
+            <div class="testi-role">Director, MedFirst Clinics — Healthcare</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ PRICING ══ -->
+<section id="pricing" aria-label="Pricing plans">
+  <div class="container">
+    <div class="text-center reveal">
+      <p class="section-label">Simple Pricing</p>
+      <h2 class="section-title">Start free. Scale when <span class="text-green">you're ready.</span></h2>
+      <p class="section-subtitle" style="margin:0 auto 32px;">
+        No hidden fees. No setup costs. Cancel anytime.
+      </p>
+
+      <div class="pricing-toggle">
+        <span class="toggle-label active" id="monthlyLabel">Monthly</span>
+        <div class="toggle-switch" id="billingToggle" role="switch" aria-checked="false" tabindex="0">
+          <div class="toggle-knob"></div>
+        </div>
+        <span class="toggle-label" id="annualLabel">Annual</span>
+        <span class="save-badge">Save 30%</span>
+      </div>
+    </div>
+
+    <div class="pricing-grid">
+      <!-- Starter -->
+      <div class="price-card reveal reveal-delay-1">
+        <div class="price-plan">Starter</div>
+        <div class="price-amount"><sup>$</sup><span class="price-val" data-monthly="0" data-annual="0">0</span><span>/mo</span></div>
+        <div class="price-desc">Perfect for solopreneurs and small teams just getting started with WhatsApp.</div>
+        <a href="/signup" class="btn btn-outline" style="width:100%;justify-content:center;">Start for Free</a>
+        <div class="price-divider"></div>
+        <ul class="price-features">
+          <li>1 WhatsApp number</li>
+          <li>500 messages / month</li>
+          <li>3 message templates</li>
+          <li>Contact import (CSV)</li>
+          <li>Basic inbox</li>
+          <li class="dim">Bulk campaigns</li>
+          <li class="dim">Advanced analytics</li>
+          <li class="dim">Priority support</li>
+        </ul>
+      </div>
+
+      <!-- Pro (featured) -->
+      <div class="price-card price-card--featured reveal reveal-delay-2">
+        <span class="popular-tag">Most Popular</span>
+        <div class="price-plan">Pro</div>
+        <div class="price-amount"><sup>$</sup><span class="price-val" data-monthly="29" data-annual="20">29</span><span>/mo</span></div>
+        <div class="price-desc">For growing businesses that want serious WhatsApp marketing results.</div>
+        <a href="/signup" class="btn btn-primary" style="width:100%;justify-content:center;">Get Started →</a>
+        <div class="price-divider"></div>
+        <ul class="price-features">
+          <li>1 WhatsApp number</li>
+          <li>25,000 messages / month</li>
+          <li>Unlimited templates</li>
+          <li>Bulk campaigns &amp; scheduling</li>
+          <li>Full contact segments</li>
+          <li>Campaign analytics</li>
+          <li>Team inbox</li>
+          <li>Email support</li>
+        </ul>
+      </div>
+
+      <!-- Business -->
+      <div class="price-card reveal reveal-delay-3">
+        <div class="price-plan">Business</div>
+        <div class="price-amount"><sup>$</sup><span class="price-val" data-monthly="79" data-annual="55">79</span><span>/mo</span></div>
+        <div class="price-desc">For established teams that need scale, advanced features, and priority support.</div>
+        <a href="/signup" class="btn btn-outline" style="width:100%;justify-content:center;">Contact Sales</a>
+        <div class="price-divider"></div>
+        <ul class="price-features">
+          <li>3 WhatsApp numbers</li>
+          <li>Unlimited messages</li>
+          <li>Unlimited templates</li>
+          <li>All Pro features</li>
+          <li>Advanced analytics + export</li>
+          <li>API access</li>
+          <li>Custom integrations</li>
+          <li>Priority 24/7 support</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ FAQ ══ -->
+<section id="faq" aria-label="Frequently asked questions">
+  <div class="container">
+    <div class="text-center reveal">
+      <p class="section-label">Got Questions?</p>
+      <h2 class="section-title">Frequently asked <span class="text-green">questions</span></h2>
+    </div>
+
+    <div class="faq-list" role="list">
+
+      <div class="faq-item" role="listitem">
+        <button class="faq-q" aria-expanded="false">
+          What is the WhatsApp Business API?
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          The WhatsApp Business API (now called WhatsApp Business Platform) is Meta's official solution for medium and large businesses to send and receive WhatsApp messages at scale. Unlike the regular WhatsApp Business app (which is limited to one user and 256 contacts per broadcast), the API supports unlimited contacts, bulk campaigns, CRM integrations, and team inboxes. Waptrix is built on top of this API, so everything you do through Waptrix is 100% official and compliant with Meta's policies.
+        </div></div>
+      </div>
+
+      <div class="faq-item" role="listitem">
+        <button class="faq-q" aria-expanded="false">
+          Do I need technical knowledge to use Waptrix?
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Absolutely not. Waptrix is designed for business owners and marketers — not developers. The entire setup, from connecting your WhatsApp number to launching your first campaign, takes less than 30 minutes with no code required. Our step-by-step onboarding guides you through everything.
+        </div></div>
+      </div>
+
+      <div class="faq-item" role="listitem">
+        <button class="faq-q" aria-expanded="false">
+          Will my messages get blocked or banned?
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Waptrix uses the official WhatsApp Business API — this means your messages go through Meta's official channels and are not at risk of being banned unlike grey-market tools. You do need to use Meta-approved message templates for outbound marketing, which ensures your messaging is compliant. Our platform guides you through the template submission and approval process.
+        </div></div>
+      </div>
+
+      <div class="faq-item" role="listitem">
+        <button class="faq-q" aria-expanded="false">
+          How long does template approval take?
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Meta typically approves message templates within a few minutes to 24 hours. Waptrix notifies you instantly via our notification center the moment your template is approved or if any changes are needed. Our platform makes it easy to submit, track, and resubmit templates.
+        </div></div>
+      </div>
+
+      <div class="faq-item" role="listitem">
+        <button class="faq-q" aria-expanded="false">
+          Can I try Waptrix for free?
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Yes! Our Starter plan is completely free — no credit card required. You get 500 messages per month, 3 templates, and full access to our inbox. When you're ready to scale, upgrade to Pro from $29/month (or $20/month billed annually).
+        </div></div>
+      </div>
+
+      <div class="faq-item" role="listitem">
+        <button class="faq-q" aria-expanded="false">
+          What countries is Waptrix available in?
+          <span class="chevron" aria-hidden="true">▾</span>
+        </button>
+        <div class="faq-a"><div class="faq-a-inner">
+          Waptrix works in every country where WhatsApp Business API is supported — which includes most countries globally including India, Pakistan, UAE, UK, USA, Germany, Brazil, Indonesia, Nigeria, and more. As long as your customers are on WhatsApp, you can reach them.
+        </div></div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ CTA ══ -->
+<section id="cta" aria-label="Get started with Waptrix">
+  <div class="container">
+    <div class="cta-box reveal">
+      <div class="cta-glow" aria-hidden="true"></div>
+      <div class="badge" style="margin-bottom:24px;">🎉 No credit card required</div>
+      <h2>Ready to grow on <span class="grad-text">WhatsApp</span>?</h2>
+      <p>Join 10,000+ businesses using Waptrix to reach customers where they actually read messages. Set up in under 30 minutes.</p>
+      <form class="cta-form" onsubmit="handleCtaSubmit(event)" role="form" aria-label="Sign up form">
+        <input type="email" placeholder="Enter your work email" required aria-label="Work email address" id="ctaEmail" />
+        <button type="submit" class="btn btn-primary">Start Free →</button>
+      </form>
+      <p class="cta-note">✓ Free plan forever &nbsp;·&nbsp; ✓ Setup in 30 minutes &nbsp;·&nbsp; ✓ Cancel anytime</p>
+    </div>
+  </div>
+</section>
+
+<!-- ══════════════════════════════════════════════ FOOTER ══ -->
+<footer role="contentinfo">
+  <div class="container">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <a href="/" class="nav-logo" style="margin-bottom:0;" aria-label="Waptrix">
+          <div class="logo-icon">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.12 1.522 5.857L0 24l6.305-1.503A11.935 11.935 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.802 9.802 0 01-4.998-1.366l-.358-.213-3.741.893.924-3.643-.234-.374A9.793 9.793 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182c5.422 0 9.818 4.396 9.818 9.818 0 5.422-4.396 9.818-9.818 9.818z"/>
+            </svg>
+          </div>
+          Waptrix
+        </a>
+        <p>The all-in-one WhatsApp Business API platform for modern marketing teams. Reach your customers where they actually read messages.</p>
+        <div class="footer-socials" aria-label="Social media links">
+          <a href="#" class="social-btn" aria-label="Twitter / X">𝕏</a>
+          <a href="#" class="social-btn" aria-label="LinkedIn">in</a>
+          <a href="#" class="social-btn" aria-label="Instagram">📸</a>
+          <a href="#" class="social-btn" aria-label="YouTube">▶</a>
+        </div>
+        <div style="margin-top:20px;">
+          <div class="wa-badge">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="#25D366"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.123.554 4.12 1.522 5.857L0 24l6.305-1.503A11.935 11.935 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.802 9.802 0 01-4.998-1.366l-.358-.213-3.741.893.924-3.643-.234-.374A9.793 9.793 0 012.182 12C2.182 6.578 6.578 2.182 12 2.182c5.422 0 9.818 4.396 9.818 9.818 0 5.422-4.396 9.818-9.818 9.818z"/></svg>
+            Official Meta Business Partner
+          </div>
+        </div>
+      </div>
+
+      <div class="footer-col">
+        <h5>Product</h5>
+        <ul>
+          <li><a href="#features">Features</a></li>
+          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="#how">How it works</a></li>
+          <li><a href="/changelog">Changelog</a></li>
+          <li><a href="/roadmap">Roadmap</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h5>Use Cases</h5>
+        <ul>
+          <li><a href="#industries">E-Commerce</a></li>
+          <li><a href="#industries">Healthcare</a></li>
+          <li><a href="#industries">Real Estate</a></li>
+          <li><a href="#industries">Restaurants</a></li>
+          <li><a href="#industries">Education</a></li>
+        </ul>
+      </div>
+
+      <div class="footer-col">
+        <h5>Company</h5>
+        <ul>
+          <li><a href="/about">About Us</a></li>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="/careers">Careers</a></li>
+          <li><a href="/contact">Contact</a></li>
+          <li><a href="/privacy">Privacy Policy</a></li>
+          <li><a href="/terms">Terms of Service</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="footer-bottom">
+      <span>© 2026 Waptrix. All rights reserved.</span>
+      <div class="footer-bottom-links">
+        <a href="/privacy">Privacy</a>
+        <a href="/terms">Terms</a>
+        <a href="/cookies">Cookies</a>
+        <a href="/sitemap.xml">Sitemap</a>
+      </div>
+      <span style="color:var(--muted);font-size:12px;">Built with ❤️ for WhatsApp marketers worldwide</span>
+    </div>
+  </div>
+</footer>
+
+<!-- ══════════════════════════════════════════════ JS ══ -->
+<script>
+  // ── Navbar scroll effect
+  const navbar = document.getElementById('navbar');
+  window.addEventListener('scroll', () => {
+    navbar.classList.toggle('scrolled', window.scrollY > 20);
+  }, { passive: true });
+
+  // ── Scroll reveal
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+  document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+
+  // ── Counter animation
+  function animateCounter(el) {
+    const target = parseFloat(el.dataset.target);
+    const isDecimal = target % 1 !== 0;
+    const duration = 1800;
+    const start = performance.now();
+    const update = (now) => {
+      const progress = Math.min((now - start) / duration, 1);
+      const eased = 1 - Math.pow(1 - progress, 4);
+      const val = eased * target;
+      el.textContent = isDecimal ? val.toFixed(1) : Math.round(val).toLocaleString();
+      if (progress < 1) requestAnimationFrame(update);
+    };
+    requestAnimationFrame(update);
+  }
+
+  const counterObserver = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        animateCounter(entry.target);
+        counterObserver.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+
+  document.querySelectorAll('.count').forEach(el => counterObserver.observe(el));
+
+  // ── Billing toggle
+  const toggle = document.getElementById('billingToggle');
+  const priceVals = document.querySelectorAll('.price-val');
+  const monthlyLabel = document.getElementById('monthlyLabel');
+  const annualLabel = document.getElementById('annualLabel');
+  let isAnnual = false;
+
+  toggle.addEventListener('click', () => {
+    isAnnual = !isAnnual;
+    toggle.classList.toggle('on', isAnnual);
+    toggle.setAttribute('aria-checked', isAnnual.toString());
+    monthlyLabel.classList.toggle('active', !isAnnual);
+    annualLabel.classList.toggle('active', isAnnual);
+    priceVals.forEach(el => {
+      el.textContent = isAnnual ? el.dataset.annual : el.dataset.monthly;
+    });
+  });
+
+  toggle.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggle.click(); }
+  });
+
+  // ── FAQ accordion
+  document.querySelectorAll('.faq-q').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const item = btn.closest('.faq-item');
+      const isOpen = item.classList.contains('open');
+      document.querySelectorAll('.faq-item').forEach(i => {
+        i.classList.remove('open');
+        i.querySelector('.faq-q').setAttribute('aria-expanded', 'false');
+      });
+      if (!isOpen) {
+        item.classList.add('open');
+        btn.setAttribute('aria-expanded', 'true');
+      }
+    });
+  });
+
+  // ── Mobile nav
+  const hamburgerBtn = document.getElementById('hamburgerBtn');
+  const mobileMenu = document.getElementById('mobileMenu');
+  hamburgerBtn.addEventListener('click', () => {
+    const isOpen = mobileMenu.classList.toggle('open');
+    hamburgerBtn.setAttribute('aria-expanded', isOpen.toString());
+    document.body.style.overflow = isOpen ? 'hidden' : '';
+  });
+
+  document.querySelectorAll('.mobile-link, .mobile-menu .btn').forEach(link => {
+    link.addEventListener('click', () => {
+      mobileMenu.classList.remove('open');
+      document.body.style.overflow = '';
+      hamburgerBtn.setAttribute('aria-expanded', 'false');
+    });
+  });
+
+  // ── CTA form
+  function handleCtaSubmit(e) {
+    e.preventDefault();
+    const email = document.getElementById('ctaEmail').value;
+    window.location.href = '/signup?email=' + encodeURIComponent(email);
+  }
+
+  // ── Smooth scroll for nav links
+  document.querySelectorAll('a[href^="#"]').forEach(a => {
+    a.addEventListener('click', (e) => {
+      const target = document.querySelector(a.getAttribute('href'));
+      if (target) {
+        e.preventDefault();
+        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    });
+  });
+
+  // ── Keyboard accessibility: close mobile menu on Escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && mobileMenu.classList.contains('open')) {
+      mobileMenu.classList.remove('open');
+      document.body.style.overflow = '';
+      hamburgerBtn.setAttribute('aria-expanded', 'false');
+      hamburgerBtn.focus();
+    }
+  });
+</script>
+
+</body>
+</html>

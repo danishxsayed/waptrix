@@ -1,5 +1,18 @@
 # Implementation History
 
+## [2026-06-24] - Landing Page, Error Boundaries, and UX Enhancements
+- **Landing Page Integration**:
+  - Created a fully responsive, interactive, and SEO-optimized static landing page at `public/index.html` featuring smooth scroll transitions, FAQs, dynamic testimonials, and a custom CSS style sheet matching the dark theme.
+- **Robustness & Error Resilience**:
+  - Added fetch and action error boundaries with local state checking and manual retry buttons to key dashboard views (Home page, Analytics page, Campaigns page, Contacts page, Templates page).
+  - Increased network request timeouts to 15 seconds on the contacts dashboard to handle heavy segment queries safely.
+- **UX & UI Refinements**:
+  - Implemented CSV export functionality on the Analytics page, compiling core metrics to a browser-downloaded file.
+  - Added visual error response alerts inside the Inbox panel when WhatsApp template/message replies fail.
+  - Optimized the inbox polling interval from 3s to 8s to reduce network load.
+  - Improved Campaign Wizard step navigation, preventing progression during loading/error states, adding a launch error boundary, and ensuring date inputs prevent past date selection.
+  - Configured `useMemo` for Supabase client instantiation in the settings page to optimize render performance.
+
 ## [2026-06-19] - Campaign Delivery/Read Webhook Updates & Dashboard Verification/Polish
 - **Webhook Status Synchronization**:
   - Enhanced `/api/webhooks/meta` webhook handler to update campaign delivery metrics (`delivered_count` and `read_count`) dynamically as incoming Meta status event payloads are processed.

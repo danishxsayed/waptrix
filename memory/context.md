@@ -34,5 +34,6 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Integrated a dedicated settings pane on the `/settings` route to display active connection status, synced official business names, phone numbers, and last sync times.
   - Created `/api/whatsapp/profile` (GET to retrieve business details, and POST to update status/bio fields) interacting directly with Meta Graph API.
   - Created `/api/whatsapp/profile/picture` (POST to upload JPEG/PNG avatar assets up to 5MB, register the resulting media handle with Meta, and set it as the WhatsApp Business Profile picture).
-
-
+- **Landing Page & Error Resilience**:
+  - Implemented a fully responsive, SEO-optimized landing page at `public/index.html` styling the site to match the dark glassmorphic design token system.
+  - Implemented frontend error boundaries across all dashboard pages (Analytics, Campaigns, Contacts, Templates, and Home dashboard) with user-friendly retry buttons, toast alerts, and launch boundaries.
