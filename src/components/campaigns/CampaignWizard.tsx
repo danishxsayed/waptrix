@@ -50,7 +50,13 @@ export default function CampaignWizard({ onClose, onLaunch }: { onClose: () => v
     setLaunchError("");
     setIsSubmitting(true);
     try {
-      await axios.post("/api/campaigns", formData);
+      // Convert scheduled_at from local datetime string → UTC ISO so the
+      // server stores the correct time regardless of timezone offset.
+      const payload = { ...formData };
+      if (!payload.send_now && payload.scheduled_at) {
+        payload.scheduled_at = new Date(payload.scheduled_at).toISOString();
+      }
+      await axios.post("/api/campaigns", payload);
       // Close immediately — sending runs in background via waitUntil
       onLaunch();
       onClose();
