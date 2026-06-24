@@ -384,10 +384,10 @@ export default function CampaignsPage() {
                           })()}
                         </div>
                       </div>
-                      {(log.status || '').toLowerCase() === 'failed' && log.error && (
+                      {(log.status || '').toLowerCase() === 'failed' && (
                         <div className="mt-2 p-2.5 bg-rose-500/5 border border-rose-500/15 rounded-lg text-[11px] font-mono text-rose-400 break-words">
                           <span className="font-bold uppercase tracking-wider mr-1 text-[9px] bg-rose-500/15 text-rose-300 px-1 py-0.5 rounded">Error Detail</span>
-                          {log.error}
+                          {log.error || log.error_message || log.error_detail || '⚠️ No error captured — check if the message_logs table has an "error" column. Common cause: number not on WhatsApp, or Meta app in Development mode (number not whitelisted).'}
                         </div>
                       )}
                     </div>
