@@ -37,3 +37,4 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 - **Landing Page & Error Resilience**:
   - Implemented a fully responsive, SEO-optimized landing page at `public/index.html` styling the site to match the dark glassmorphic design token system.
   - Implemented frontend error boundaries across all dashboard pages (Analytics, Campaigns, Contacts, Templates, and Home dashboard) with user-friendly retry buttons, toast alerts, and launch boundaries.
+  - Upgraded Campaign dispatcher logs to capture granular Meta error payloads (`[code] message`) and extended visual statuses to display distinct badges for `read`, `delivered`, `sent`, `failed`, and `queued` events.

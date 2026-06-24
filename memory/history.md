@@ -12,6 +12,9 @@
   - Optimized the inbox polling interval from 3s to 8s to reduce network load.
   - Improved Campaign Wizard step navigation, preventing progression during loading/error states, adding a launch error boundary, and ensuring date inputs prevent past date selection.
   - Configured `useMemo` for Supabase client instantiation in the settings page to optimize render performance.
+- **Campaign Log Detail Upgrades**:
+  - Enhanced campaign dispatch endpoint to parse and store specific Meta Graph API error codes and subcode messages (`[code] message`) when immediate send jobs fail.
+  - Re-rendered Campaign log visual statuses to support granular delivery states (`read`, `delivered`, `sent`, `failed`, `queued`) via inline icons and lowercase normalization.
 
 ## [2026-06-19] - Campaign Delivery/Read Webhook Updates & Dashboard Verification/Polish
 - **Webhook Status Synchronization**:

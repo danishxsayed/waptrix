@@ -3,19 +3,21 @@ export const dynamic = "force-dynamic";
 
 
 import { useState, useEffect } from "react";
-import { 
-  Plus, 
-  Send, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
-  Users, 
+import {
+  Plus,
+  Send,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Users,
   BarChart2,
   MoreVertical,
   Activity,
   Trash2,
   X,
-  Info
+  Info,
+  Eye,
+  PackageCheck
 } from "lucide-react";
 import axios from "axios";
 import CampaignWizard from "@/components/campaigns/CampaignWizard";
@@ -320,18 +322,38 @@ export default function CampaignsPage() {
                           </p>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
-                          {log.status === 'sent' || log.status === 'SENT' ? (
-                            <span className="bg-sky-500/10 text-sky-500 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border border-sky-500/20 flex items-center gap-1">
-                              <CheckCircle2 className="w-2.5 h-2.5" /> Sent
-                            </span>
-                          ) : (
-                            <span className="bg-rose-500/10 text-rose-500 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border border-rose-500/20 flex items-center gap-1">
-                              <AlertCircle className="w-2.5 h-2.5" /> Failed
-                            </span>
-                          )}
+                          {(() => {
+                            const s = (log.status || '').toLowerCase();
+                            if (s === 'read') return (
+                              <span className="bg-jade/10 text-jade px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border border-jade/20 flex items-center gap-1">
+                                <Eye className="w-2.5 h-2.5" /> Read
+                              </span>
+                            );
+                            if (s === 'delivered') return (
+                              <span className="bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border border-emerald-500/20 flex items-center gap-1">
+                                <PackageCheck className="w-2.5 h-2.5" /> Delivered
+                              </span>
+                            );
+                            if (s === 'sent') return (
+                              <span className="bg-sky-500/10 text-sky-500 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border border-sky-500/20 flex items-center gap-1">
+                                <CheckCircle2 className="w-2.5 h-2.5" /> Sent
+                              </span>
+                            );
+                            if (s === 'failed') return (
+                              <span className="bg-rose-500/10 text-rose-500 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border border-rose-500/20 flex items-center gap-1">
+                                <AlertCircle className="w-2.5 h-2.5" /> Failed
+                              </span>
+                            );
+                            // queued / unknown
+                            return (
+                              <span className="bg-yellow-500/10 text-yellow-400 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border border-yellow-500/20 flex items-center gap-1">
+                                <Clock className="w-2.5 h-2.5" /> {s || 'Queued'}
+                              </span>
+                            );
+                          })()}
                         </div>
                       </div>
-                      {(log.status === 'failed' || log.status === 'FAILED') && log.error && (
+                      {(log.status || '').toLowerCase() === 'failed' && log.error && (
                         <div className="mt-2 p-2.5 bg-rose-500/5 border border-rose-500/15 rounded-lg text-[11px] font-mono text-rose-400 break-words">
                           <span className="font-bold uppercase tracking-wider mr-1 text-[9px] bg-rose-500/15 text-rose-300 px-1 py-0.5 rounded">Error Detail</span>
                           {log.error}

@@ -266,7 +266,10 @@ export async function POST(req: Request) {
                 });
                 sentCount++;
               } catch (sendErr: any) {
-                const errorMsg = sendErr.response?.data?.error?.message || sendErr.message || String(sendErr);
+                const metaErr = sendErr.response?.data?.error;
+                const errorMsg = metaErr
+                  ? `[${metaErr.code || metaErr.error_subcode || ''}] ${metaErr.message || metaErr.error_data?.details || sendErr.message}`
+                  : (sendErr.message || String(sendErr));
                 console.error(`Immediate send failed for ${contact.phone}:`, errorMsg);
                 
                 await serviceClient.from('message_logs').insert({
