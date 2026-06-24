@@ -25,6 +25,36 @@ async function getUser() {
   return user;
 }
 
+// ── Fire any overdue scheduled campaigns for this tenant (background) ──
+async function processDueCampaigns(tenantId: string) {
+  const db = serviceClient();
+  const { data: due } = await db
+    .from('campaigns')
+    .select('id')
+    .eq('tenant_id', tenantId)
+    .eq('status', 'scheduled')
+    .lte('scheduled_at', new Date().toISOString());
+
+  if (!due || due.length === 0) return;
+
+  for (const campaign of due) {
+    // Mark queued immediately to prevent double-fire on concurrent requests
+    const { data: claimed } = await db
+      .from('campaigns')
+      .update({ status: 'queued' })
+      .eq('id', campaign.id)
+      .eq('status', 'scheduled') // only update if still scheduled (atomic guard)
+      .select('id')
+      .single();
+
+    if (claimed) {
+      executeCampaignSend(campaign.id).catch((err) =>
+        console.error(`Scheduled campaign ${campaign.id} failed:`, err.message)
+      );
+    }
+  }
+}
+
 // ── GET — list campaigns ──────────────────────────────────
 export async function GET() {
   try {
@@ -39,6 +69,12 @@ export async function GET() {
       .order('created_at', { ascending: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Fire any overdue scheduled campaigns in background — piggybacks on the
+    // 10-second poll so campaigns fire within 10s of their scheduled time,
+    // no cron upgrade needed.
+    waitUntil(processDueCampaigns(user.id).catch(console.error));
+
     return NextResponse.json(data);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
