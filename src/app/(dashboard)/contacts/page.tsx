@@ -24,7 +24,10 @@ import {
   ChevronDown,
   ChevronUp,
   Download,
-  HelpCircle
+  HelpCircle,
+  User,
+  Hash,
+  Folder
 } from "lucide-react";
 import axios from "axios";
 import * as XLSX from "xlsx";
@@ -1138,6 +1141,18 @@ function SegmentsLibraryModal({
 // ─── Main Page ────────────────────────────────────────────────────────────────
 const PAGE_SIZE = 50;
 
+const getAvatarGradient = (char: string) => {
+  const code = char.charCodeAt(0) % 5;
+  const gradients = [
+    "from-emerald-500/20 to-teal-500/10 text-emerald-400 border-emerald-500/20",
+    "from-blue-500/20 to-indigo-500/10 text-blue-400 border-blue-500/20",
+    "from-purple-500/20 to-pink-500/10 text-purple-400 border-purple-500/20",
+    "from-amber-500/20 to-orange-500/10 text-amber-400 border-amber-500/20",
+    "from-cyan-500/20 to-sky-500/10 text-cyan-400 border-cyan-500/20"
+  ];
+  return gradients[code];
+};
+
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [segments, setSegments] = useState<any[]>([]);
@@ -1311,29 +1326,85 @@ export default function ContactsPage() {
         </div>
       </div>
 
+      {/* Stats Cards Row */}
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="glass-card flex items-center justify-between !p-4 bg-gradient-to-br from-card/30 to-card/10 hover:border-jade/30 transition-all group">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Total Contacts</p>
+            <p className="text-2xl font-bold text-text-primary tracking-tight font-syne">{contacts.length}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-jade/10 flex items-center justify-center text-jade border border-jade/20 group-hover:scale-110 transition-transform">
+            <Users className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="glass-card flex items-center justify-between !p-4 bg-gradient-to-br from-card/30 to-card/10 hover:border-jade/30 transition-all group">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Opted-in Rate</p>
+            <p className="text-2xl font-bold text-jade tracking-tight font-syne">
+              {contacts.length ? Math.round((contacts.filter(c => c.opted_in).length / contacts.length) * 100) : 0}%
+            </p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-jade/10 flex items-center justify-center text-jade border border-jade/20 group-hover:scale-110 transition-transform">
+            <CheckCircle2 className="w-5 h-5" />
+          </div>
+        </div>
+
+        <div className="glass-card flex items-center justify-between !p-4 bg-gradient-to-br from-card/30 to-card/10 hover:border-jade/30 transition-all group">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Active Segments</p>
+            <p className="text-2xl font-bold text-text-primary tracking-tight font-syne">{segments.length}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-info/10 flex items-center justify-center text-info border border-info/20 group-hover:scale-110 transition-transform">
+            <Folder className="w-5 h-5 text-info" />
+          </div>
+        </div>
+
+        <div className="glass-card flex items-center justify-between !p-4 bg-gradient-to-br from-card/30 to-card/10 hover:border-jade/30 transition-all group">
+          <div className="space-y-1">
+            <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Filtered View</p>
+            <p className="text-2xl font-bold text-text-primary tracking-tight font-syne">{filteredContacts.length}</p>
+          </div>
+          <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center text-warning border border-warning/20 group-hover:scale-110 transition-transform">
+            <Search className="w-5 h-5" />
+          </div>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
         {/* Segments Sidebar */}
         <div className="space-y-4">
-          <div className="glass-card !p-4">
+          <div className="glass-card !p-4 border-border/80 shadow-[0_4px_20px_rgba(0,0,0,0.15)] bg-gradient-to-b from-card/60 to-card/20">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xs font-bold text-text-muted uppercase tracking-widest">Segments</h3>
+              <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-widest flex items-center gap-1">
+                <Folder className="w-3.5 h-3.5 text-jade" />
+                Segments
+              </h3>
               <button
                 onClick={() => setShowLibraryModal(true)}
-                className="text-[10px] font-bold text-jade hover:underline uppercase tracking-wider flex items-center gap-1"
+                className="text-[9px] font-bold text-jade hover:text-jade-hover transition-colors hover:underline uppercase tracking-wider flex items-center gap-1"
               >
                 Manage Library
               </button>
             </div>
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <button
                 onClick={() => setActiveSegment("all")}
-                className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-all ${
+                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between border ${
                   activeSegment === "all"
-                    ? "bg-jade/10 text-jade shadow-[inset_0_0_10px_rgba(16,185,129,0.1)]"
-                    : "text-text-muted hover:bg-surface hover:text-text-primary"
+                    ? "bg-jade/10 border-jade/30 text-jade shadow-[0_0_15px_rgba(16,185,129,0.05)] font-extrabold"
+                    : "border-transparent text-text-muted hover:bg-surface hover:text-text-primary hover:border-border"
                 }`}
               >
-                All Contacts ({contacts.length})
+                <div className="flex items-center gap-2">
+                  <Users className="w-3.5 h-3.5" />
+                  <span>All Contacts</span>
+                </div>
+                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full font-bold ${
+                  activeSegment === "all" ? 'bg-jade/20 text-jade' : 'bg-surface text-text-muted border border-border/50'
+                }`}>
+                  {contacts.length}
+                </span>
               </button>
               {segments.map(s => {
                 const count = contacts.filter(c => c.segment_id === s.id).length;
@@ -1341,25 +1412,28 @@ export default function ContactsPage() {
                   <button
                     key={s.id}
                     onClick={() => setActiveSegment(s.id)}
-                    className={`w-full text-left px-3 py-2 rounded-xl text-sm font-semibold transition-all flex justify-between items-center ${
+                    className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex justify-between items-center border ${
                       activeSegment === s.id
-                        ? "bg-jade/10 text-jade shadow-[inset_0_0_10px_rgba(16,185,129,0.1)]"
-                        : "text-text-muted hover:bg-surface hover:text-text-primary"
+                        ? "bg-jade/10 border-jade/30 text-jade shadow-[0_0_15px_rgba(16,185,129,0.05)] font-extrabold"
+                        : "border-transparent text-text-muted hover:bg-surface hover:text-text-primary hover:border-border"
                     }`}
                   >
-                    <span className="truncate">{s.name}</span>
-                    <span className={`text-[10px] font-mono px-1.5 py-0.5 rounded-full ${
-                      activeSegment === s.id ? 'bg-jade/20 text-jade font-bold' : 'bg-surface text-text-muted'
+                    <div className="flex items-center gap-2 truncate">
+                      <Tag className="w-3.5 h-3.5 shrink-0 text-text-muted/60" />
+                      <span className="truncate">{s.name}</span>
+                    </div>
+                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full font-bold ${
+                      activeSegment === s.id ? 'bg-jade/20 text-jade' : 'bg-surface text-text-muted border border-border/50'
                     }`}>
-                      {count}
-                    </span>
-                  </button>
+                  {count}
+                </span>
+              </button>
                 );
               })}
               
               <button
                 onClick={() => setShowQuickCreateSegment(true)}
-                className="w-full mt-2 border border-dashed border-border hover:border-jade/30 rounded-xl px-3 py-2 text-xs font-bold text-text-muted hover:text-jade flex items-center justify-center gap-1.5 transition-all"
+                className="w-full mt-2 border border-dashed border-border/60 hover:border-jade/40 rounded-xl px-3 py-2.5 text-xs font-bold text-text-muted hover:text-jade flex items-center justify-center gap-1.5 transition-all hover:bg-jade/5"
               >
                 <Plus className="w-3.5 h-3.5" />
                 Add New Niche
@@ -1405,119 +1479,161 @@ export default function ContactsPage() {
                 <button onClick={fetchContacts} className="btn-primary text-sm">Retry</button>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-border">
+              <div className="overflow-x-auto rounded-2xl border border-border shadow-[0_4px_30px_rgba(0,0,0,0.2)] bg-card/25 backdrop-blur-sm">
                 <table className="w-full text-left">
                   <thead>
-                    <tr className="bg-surface/40 border-b border-border text-[10px] font-bold text-text-muted uppercase tracking-widest">
-                      <th className="px-6 py-4">Contact</th>
-                      <th className="px-6 py-4">Phone</th>
-                      <th className="px-6 py-4">User ID</th>
-                      <th className="px-6 py-4">Tags</th>
-                      <th className="px-6 py-4">Appointment &amp; Location</th>
-                      <th className="px-6 py-4">Status</th>
+                    <tr className="bg-surface/60 border-b border-border text-[9px] font-bold text-text-muted uppercase tracking-widest">
+                      <th className="px-6 py-4">
+                        <span className="flex items-center gap-1.5">
+                          <User className="w-3.5 h-3.5 text-text-muted/60" /> Contact
+                        </span>
+                      </th>
+                      <th className="px-6 py-4">
+                        <span className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-text-muted/60" /> Phone
+                        </span>
+                      </th>
+                      <th className="px-6 py-4">
+                        <span className="flex items-center gap-1.5">
+                          <Hash className="w-3.5 h-3.5 text-text-muted/60" /> User ID
+                        </span>
+                      </th>
+                      <th className="px-6 py-4">
+                        <span className="flex items-center gap-1.5">
+                          <Tag className="w-3.5 h-3.5 text-text-muted/60" /> Tags
+                        </span>
+                      </th>
+                      <th className="px-6 py-4">
+                        <span className="flex items-center gap-1.5">
+                          <Calendar className="w-3.5 h-3.5 text-text-muted/60" /> Appointment &amp; Location
+                        </span>
+                      </th>
+                      <th className="px-6 py-4">
+                        <span className="flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-text-muted/60" /> Status
+                        </span>
+                      </th>
                       <th className="px-6 py-4 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-border/40">
-                    {paginatedContacts.map((contact, i) => (
-                      <tr key={contact.id || i} className="hover:bg-card/50 transition-colors group">
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-jade/10 flex items-center justify-center text-jade font-bold text-xs uppercase border border-jade/20 shadow-sm">
-                              {(contact.name || "?")[0]}
+                    {paginatedContacts.map((contact, i) => {
+                      const char = (contact.name || "?")[0].toUpperCase();
+                      const avatarClass = getAvatarGradient(char);
+                      return (
+                        <tr key={contact.id || i} className="hover:bg-card/50 transition-all group duration-200">
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-full bg-gradient-to-br flex items-center justify-center font-bold text-xs uppercase border shadow-sm ${avatarClass}`}>
+                                {char}
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-text-primary group-hover:text-jade transition-colors duration-200">{contact.name}</p>
+                                {contact.email ? (
+                                  <p className="text-[10px] text-text-muted font-medium">{contact.email}</p>
+                                ) : (
+                                  <p className="text-[10px] text-text-muted/40 italic">No email</p>
+                                )}
+                              </div>
                             </div>
-                            <div>
-                              <p className="text-sm font-semibold text-text-primary">{contact.name}</p>
-                              {contact.email ? (
-                                <p className="text-[10px] text-text-muted">{contact.email}</p>
-                              ) : (
-                                <p className="text-[10px] text-text-muted/40 italic">No email</p>
-                              )}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-xs text-text-muted font-mono">{contact.phone}</td>
-                        <td className="px-6 py-4 text-xs text-text-muted font-medium">{contact.custom1 || <span className="text-text-muted/40">—</span>}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex flex-wrap gap-1 max-w-[180px]">
-                            {contact.custom2 ? (
-                              contact.custom2.split(',').map((tag: string, idx: number) => (
-                                <span key={idx} className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-1.5 py-0.5 rounded-full text-[9px] font-bold uppercase tracking-wider">
-                                  {tag.trim()}
-                                </span>
-                              ))
+                          </td>
+                          <td className="px-6 py-4 text-xs text-text-muted font-mono">{contact.phone}</td>
+                          <td className="px-6 py-4 text-xs">
+                            {contact.custom1 ? (
+                              <span className="px-2 py-0.5 rounded bg-surface border border-border text-text-muted font-mono font-bold text-[9px] tracking-wide shadow-sm">
+                                {contact.custom1}
+                              </span>
                             ) : (
-                              <span className="text-text-muted/40 text-xs">—</span>
+                              <span className="text-text-muted/30">—</span>
                             )}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 text-xs">
-                          {(() => {
-                            if (!contact.custom3) return <span className="text-text-muted/40">—</span>;
-                            try {
-                              const parsed = JSON.parse(contact.custom3);
-                              return (
-                                <div className="space-y-1">
-                                  {parsed.appointment_time && (
-                                    <p className="text-text-primary font-medium flex items-center gap-1.5">
-                                      <Calendar className="w-3.5 h-3.5 text-jade shrink-0" /> {new Date(parsed.appointment_time).toLocaleString()}
-                                    </p>
-                                  )}
-                                  {parsed.location && (
-                                    <p className="text-text-muted text-[10px] flex items-center gap-1.5">
-                                      <MapPin className="w-3.5 h-3.5 text-text-muted shrink-0" /> {parsed.location}
-                                    </p>
-                                  )}
-                                  {!parsed.appointment_time && !parsed.location && (
-                                    <p className="text-text-muted">{contact.custom3}</p>
-                                  )}
-                                </div>
-                              );
-                            } catch {
-                              return <span className="text-text-muted">{contact.custom3}</span>;
-                            }
-                          })()}
-                        </td>
-                        <td className="px-6 py-4">
-                          {contact.opted_in ? (
-                            <span className="badge flex items-center gap-1 w-fit bg-jade/10 text-jade border border-jade/25 text-[10px] font-bold uppercase py-0.5 px-2 rounded-full">
-                              <CheckCircle2 className="w-3 h-3" /> Opted-in
-                            </span>
-                          ) : (
-                            <span className="bg-danger/10 text-danger border border-danger/25 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase flex items-center gap-1 w-fit">
-                              <X className="w-3.5 h-3.5" /> Opted-out
-                            </span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            {contact.email && (
+                          </td>
+                          <td className="px-6 py-4">
+                            {contact.custom2 ? (
+                              <div className="flex flex-wrap gap-1 max-w-[180px]">
+                                {contact.custom2.split(',').map((tag: string, idx: number) => (
+                                  <span key={idx} className="inline-flex items-center gap-1 bg-purple-500/10 text-purple-300 border border-purple-500/25 px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider shadow-sm transition-all hover:bg-purple-500/20">
+                                    <Tag className="w-2 h-2 text-purple-400" />
+                                    {tag.trim()}
+                                  </span>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-text-muted/30 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-xs">
+                            {(() => {
+                              if (!contact.custom3) return <span className="text-text-muted/30">—</span>;
+                              try {
+                                const parsed = JSON.parse(contact.custom3);
+                                return (
+                                  <div className="space-y-1 text-[11px]">
+                                    {parsed.appointment_time && (
+                                      <p className="text-text-primary font-bold flex items-center gap-1.5 bg-jade/5 border border-jade/10 w-fit px-2 py-0.5 rounded-md">
+                                        <Calendar className="w-3.5 h-3.5 text-jade shrink-0" /> {new Date(parsed.appointment_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                                      </p>
+                                    )}
+                                    {parsed.location && (
+                                      <p className="text-text-muted text-[10px] flex items-center gap-1.5 pl-0.5">
+                                        <MapPin className="w-3.5 h-3.5 text-text-muted/70 shrink-0" /> <span className="truncate max-w-[160px]" title={parsed.location}>{parsed.location}</span>
+                                      </p>
+                                    )}
+                                    {!parsed.appointment_time && !parsed.location && (
+                                      <p className="text-text-muted">{contact.custom3}</p>
+                                    )}
+                                  </div>
+                                );
+                              } catch {
+                                return <span className="text-text-muted/70 bg-surface border border-border px-2 py-0.5 rounded text-[10px]">{contact.custom3}</span>;
+                              }
+                            })()}
+                          </td>
+                          <td className="px-6 py-4">
+                            {contact.opted_in ? (
+                              <span className="inline-flex items-center gap-1.5 bg-jade/10 text-jade border border-jade/25 text-[10px] font-bold uppercase tracking-wider py-1 px-2.5 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.1)]">
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jade opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-jade"></span>
+                                </span>
+                                Opted-in
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1.5 bg-danger/10 text-danger border border-danger/25 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-[0_0_15px_rgba(244,63,94,0.05)]">
+                                <span className="h-1.5 w-1.5 rounded-full bg-danger"></span>
+                                Opted-out
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-6 py-4 text-right">
+                            <div className="flex items-center justify-end gap-2">
+                              {contact.email && (
+                                <a
+                                  href={`mailto:${contact.email}`}
+                                  className="w-8 h-8 rounded-lg bg-surface border border-border/40 hover:border-info/30 flex items-center justify-center text-text-muted hover:text-info hover:bg-info/5 hover:scale-105 active:scale-95 transition-all shadow-sm"
+                                  title="Send email"
+                                >
+                                  <Mail className="w-3.5 h-3.5" />
+                                </a>
+                              )}
                               <a
-                                href={`mailto:${contact.email}`}
-                                className="p-1.5 hover:bg-surface rounded-lg text-text-muted transition-colors hover:text-text-primary"
-                                title="Send email"
+                                href={`tel:${contact.phone}`}
+                                className="w-8 h-8 rounded-lg bg-surface border border-border/40 hover:border-jade/30 flex items-center justify-center text-text-muted hover:text-jade hover:bg-jade/5 hover:scale-105 active:scale-95 transition-all shadow-sm"
+                                title="Call"
                               >
-                                <Mail className="w-4 h-4" />
+                                <Phone className="w-3.5 h-3.5" />
                               </a>
-                            )}
-                            <a
-                              href={`tel:${contact.phone}`}
-                              className="p-1.5 hover:bg-surface rounded-lg text-text-muted transition-colors hover:text-text-primary"
-                              title="Call"
-                            >
-                              <Phone className="w-4 h-4" />
-                            </a>
-                            <button
-                              onClick={() => setDeleteTarget(contact)}
-                              className="p-1.5 hover:bg-rose-500/10 rounded-lg text-rose-500 transition-colors hover:text-rose-400"
-                              title="Delete"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                              <button
+                                onClick={() => setDeleteTarget(contact)}
+                                className="w-8 h-8 rounded-lg bg-surface border border-border/40 hover:border-danger/30 flex items-center justify-center text-text-muted hover:text-danger hover:bg-danger/5 hover:scale-105 active:scale-95 transition-all shadow-sm"
+                                title="Delete"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

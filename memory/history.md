@@ -10,10 +10,14 @@
 - **Backend Matching Logic & DB constraints**:
   - Configured contact creation and bulk import API routes (`/api/contacts` and `/api/contacts/import`) to use `.upsert(..., { onConflict: 'tenant_id,phone' })`, relying on database-level unique constraints to overwrite/update existing records in-place.
   - Mapped custom fields seamlessly: User ID $\rightarrow$ `custom1`, Tags $\rightarrow$ `custom2` (comma-separated), WhatsApp Opted $\rightarrow$ `opted_in`, and Appointment/Location $\rightarrow$ `custom3` (serialized JSON).
-- **Contacts Table Upgrade**:
-  - Upgraded the contacts table to render all fields: Contact Name/Email, Phone, User ID, Tags (as badge pills), Appointment & Location details, and Status (Opted-in vs Opted-out).
-  - Added robust custom rendering for serialized appointment/location payloads with fallback checks.
-  - Resolved page syntax compilation errors around line 1227 in `/src/app/(dashboard)/contacts/page.tsx` by restoring the component layout structure.
+- **Contacts Table Upgrade & UI Modernization**:
+  - Installed a premium floating dashboard metrics row calculating Total Contacts, Opted-in Rate, Active Segments, and Filtered View.
+  - Redesigned the Segments sidebar with custom folders, active state highlights, borders, and count indicators.
+  - Enhanced table columns by embedding Lucide icons (`User`, `Phone`, `Hash`, `Tag`, `Calendar`, `CheckCircle2`) within the headers.
+  - Implemented multi-colored gradient avatars mapped by initial letter hashes (emerald, blue, purple, amber, cyan).
+  - Modernized data rendering: compact ID badges, tag pills with tag icons, serialized appointment calendar/pin cards, and pulsing opted-in status dot indicators.
+  - Added sleek circular action controls with responsive hover scale transitions.
+  - Resolved page syntax compilation errors in `/src/app/(dashboard)/contacts/page.tsx` by correcting division tags and span className closures.
 
 ## [2026-06-24] - Landing Page, Error Boundaries, and UX Enhancements
 - **Landing Page Integration**:
