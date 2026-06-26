@@ -1168,6 +1168,10 @@ export default function ContactsPage() {
   const [showLibraryModal, setShowLibraryModal] = useState(false);
   const [showQuickCreateSegment, setShowQuickCreateSegment] = useState(false);
   const [fetchError, setFetchError] = useState("");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [sortField, setSortField] = useState<string>("created_at");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
+  const [isBulkUpdating, setIsBulkUpdating] = useState(false);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -1193,6 +1197,55 @@ export default function ContactsPage() {
     showToast("Segment deleted successfully!");
   };
 
+  const toggleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(prev => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortField(field);
+      setSortDirection("asc");
+    }
+  };
+
+  const handleBulkUpdate = async (payload: { segment_id?: string | null; opted_in?: boolean }) => {
+    if (selectedIds.length === 0) return;
+    setIsBulkUpdating(true);
+    try {
+      await axios.patch("/api/contacts", {
+        ids: selectedIds,
+        ...payload
+      });
+      showToast("Selected contacts updated successfully!");
+      setSelectedIds([]);
+      fetchContacts();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || "Bulk update failed.", "error");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    if (!confirm(`Are you sure you want to delete ${selectedIds.length} contacts?`)) return;
+    setIsBulkUpdating(true);
+    try {
+      await axios.delete(`/api/contacts?ids=${selectedIds.join(",")}`);
+      showToast("Selected contacts deleted successfully!");
+      setSelectedIds([]);
+      fetchContacts();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || "Bulk delete failed.", "error");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
+  const handleSelectRowToggle = (id: string) => {
+    setSelectedIds(prev => 
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
+
   useEffect(() => {
     fetchContacts();
     fetchSegments();
@@ -1213,6 +1266,7 @@ export default function ContactsPage() {
   useEffect(() => {
     setCurrentPage(1);
     setSelectedTag("");
+    setSelectedIds([]);
   }, [searchQuery, activeSegment]);
 
   const fetchContacts = async () => {
@@ -1312,8 +1366,50 @@ export default function ContactsPage() {
     return matchesSearch && matchesSegment && matchesTag;
   });
 
-  const totalPages = Math.max(1, Math.ceil(filteredContacts.length / PAGE_SIZE));
-  const paginatedContacts = filteredContacts.slice(
+  const sortedContacts = useMemo(() => {
+    return [...filteredContacts].sort((a, b) => {
+      let valA: any = "";
+      let valB: any = "";
+      
+      if (sortField === "name") {
+        valA = (a.name || "").toLowerCase();
+        valB = (b.name || "").toLowerCase();
+      } else if (sortField === "phone") {
+        valA = a.phone || "";
+        valB = b.phone || "";
+      } else if (sortField === "custom1") {
+        valA = (a.custom1 || "").toLowerCase();
+        valB = (b.custom1 || "").toLowerCase();
+      } else if (sortField === "custom2") {
+        valA = (a.custom2 || "").toLowerCase();
+        valB = (b.custom2 || "").toLowerCase();
+      } else if (sortField === "appointment") {
+        let timeA = 0;
+        let timeB = 0;
+        try {
+          if (a.custom3) timeA = new Date(JSON.parse(a.custom3).appointment_time || 0).getTime();
+        } catch {}
+        try {
+          if (b.custom3) timeB = new Date(JSON.parse(b.custom3).appointment_time || 0).getTime();
+        } catch {}
+        valA = timeA;
+        valB = timeB;
+      } else if (sortField === "opted_in") {
+        valA = a.opted_in ? 1 : 0;
+        valB = b.opted_in ? 1 : 0;
+      } else {
+        valA = new Date(a.created_at || 0).getTime();
+        valB = new Date(b.created_at || 0).getTime();
+      }
+
+      if (valA < valB) return sortDirection === "asc" ? -1 : 1;
+      if (valA > valB) return sortDirection === "asc" ? 1 : -1;
+      return 0;
+    });
+  }, [filteredContacts, sortField, sortDirection]);
+
+  const totalPages = Math.max(1, Math.ceil(sortedContacts.length / PAGE_SIZE));
+  const paginatedContacts = sortedContacts.slice(
     (currentPage - 1) * PAGE_SIZE,
     currentPage * PAGE_SIZE
   );
@@ -1577,34 +1673,57 @@ export default function ContactsPage() {
                 <table className="w-full text-left">
                   <thead>
                     <tr className="bg-surface/60 border-b border-border text-[9px] font-bold text-text-muted uppercase tracking-widest">
-                      <th className="px-6 py-4">
+                      <th className="pl-6 pr-2 py-4 w-10">
+                        <input
+                          type="checkbox"
+                          checked={paginatedContacts.length > 0 && paginatedContacts.every(c => selectedIds.includes(c.id))}
+                          onChange={() => {
+                            const isAllSelected = paginatedContacts.length > 0 && paginatedContacts.every(c => selectedIds.includes(c.id));
+                            if (isAllSelected) {
+                              const pageIds = paginatedContacts.map(c => c.id);
+                              setSelectedIds(prev => prev.filter(id => !pageIds.includes(id)));
+                            } else {
+                              const pageIds = paginatedContacts.map(c => c.id);
+                              setSelectedIds(prev => Array.from(new Set([...prev, ...pageIds])));
+                            }
+                          }}
+                          className="accent-jade w-3.5 h-3.5 rounded border-border bg-surface text-jade focus:ring-jade/30 cursor-pointer"
+                        />
+                      </th>
+                      <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors select-none" onClick={() => toggleSort("name")}>
                         <span className="flex items-center gap-1.5">
                           <User className="w-3.5 h-3.5 text-text-muted/60" /> Contact
+                          {sortField === "name" && (sortDirection === "asc" ? " ↑" : " ↓")}
                         </span>
                       </th>
-                      <th className="px-6 py-4">
+                      <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors select-none" onClick={() => toggleSort("phone")}>
                         <span className="flex items-center gap-1.5">
                           <Phone className="w-3.5 h-3.5 text-text-muted/60" /> Phone
+                          {sortField === "phone" && (sortDirection === "asc" ? " ↑" : " ↓")}
                         </span>
                       </th>
-                      <th className="px-6 py-4">
+                      <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors select-none" onClick={() => toggleSort("custom1")}>
                         <span className="flex items-center gap-1.5">
                           <Hash className="w-3.5 h-3.5 text-text-muted/60" /> User ID
+                          {sortField === "custom1" && (sortDirection === "asc" ? " ↑" : " ↓")}
                         </span>
                       </th>
-                      <th className="px-6 py-4">
+                      <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors select-none" onClick={() => toggleSort("custom2")}>
                         <span className="flex items-center gap-1.5">
                           <Tag className="w-3.5 h-3.5 text-text-muted/60" /> Tags
+                          {sortField === "custom2" && (sortDirection === "asc" ? " ↑" : " ↓")}
                         </span>
                       </th>
-                      <th className="px-6 py-4">
+                      <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors select-none" onClick={() => toggleSort("appointment")}>
                         <span className="flex items-center gap-1.5">
                           <Calendar className="w-3.5 h-3.5 text-text-muted/60" /> Appointment &amp; Location
+                          {sortField === "appointment" && (sortDirection === "asc" ? " ↑" : " ↓")}
                         </span>
                       </th>
-                      <th className="px-6 py-4">
+                      <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors select-none" onClick={() => toggleSort("opted_in")}>
                         <span className="flex items-center gap-1.5">
                           <CheckCircle2 className="w-3.5 h-3.5 text-text-muted/60" /> Status
+                          {sortField === "opted_in" && (sortDirection === "asc" ? " ↑" : " ↓")}
                         </span>
                       </th>
                       <th className="px-6 py-4 text-right">Actions</th>
@@ -1614,8 +1733,17 @@ export default function ContactsPage() {
                     {paginatedContacts.map((contact, i) => {
                       const char = (contact.name || "?")[0].toUpperCase();
                       const avatarClass = getAvatarGradient(char);
+                      const isSelected = selectedIds.includes(contact.id);
                       return (
-                        <tr key={contact.id || i} className="hover:bg-card/50 transition-all group duration-200">
+                        <tr key={contact.id || i} className={`hover:bg-card/50 transition-all group duration-200 ${isSelected ? 'bg-jade/5 border-l-2 border-l-jade' : ''}`}>
+                          <td className="pl-6 pr-2 py-4">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => handleSelectRowToggle(contact.id)}
+                              className="accent-jade w-3.5 h-3.5 rounded border-border bg-surface text-jade focus:ring-jade/30 cursor-pointer"
+                            />
+                          </td>
                           <td className="px-6 py-4">
                             <div className="flex items-center gap-3">
                               <div className={`w-8 h-8 rounded-full bg-gradient-to-br flex items-center justify-center font-bold text-xs uppercase border shadow-sm ${avatarClass}`}>
@@ -1815,6 +1943,84 @@ export default function ContactsPage() {
           </div>
         </div>
       </div>
+
+      {/* Floating Bulk Actions Bar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 bg-card/90 border border-jade/30 backdrop-blur-lg px-6 py-4 rounded-2xl shadow-[0_10px_40px_rgba(0,0,0,0.4)] flex items-center gap-6 animate-in slide-in-from-bottom duration-300">
+          <div className="flex items-center gap-2">
+            <span className="flex h-2 w-2 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jade opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-jade"></span>
+            </span>
+            <span className="text-xs font-bold text-text-primary">
+              {selectedIds.length} contact{selectedIds.length !== 1 ? "s" : ""} selected
+            </span>
+          </div>
+
+          <div className="h-6 w-px bg-border/80"></div>
+
+          <div className="flex items-center gap-3">
+            {/* Bulk Opt-in */}
+            <button
+              onClick={() => handleBulkUpdate({ opted_in: true })}
+              disabled={isBulkUpdating}
+              className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:border-jade/30 hover:bg-jade/5 text-xs font-bold text-text-primary disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <CheckCircle2 className="w-3.5 h-3.5 text-jade" />
+              Opt-in
+            </button>
+
+            {/* Bulk Opt-out */}
+            <button
+              onClick={() => handleBulkUpdate({ opted_in: false })}
+              disabled={isBulkUpdating}
+              className="px-3 py-1.5 rounded-lg border border-border bg-surface hover:border-danger/30 hover:bg-danger/5 text-xs font-bold text-text-primary disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <X className="w-3.5 h-3.5 text-danger" />
+              Opt-out
+            </button>
+
+            {/* Bulk Assign Niche Dropdown */}
+            <div className="relative flex items-center group/bulk">
+              <select
+                disabled={isBulkUpdating}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (val === "") return;
+                  handleBulkUpdate({ segment_id: val === "unassigned" ? null : val });
+                  e.target.value = "";
+                }}
+                className="px-3 py-1.5 pr-8 rounded-lg border border-border bg-surface hover:border-info/30 hover:bg-info/5 text-xs font-bold text-text-primary disabled:opacity-40 transition-all appearance-none cursor-pointer focus:outline-none"
+              >
+                <option value="">Move Niche...</option>
+                <option value="unassigned">Remove from Niche</option>
+                {segments.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+              <ChevronDown className="w-3.5 h-3.5 text-text-muted absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            </div>
+
+            {/* Bulk Delete */}
+            <button
+              onClick={handleBulkDelete}
+              disabled={isBulkUpdating}
+              className="px-3 py-1.5 rounded-lg border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/20 text-rose-500 hover:text-rose-400 text-xs font-bold disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </button>
+
+            {/* Clear Selection */}
+            <button
+              onClick={() => setSelectedIds([])}
+              className="text-[10px] font-bold text-text-muted hover:text-text-primary transition-colors uppercase tracking-wider pl-1 cursor-pointer"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

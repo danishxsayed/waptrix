@@ -100,8 +100,10 @@ export async function DELETE(request: Request) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    if (!id) {
-      return NextResponse.json({ error: 'Contact ID required' }, { status: 400 });
+    const idsParam = searchParams.get('ids');
+
+    if (!id && !idsParam) {
+      return NextResponse.json({ error: 'Contact ID or IDs required' }, { status: 400 });
     }
 
     const serviceClient = createClient(
@@ -109,10 +111,56 @@ export async function DELETE(request: Request) {
       process.env.SUPABASE_SERVICE_KEY!
     )
 
+    let query = serviceClient.from('contacts').delete().eq('tenant_id', user.id);
+
+    if (id) {
+      query = query.eq('id', id);
+    } else if (idsParam) {
+      const ids = idsParam.split(',').map(x => x.trim()).filter(Boolean);
+      query = query.in('id', ids);
+    }
+
+    const { error } = await query;
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const cookieStore = await cookies()
+    const ssrClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
+    )
+    const { data: { user } } = await ssrClient.auth.getUser()
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { ids, segment_id, opted_in } = await request.json();
+    if (!ids || !Array.isArray(ids) || ids.length === 0) {
+      return NextResponse.json({ error: 'IDs list required' }, { status: 400 });
+    }
+
+    const serviceClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    )
+
+    const updatePayload: any = {};
+    if (segment_id !== undefined) updatePayload.segment_id = segment_id;
+    if (opted_in !== undefined) updatePayload.opted_in = opted_in;
+
     const { error } = await serviceClient
       .from('contacts')
-      .delete()
-      .eq('id', id)
+      .update(updatePayload)
+      .in('id', ids)
       .eq('tenant_id', user.id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
