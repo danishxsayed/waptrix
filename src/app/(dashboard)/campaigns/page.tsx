@@ -26,6 +26,7 @@ import CampaignWizard from "@/components/campaigns/CampaignWizard";
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
+  const [initialSegmentId, setInitialSegmentId] = useState<string | undefined>(undefined);
   const [isLoading, setIsLoading] = useState(true);
   
   // Interactive options and logs state
@@ -58,6 +59,10 @@ export default function CampaignsPage() {
     if (typeof window !== "undefined") {
       const params = new URLSearchParams(window.location.search);
       if (params.get("new") === "true") {
+        const segId = params.get("segmentId");
+        if (segId) {
+          setInitialSegmentId(segId);
+        }
         setIsWizardOpen(true);
         const newUrl = window.location.pathname;
         window.history.replaceState({}, "", newUrl);
@@ -277,10 +282,15 @@ export default function CampaignsPage() {
 
       {isWizardOpen && (
         <CampaignWizard
-          onClose={() => setIsWizardOpen(false)}
+          initialSegmentId={initialSegmentId}
+          onClose={() => {
+            setIsWizardOpen(false);
+            setInitialSegmentId(undefined);
+          }}
           onLaunch={() => {
             fetchCampaigns();
             showToast("🚀 Campaign launched! Messages are being sent in the background.");
+            setInitialSegmentId(undefined);
           }}
         />
       )}

@@ -27,10 +27,12 @@ import {
   HelpCircle,
   User,
   Hash,
-  Folder
+  Folder,
+  Send
 } from "lucide-react";
 import axios from "axios";
 import * as XLSX from "xlsx";
+import ContactProfileDrawer from "@/components/contacts/ContactProfileDrawer";
 
 const COUNTRY_CODES = [
   { code: "+91", label: "🇮🇳 India (+91)" },
@@ -67,6 +69,25 @@ function CreateContactsDrawer({
   const [isDragging, setIsDragging] = useState(false);
   const [showInstructions, setShowInstructions] = useState(true);
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // Column Mapper States
+  const [uploadStep, setUploadStep] = useState<"upload" | "mapping" | "preview">("upload");
+  const [fileHeaders, setFileHeaders] = useState<string[]>([]);
+  const [rawFileRows, setRawFileRows] = useState<any[]>([]);
+  const [columnMappings, setColumnMappings] = useState<Record<string, string>>({
+    name: "",
+    phone: "",
+    email: "",
+    custom1: "",
+    custom2: "",
+    whatsapp_opted: "",
+    appointment_time: "",
+    location: ""
+  });
+  
+  // Ingestion Progress States
+  const [importProgress, setImportProgress] = useState(0);
+  const [importStepMsg, setImportStepMsg] = useState("");
 
   // Manual Form States
   const [form, setForm] = useState({
@@ -126,57 +147,22 @@ function CreateContactsDrawer({
     setBulkError("");
     const ext = f.name.split('.').pop()?.toLowerCase();
 
-    const parseJSONRows = (jsonData: any[]) => {
-      if (jsonData.length === 0) return [];
-      const headers = jsonData[0].map((h: any) => String(h || "").trim().toLowerCase());
-      return jsonData.slice(1).map((row: any[]) => {
-        const obj: any = {};
-        headers.forEach((h: string, idx: number) => {
-          obj[h] = row[idx] !== undefined ? String(row[idx]).trim() : "";
-        });
-        return obj;
-      });
-    };
-
-    const mapParsedRows = (rawRows: any[]) => {
-      return rawRows.map(row => {
-        const name = resolveColumn(row, ['name', 'full name', 'fullname', 'contact name', 'customer name']);
-        const phoneVal = resolveColumn(row, ['phone', 'phone number', 'phonenumber', 'mobile', 'cell', 'whatsapp', 'contact phone']);
-        const email = resolveColumn(row, ['email', 'email address', 'emailaddress']);
-        const custom1 = resolveColumn(row, ['user id', 'userid', 'user_id', 'id', 'customer id']);
-        const custom2 = resolveColumn(row, ['tags', 'tag', 'labels', 'label', 'segments']);
-        const optedInText = resolveColumn(row, ['whatsapp opted', 'opted', 'whatsapp_opted', 'opted_in', 'opted in', 'subscribed']).toLowerCase();
-        
-        const appointment_time = resolveColumn(row, ['appointment time', 'appointment_time', 'time', 'appointment', 'booking time']);
-        const location = resolveColumn(row, ['location', 'address', 'city', 'clinic', 'branch']);
-        
-        // Serialize metadata fields to custom3 JSON
-        const custom3 = (appointment_time || location) 
-          ? JSON.stringify({ appointment_time, location }) 
-          : "";
-
-        // Normalize Phone: ensure it has country code prefix
-        let normalizedPhone = phoneVal.replace(/[^\d+]/g, "");
-        if (normalizedPhone && !normalizedPhone.startsWith("+")) {
-          if (normalizedPhone.length === 10) {
-            normalizedPhone = "+" + form.countryCode.replace("+", "") + normalizedPhone;
-          } else {
-            normalizedPhone = "+" + normalizedPhone;
-          }
-        }
-
-        const opted_in = !(optedInText === 'no' || optedInText === 'false' || optedInText === '0' || optedInText === 'optout');
-
-        return {
-          name: name || "Unnamed Contact",
-          phone: normalizedPhone,
-          email: email || null,
-          custom1: custom1 || "",
-          custom2: custom2 || "",
-          custom3,
-          opted_in
-        };
-      }).filter(r => r.phone);
+    const guessMapping = (hdrs: string[]) => {
+      const guess = (keys: string[]) => {
+        const match = hdrs.find(h => keys.includes(h.toLowerCase().trim()));
+        return match || "";
+      };
+      
+      return {
+        name: guess(['name', 'full name', 'fullname', 'contact name', 'customer name']),
+        phone: guess(['phone', 'phone number', 'phonenumber', 'mobile', 'cell', 'whatsapp', 'contact phone', 'mob', 'number']),
+        email: guess(['email', 'email address', 'emailaddress']),
+        custom1: guess(['user id', 'userid', 'user_id', 'id', 'customer id', 'uid']),
+        custom2: guess(['tags', 'tag', 'labels', 'label', 'segments']),
+        whatsapp_opted: guess(['whatsapp opted', 'opted', 'whatsapp_opted', 'opted_in', 'opted in', 'subscribed']),
+        appointment_time: guess(['appointment time', 'appointment_time', 'time', 'appointment', 'booking time', 'booking']),
+        location: guess(['location', 'address', 'city', 'clinic', 'branch'])
+      };
     };
 
     if (ext === 'xlsx' || ext === 'xls') {
@@ -189,16 +175,25 @@ function CreateContactsDrawer({
           const worksheet = workbook.Sheets[firstSheetName];
           const jsonData: any[] = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
           
-          const rawRows = parseJSONRows(jsonData);
-          const mapped = mapParsedRows(rawRows);
-
-          if (mapped.length === 0) {
-            setBulkError("No valid contacts containing phone numbers were found.");
+          if (jsonData.length === 0) {
+            setBulkError("Spreadsheet file is empty.");
             return;
           }
+          
+          const rawHdrs = jsonData[0].map((h: any) => String(h || "").trim()).filter(Boolean);
+          
+          const rawRows = jsonData.slice(1).map((row: any[]) => {
+            const obj: any = {};
+            rawHdrs.forEach((h: string, idx: number) => {
+              obj[h] = row[idx] !== undefined ? String(row[idx]).trim() : "";
+            });
+            return obj;
+          });
 
-          setParsedContacts(mapped);
-          setPreview(mapped.slice(0, 5));
+          setFileHeaders(rawHdrs);
+          setRawFileRows(rawRows);
+          setColumnMappings(guessMapping(rawHdrs));
+          setUploadStep("mapping");
         } catch (err: any) {
           console.error("Excel parse error:", err);
           setBulkError("Failed to parse Excel file. Make sure it's valid.");
@@ -216,28 +211,82 @@ function CreateContactsDrawer({
             return;
           }
           const separator = lines[0].includes(";") ? ";" : ",";
-          const headers = lines[0].split(separator).map(h => h.trim().toLowerCase().replace(/['"]/g, ""));
+          const rawHdrs = lines[0].split(separator).map(h => h.trim().replace(/['"]/g, "")).filter(Boolean);
           
           const rawRows = lines.slice(1).map(line => {
             const values = line.split(separator).map(v => v.trim().replace(/['"]/g, ""));
             const obj: any = {};
-            headers.forEach((h, i) => { obj[h] = values[i] || ""; });
+            rawHdrs.forEach((h, i) => { obj[h] = values[i] || ""; });
             return obj;
           });
 
-          const mapped = mapParsedRows(rawRows);
-          if (mapped.length === 0) {
-            setBulkError("No valid contacts containing phone numbers were found.");
-            return;
-          }
-          setParsedContacts(mapped);
-          setPreview(mapped.slice(0, 5));
-        } catch {
+          setFileHeaders(rawHdrs);
+          setRawFileRows(rawRows);
+          setColumnMappings(guessMapping(rawHdrs));
+          setUploadStep("mapping");
+        } catch (err: any) {
+          console.error("CSV parse error:", err);
           setBulkError("Could not parse CSV. Make sure it is a valid CSV format.");
         }
       };
       reader.readAsText(f);
     }
+  };
+
+  const handleGeneratePreview = () => {
+    if (!columnMappings.name || !columnMappings.phone) {
+      setBulkError("Please map the required Full Name and Phone Number columns.");
+      return;
+    }
+    setBulkError("");
+
+    const mapped = rawFileRows.map(row => {
+      const nameVal = row[columnMappings.name] || "";
+      const phoneVal = row[columnMappings.phone] || "";
+      const emailVal = columnMappings.email ? row[columnMappings.email] : "";
+      const custom1Val = columnMappings.custom1 ? row[columnMappings.custom1] : "";
+      const custom2Val = columnMappings.custom2 ? row[columnMappings.custom2] : "";
+      const optedInText = columnMappings.whatsapp_opted ? (row[columnMappings.whatsapp_opted] || "").toLowerCase().trim() : "";
+      
+      const appointment_time = columnMappings.appointment_time ? row[columnMappings.appointment_time] : "";
+      const location = columnMappings.location ? row[columnMappings.location] : "";
+      
+      const custom3 = (appointment_time || location) 
+        ? JSON.stringify({ appointment_time, location }) 
+        : "";
+
+      let normalizedPhone = phoneVal.replace(/[^\d+]/g, "");
+      if (normalizedPhone && !normalizedPhone.startsWith("+")) {
+        if (normalizedPhone.length === 10) {
+          normalizedPhone = "+" + form.countryCode.replace("+", "") + normalizedPhone;
+        } else {
+          normalizedPhone = "+" + normalizedPhone;
+        }
+      }
+
+      const opted_in = optedInText 
+        ? !(optedInText === 'no' || optedInText === 'false' || optedInText === '0' || optedInText === 'optout')
+        : true;
+
+      return {
+        name: nameVal || "Unnamed Contact",
+        phone: normalizedPhone,
+        email: emailVal || null,
+        custom1: custom1Val || "",
+        custom2: custom2Val || "",
+        custom3,
+        opted_in
+      };
+    }).filter(r => r.phone);
+
+    if (mapped.length === 0) {
+      setBulkError("No valid contacts containing phone numbers were found after mapping.");
+      return;
+    }
+
+    setParsedContacts(mapped);
+    setPreview(mapped.slice(0, 5));
+    setUploadStep("preview");
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -276,7 +325,26 @@ function CreateContactsDrawer({
     }
     setIsBulkLoading(true);
     setBulkError("");
+    setImportProgress(0);
+    
+    const wait = (ms: number) => new Promise(r => setTimeout(r, ms));
+    
     try {
+      setImportStepMsg("Analyzing mapped columns and checking structure...");
+      setImportProgress(15);
+      await wait(600);
+      
+      setImportStepMsg("Formatting contact numbers & resolving country codes...");
+      setImportProgress(40);
+      await wait(900);
+      
+      setImportStepMsg("Identifying unique records and duplicates...");
+      setImportProgress(68);
+      await wait(800);
+      
+      setImportStepMsg("Saving records to database and synchronizing segments...");
+      setImportProgress(90);
+      
       await axios.post(
         "/api/contacts/import",
         {
@@ -284,10 +352,17 @@ function CreateContactsDrawer({
           segment_id: segmentId || null
         }
       );
+      
+      setImportStepMsg("Import completed successfully!");
+      setImportProgress(100);
+      await wait(500);
+      
       onSuccess();
       onClose();
     } catch (err: any) {
       setBulkError(err.response?.data?.error || "Bulk upload failed. Please try again.");
+      setImportProgress(0);
+      setImportStepMsg("");
     } finally {
       setIsBulkLoading(false);
     }
@@ -442,63 +517,282 @@ function CreateContactsDrawer({
               )}
             </div>
 
-            {/* Drag & Drop File Zone */}
-            <div
-              onClick={() => fileRef.current?.click()}
-              onDragOver={handleDragOver}
-              onDragLeave={handleDragLeave}
-              onDrop={handleDrop}
-              className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
-                file 
-                  ? "border-jade bg-jade/5" 
-                  : isDragging
-                    ? "border-jade bg-jade/5 scale-[1.01]"
-                    : "border-border hover:border-jade/30 hover:bg-jade/5"
-              }`}
-            >
-              <input 
-                ref={fileRef} 
-                type="file" 
-                accept=".csv,.xlsx,.xls" 
-                onChange={handleFileChange} 
-                className="hidden" 
-              />
-              {file ? (
-                <div className="space-y-2 animate-in zoom-in-95 duration-200">
-                  <div className="w-12 h-12 bg-jade/10 rounded-full flex items-center justify-center mx-auto border border-jade/30 shadow-[0_0_10px_rgba(16,185,129,0.2)]">
-                    <CheckCircle2 className="w-6 h-6 text-jade animate-pulse" />
-                  </div>
-                  <p className="text-sm font-semibold text-jade">{file.name}</p>
-                  <p className="text-xs text-text-muted">{(file.size / 1024).toFixed(1)} KB • {parsedContacts.length} contacts found</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="w-12 h-12 bg-surface border border-border rounded-2xl flex items-center justify-center mx-auto text-text-muted group-hover:text-text-primary transition-colors">
-                    <Upload className="w-6 h-6" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-bold text-text-primary">Select a CSV / Excel file to upload</p>
-                    <p className="text-xs text-text-muted mt-1">or drag and drop it here</p>
+            {/* ════════════════ Step 1: Upload File ════════════════ */}
+            {uploadStep === "upload" && (
+              <div className="space-y-4">
+                <div
+                  onClick={() => fileRef.current?.click()}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  className={`border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all ${
+                    file 
+                      ? "border-jade bg-jade/5" 
+                      : isDragging
+                        ? "border-jade bg-jade/5 scale-[1.01]"
+                        : "border-border hover:border-jade/30 hover:bg-jade/5"
+                  }`}
+                >
+                  <input 
+                    ref={fileRef} 
+                    type="file" 
+                    accept=".csv,.xlsx,.xls" 
+                    onChange={handleFileChange} 
+                    className="hidden" 
+                  />
+                  <div className="space-y-3">
+                    <div className="w-12 h-12 bg-surface border border-border rounded-2xl flex items-center justify-center mx-auto text-text-muted group-hover:text-text-primary transition-colors">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-text-primary">Select a CSV / Excel file to upload</p>
+                      <p className="text-xs text-text-muted mt-1">or drag and drop it here</p>
+                    </div>
                   </div>
                 </div>
-              )}
-            </div>
 
-            {/* Sample File and Watch Link Row */}
-            <div className="flex justify-end px-1">
-              <button 
-                type="button" 
-                onClick={downloadSampleCSV} 
-                className="text-xs text-jade hover:text-emerald-400 font-bold flex items-center gap-1.5 hover:underline"
-              >
-                <Download className="w-3.5 h-3.5" /> Download sample CSV
-              </button>
-            </div>
+                <div className="flex justify-end px-1">
+                  <button 
+                    type="button" 
+                    onClick={downloadSampleCSV} 
+                    className="text-xs text-jade hover:text-emerald-400 font-bold flex items-center gap-1.5 hover:underline"
+                  >
+                    <Download className="w-3.5 h-3.5" /> Download sample CSV
+                  </button>
+                </div>
+              </div>
+            )}
 
-            {/* Parsed Contacts Preview */}
-            {preview.length > 0 && (
-              <div className="space-y-2 pt-2 animate-in fade-in duration-300">
-                <p className="text-xs font-bold text-text-muted uppercase tracking-wider">Spreadsheet Preview (First 5 Rows)</p>
+            {/* ════════════════ Step 2: Interactive Column Mapper ════════════════ */}
+            {uploadStep === "mapping" && (
+              <div className="space-y-4 pt-2 animate-in fade-in duration-200">
+                <div className="flex justify-between items-center">
+                  <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
+                    <Filter className="w-3.5 h-3.5 text-jade" /> Map File Columns to Waptrix Fields
+                  </h4>
+                  <button 
+                    type="button"
+                    onClick={() => { setFile(null); setUploadStep("upload"); setBulkError(""); }}
+                    className="text-[10px] text-rose-400 hover:text-rose-300 font-bold uppercase tracking-wider underline cursor-pointer"
+                  >
+                    Clear File
+                  </button>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-3.5 p-4 bg-surface/30 rounded-2xl border border-border">
+                  {/* Name Mapping */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-bold text-text-primary uppercase tracking-wide">Full Name <span className="text-rose-500">*</span></label>
+                      {columnMappings.name && (
+                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
+                          Preview: "{rawFileRows[0]?.[columnMappings.name] || "Empty"}"
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={columnMappings.name}
+                      onChange={e => setColumnMappings({ ...columnMappings, name: e.target.value })}
+                      className="input-field w-full text-xs py-2 bg-background border-border"
+                    >
+                      <option value="">Select column...</option>
+                      {fileHeaders.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Phone Mapping */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-bold text-text-primary uppercase tracking-wide">Phone Number <span className="text-rose-500">*</span></label>
+                      {columnMappings.phone && (
+                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
+                          Preview: "{rawFileRows[0]?.[columnMappings.phone] || "Empty"}"
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={columnMappings.phone}
+                      onChange={e => setColumnMappings({ ...columnMappings, phone: e.target.value })}
+                      className="input-field w-full text-xs py-2 bg-background border-border"
+                    >
+                      <option value="">Select column...</option>
+                      {fileHeaders.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Divider */}
+                  <div className="h-px bg-border/40 my-1"></div>
+
+                  {/* Email Mapping */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">Email (Optional)</label>
+                      {columnMappings.email && (
+                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
+                          Preview: "{rawFileRows[0]?.[columnMappings.email] || "Empty"}"
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={columnMappings.email}
+                      onChange={e => setColumnMappings({ ...columnMappings, email: e.target.value })}
+                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
+                    >
+                      <option value="">-- Don't Map / Skip --</option>
+                      {fileHeaders.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* User ID Mapping */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide font-mono">User ID (Optional)</label>
+                      {columnMappings.custom1 && (
+                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
+                          Preview: "{rawFileRows[0]?.[columnMappings.custom1] || "Empty"}"
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={columnMappings.custom1}
+                      onChange={e => setColumnMappings({ ...columnMappings, custom1: e.target.value })}
+                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted font-mono"
+                    >
+                      <option value="">-- Don't Map / Skip --</option>
+                      {fileHeaders.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Tags Mapping */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">Tags (Optional)</label>
+                      {columnMappings.custom2 && (
+                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
+                          Preview: "{rawFileRows[0]?.[columnMappings.custom2] || "Empty"}"
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={columnMappings.custom2}
+                      onChange={e => setColumnMappings({ ...columnMappings, custom2: e.target.value })}
+                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
+                    >
+                      <option value="">-- Don't Map / Skip --</option>
+                      {fileHeaders.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* WhatsApp Opted Mapping */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">WhatsApp Consent (Optional)</label>
+                      {columnMappings.whatsapp_opted && (
+                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
+                          Preview: "{rawFileRows[0]?.[columnMappings.whatsapp_opted] || "Empty"}"
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={columnMappings.whatsapp_opted}
+                      onChange={e => setColumnMappings({ ...columnMappings, whatsapp_opted: e.target.value })}
+                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
+                    >
+                      <option value="">-- Don't Map / Skip --</option>
+                      {fileHeaders.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Appointment Time Mapping */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">Appointment Time (Optional)</label>
+                      {columnMappings.appointment_time && (
+                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
+                          Preview: "{rawFileRows[0]?.[columnMappings.appointment_time] || "Empty"}"
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={columnMappings.appointment_time}
+                      onChange={e => setColumnMappings({ ...columnMappings, appointment_time: e.target.value })}
+                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
+                    >
+                      <option value="">-- Don't Map / Skip --</option>
+                      {fileHeaders.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Location Mapping */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">Location (Optional)</label>
+                      {columnMappings.location && (
+                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
+                          Preview: "{rawFileRows[0]?.[columnMappings.location] || "Empty"}"
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={columnMappings.location}
+                      onChange={e => setColumnMappings({ ...columnMappings, location: e.target.value })}
+                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
+                    >
+                      <option value="">-- Don't Map / Skip --</option>
+                      {fileHeaders.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {bulkError && (
+                  <div className="flex items-center gap-2 text-danger text-xs bg-danger/10 border border-danger/20 rounded-xl p-3">
+                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                    {bulkError}
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleGeneratePreview}
+                  className="w-full btn-primary py-3.5 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider"
+                >
+                  Configure &amp; Generate Preview
+                </button>
+              </div>
+            )}
+
+            {/* ════════════════ Step 3: Preview List & Ingestion Progress ════════════════ */}
+            {uploadStep === "preview" && (
+              <div className="space-y-4 pt-2 animate-in fade-in duration-200">
+                <div className="flex justify-between items-center">
+                  <p className="text-xs font-bold text-text-muted uppercase tracking-wider">Spreadsheet Preview (First 5 Rows)</p>
+                  {!isBulkLoading && (
+                    <button
+                      type="button"
+                      onClick={() => setUploadStep("mapping")}
+                      className="text-[10px] text-jade hover:text-emerald-400 font-bold uppercase tracking-wider underline cursor-pointer"
+                    >
+                      Change Column Mappings
+                    </button>
+                  )}
+                </div>
+
                 <div className="overflow-x-auto rounded-xl border border-border bg-surface/30">
                   <table className="w-full text-xs text-left">
                     <thead>
@@ -516,7 +810,7 @@ function CreateContactsDrawer({
                           <td className="px-3 py-2 font-mono text-text-muted">{row.phone || "—"}</td>
                           <td className="px-3 py-2 text-text-muted">{row.email || "—"}</td>
                           <td className="px-3 py-2">
-                            <span className="text-[10px] text-purple-400 bg-purple-500/10 border border-purple-500/20 px-1 rounded truncate max-w-[80px] block">
+                            <span className="text-[10px] text-purple-400 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded truncate max-w-[80px] block font-bold uppercase">
                               {row.custom2 || "—"}
                             </span>
                           </td>
@@ -525,52 +819,81 @@ function CreateContactsDrawer({
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
 
-            {/* Bulk Upload Options */}
-            {parsedContacts.length > 0 && (
-              <div className="space-y-4 pt-3 border-t border-border/40 animate-in slide-in-from-top-3 duration-250">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Target Segment (Optional)</label>
-                  <div className="flex gap-2">
-                    <select
-                      value={segmentId}
-                      onChange={e => setSegmentId(e.target.value)}
-                      className="input-field flex-1 text-sm bg-background border-border"
-                    >
-                      <option value="">No segment</option>
-                      {segments.map(s => (
-                        <option key={s.id} value={s.id}>{s.name}</option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      onClick={() => setShowQuickCreate(true)}
-                      className="btn-secondary px-3 py-2 flex items-center justify-center gap-1 hover:border-jade/30"
-                      title="Create new segment"
-                    >
-                      <Plus className="w-4 h-4 text-jade" />
-                    </button>
+                <div className="space-y-4 pt-3 border-t border-border/40">
+                  {/* Segment Assign Selector */}
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Target Segment (Optional)</label>
+                    <div className="flex gap-2">
+                      <select
+                        disabled={isBulkLoading}
+                        value={segmentId}
+                        onChange={e => setSegmentId(e.target.value)}
+                        className="input-field flex-1 text-sm bg-background border-border disabled:opacity-50"
+                      >
+                        <option value="">No segment</option>
+                        {segments.map(s => (
+                          <option key={s.id} value={s.id}>{s.name}</option>
+                        ))}
+                      </select>
+                      <button
+                        type="button"
+                        disabled={isBulkLoading}
+                        onClick={() => setShowQuickCreate(true)}
+                        className="btn-secondary px-3 py-2 flex items-center justify-center gap-1 hover:border-jade/30 disabled:opacity-50"
+                        title="Create new segment"
+                      >
+                        <Plus className="w-4 h-4 text-jade" />
+                      </button>
+                    </div>
                   </div>
+
+                  {/* Progress Panel */}
+                  {isBulkLoading && (
+                    <div className="p-4 bg-surface/50 border border-jade/20 rounded-2xl space-y-2 animate-in zoom-in-95 duration-250">
+                      <div className="flex justify-between items-center text-xs">
+                        <span className="text-jade font-bold flex items-center gap-1.5">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          {importStepMsg}
+                        </span>
+                        <span className="text-text-primary font-bold font-mono">{importProgress}%</span>
+                      </div>
+                      <div className="w-full bg-surface border border-border rounded-full h-2 overflow-hidden">
+                        <div 
+                          className="bg-jade h-full rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]" 
+                          style={{ width: `${importProgress}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {bulkError && (
+                    <div className="flex items-center gap-2 text-danger text-xs bg-danger/10 border border-danger/20 rounded-xl p-3">
+                      <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                      {bulkError}
+                    </div>
+                  )}
+
+                  {!isBulkLoading && (
+                    <div className="flex gap-3">
+                      <button
+                        type="button"
+                        onClick={handleBulkImportSubmit}
+                        className="flex-1 btn-primary py-3.5 flex items-center justify-center gap-2 text-sm font-bold shadow-[0_4px_20px_rgba(16,185,129,0.2)]"
+                      >
+                        <Upload className="w-4 h-4" />
+                        Bulk Import {parsedContacts.length} Contacts
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => { setFile(null); setUploadStep("upload"); setParsedContacts([]); setPreview([]); setBulkError(""); }}
+                        className="btn-secondary py-3.5 px-5 text-sm font-bold"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  )}
                 </div>
-
-                {bulkError && (
-                  <div className="flex items-center gap-2 text-danger text-xs bg-danger/10 border border-danger/20 rounded-xl p-3">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    {bulkError}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleBulkImportSubmit}
-                  disabled={isBulkLoading}
-                  className="w-full btn-primary py-3.5 flex items-center justify-center gap-2 text-sm font-bold shadow-[0_4px_20px_rgba(16,185,129,0.2)]"
-                >
-                  {isBulkLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                  {isBulkLoading ? "Uploading Contacts..." : `Bulk Import ${parsedContacts.length} Contacts`}
-                </button>
               </div>
             )}
 
@@ -958,6 +1281,7 @@ function SegmentsLibraryModal({
   onSegmentCreated,
   onSegmentUpdated,
   onSegmentDeleted,
+  onContactsUpdated,
 }: {
   segments: any[];
   contacts: any[];
@@ -965,13 +1289,21 @@ function SegmentsLibraryModal({
   onSegmentCreated: (seg: any) => void;
   onSegmentUpdated: (seg: any) => void;
   onSegmentDeleted: (id: string) => void;
+  onContactsUpdated: () => void;
 }) {
+  const [activeTab, setActiveTab] = useState<"segments" | "tags">("segments");
   const [search, setSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isDeletingId, setIsDeletingId] = useState<string | null>(null);
+
+  // Tag manager states
+  const [editingTag, setEditingTag] = useState<string | null>(null);
+  const [editTagName, setEditTagName] = useState("");
+  const [isTagSaving, setIsTagSaving] = useState(false);
+  const [deletingTag, setDeletingTag] = useState<string | null>(null);
 
   const handleRename = async (id: string) => {
     if (!editName.trim()) return;
@@ -1000,8 +1332,68 @@ function SegmentsLibraryModal({
     }
   };
 
+  const handleTagRename = async (oldTag: string) => {
+    if (!editTagName.trim() || editTagName.trim() === oldTag) {
+      setEditingTag(null);
+      return;
+    }
+    setIsTagSaving(true);
+    try {
+      await axios.put("/api/contacts", {
+        tagAction: "rename",
+        oldTag,
+        newTag: editTagName.trim()
+      });
+      onContactsUpdated();
+      setEditingTag(null);
+    } catch (err) {
+      console.error("Tag rename failed", err);
+      alert("Failed to rename tag.");
+    } finally {
+      setIsTagSaving(false);
+    }
+  };
+
+  const handleTagDelete = async (tagName: string) => {
+    if (!confirm(`Are you sure you want to delete the tag "${tagName}" from all contacts?`)) return;
+    setDeletingTag(tagName);
+    try {
+      await axios.put("/api/contacts", {
+        tagAction: "delete",
+        oldTag: tagName
+      });
+      onContactsUpdated();
+    } catch (err) {
+      console.error("Tag delete failed", err);
+      alert("Failed to delete tag.");
+    } finally {
+      setDeletingTag(null);
+    }
+  };
+
   const filtered = segments.filter(s =>
     (s.name || "").toLowerCase().includes(search.toLowerCase())
+  );
+
+  const tagsList = useMemo(() => {
+    const tagCounts: Record<string, number> = {};
+    contacts.forEach(c => {
+      if (c.custom2) {
+        c.custom2.split(',').forEach((t: string) => {
+          const clean = t.trim();
+          if (clean) {
+            tagCounts[clean] = (tagCounts[clean] || 0) + 1;
+          }
+        });
+      }
+    });
+    return Object.entries(tagCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+  }, [contacts]);
+
+  const filteredTags = tagsList.filter(t =>
+    t.name.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
@@ -1014,12 +1406,36 @@ function SegmentsLibraryModal({
               <FileText className="w-5 h-5 text-jade" />
             </div>
             <div>
-              <h2 className="text-lg font-bold font-syne">Niche &amp; List Library</h2>
-              <p className="text-xs text-text-muted">Manage your separate customer segments and upload sheets</p>
+              <h2 className="text-lg font-bold font-syne">Manage Library</h2>
+              <p className="text-xs text-text-muted">Rename, delete, and control your contact segments and tags</p>
             </div>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-surface rounded-lg text-text-muted">
             <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Tab Selection */}
+        <div className="flex border-b border-border bg-surface/30 px-6">
+          <button
+            onClick={() => { setActiveTab("segments"); setSearch(""); }}
+            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all uppercase tracking-wider flex items-center gap-1.5 ${
+              activeTab === "segments"
+                ? "border-jade text-jade"
+                : "border-transparent text-text-muted hover:text-text-primary"
+            }`}
+          >
+            <Folder className="w-4 h-4" /> Niches &amp; Lists
+          </button>
+          <button
+            onClick={() => { setActiveTab("tags"); setSearch(""); }}
+            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all uppercase tracking-wider flex items-center gap-1.5 ${
+              activeTab === "tags"
+                ? "border-jade text-jade"
+                : "border-transparent text-text-muted hover:text-text-primary"
+            }`}
+          >
+            <Tag className="w-4 h-4" /> Tags Manager
           </button>
         </div>
 
@@ -1030,110 +1446,192 @@ function SegmentsLibraryModal({
             <input
               value={search}
               onChange={e => setSearch(e.target.value)}
-              placeholder="Search segments..."
+              placeholder={activeTab === "segments" ? "Search segments..." : "Search tags..."}
               className="input-field w-full pl-10 text-xs py-2.5 bg-background border-border"
             />
           </div>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="btn-primary py-2.5 px-4 text-xs flex items-center gap-1.5"
-          >
-            <Plus className="w-4 h-4" /> New List
-          </button>
+          {activeTab === "segments" && (
+            <button
+              onClick={() => setShowCreate(true)}
+              className="btn-primary py-2.5 px-4 text-xs flex items-center gap-1.5"
+            >
+              <Plus className="w-4 h-4" /> New List
+            </button>
+          )}
         </div>
 
-        {/* List */}
+        {/* List Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4 custom-scrollbar">
-          {filtered.map(s => {
-            const count = contacts.filter(c => c.segment_id === s.id).length;
-            const isEditing = editingId === s.id;
-            return (
-              <div key={s.id} className="bg-surface border border-border/60 hover:border-jade/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all">
-                <div className="flex items-center gap-4 flex-1">
-                  <div className="w-12 h-12 bg-card border border-border rounded-xl flex flex-col items-center justify-center text-text-muted shadow-sm">
-                    <FileText className="w-5 h-5 text-jade" />
-                    <span className="text-[9px] font-bold mt-0.5 uppercase tracking-wider text-text-muted/60">list</span>
-                  </div>
-                  
-                  <div className="flex-1 space-y-1">
-                    {isEditing ? (
-                      <div className="flex gap-2 items-center">
-                        <input
-                          value={editName}
-                          onChange={e => setEditName(e.target.value)}
-                          className="input-field py-1 px-2 text-xs flex-1 max-w-[250px] bg-background border-border"
-                          autoFocus
-                          onKeyDown={e => {
-                            if (e.key === 'Enter') handleRename(s.id);
-                            if (e.key === 'Escape') setEditingId(null);
-                          }}
-                        />
+          {activeTab === "segments" ? (
+            <>
+              {showCreate && (
+                <div className="bg-surface border border-border rounded-2xl p-4 animate-in slide-in-from-top-2 duration-200">
+                  <QuickCreateSegmentModal
+                    onClose={() => setShowCreate(false)}
+                    onSuccess={(seg) => {
+                      onSegmentCreated(seg);
+                      setShowCreate(false);
+                    }}
+                  />
+                </div>
+              )}
+              {filtered.length === 0 ? (
+                <div className="text-center py-10 text-text-muted text-xs">No lists found matching your search.</div>
+              ) : (
+                filtered.map(s => {
+                  const count = contacts.filter(c => c.segment_id === s.id).length;
+                  const isEditing = editingId === s.id;
+                  return (
+                    <div key={s.id} className="bg-surface border border-border/60 hover:border-jade/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="w-12 h-12 bg-card border border-border rounded-xl flex flex-col items-center justify-center text-text-muted shadow-sm">
+                          <FileText className="w-5 h-5 text-jade" />
+                          <span className="text-[9px] font-bold mt-0.5 uppercase tracking-wider text-text-muted/60">list</span>
+                        </div>
+                        
+                        <div className="flex-1 space-y-1">
+                          {isEditing ? (
+                            <div className="flex gap-2 items-center">
+                              <input
+                                value={editName}
+                                onChange={e => setEditName(e.target.value)}
+                                className="input-field py-1 px-2 text-xs flex-1 max-w-[250px] bg-background border-border"
+                                autoFocus
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleRename(s.id);
+                                  if (e.key === 'Escape') setEditingId(null);
+                                }}
+                              />
+                              <button
+                                onClick={() => handleRename(s.id)}
+                                disabled={isSaving}
+                                className="text-xs text-jade font-bold hover:underline"
+                              >
+                                {isSaving ? "Saving..." : "Save"}
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="text-xs text-text-muted hover:underline"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <h4 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                              {s.name}
+                              <button
+                                onClick={() => {
+                                  setEditingId(s.id);
+                                  setEditName(s.name);
+                                }}
+                                className="text-[10px] font-medium text-text-muted hover:text-jade transition-colors"
+                              >
+                                (Rename)
+                              </button>
+                            </h4>
+                          )}
+                          <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
+                            <span>{count} contact{count !== 1 ? 's' : ''}</span>
+                            <span className="text-text-muted/40">•</span>
+                            <span>Created {new Date(s.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
                         <button
-                          onClick={() => handleRename(s.id)}
-                          disabled={isSaving}
-                          className="text-xs text-jade font-bold hover:underline"
+                          onClick={() => handleDelete(s.id)}
+                          disabled={isDeletingId === s.id}
+                          className="btn-secondary !border-rose-500/20 hover:!bg-rose-500/10 !text-rose-500 py-1.5 px-3 text-xs flex items-center gap-1"
                         >
-                          {isSaving ? "Saving..." : "Save"}
-                        </button>
-                        <button
-                          onClick={() => setEditingId(null)}
-                          className="text-xs text-text-muted hover:underline"
-                        >
-                          Cancel
+                          {isDeletingId === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                          Delete List
                         </button>
                       </div>
-                    ) : (
-                      <h4 className="text-sm font-bold text-text-primary flex items-center gap-2">
-                        {s.name}
-                        <button
-                          onClick={() => {
-                            setEditingId(s.id);
-                            setEditName(s.name);
-                          }}
-                          className="text-[10px] font-medium text-text-muted hover:text-jade transition-colors"
-                        >
-                          (Rename)
-                        </button>
-                      </h4>
-                    )}
-                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-text-muted">
-                      <span>{count} contact{count !== 1 ? 's' : ''}</span>
-                      <span className="text-text-muted/40">•</span>
-                      <span>Created {new Date(s.created_at).toLocaleDateString()}</span>
                     </div>
-                  </div>
-                </div>
+                  );
+                })
+              )}
+            </>
+          ) : (
+            <div className="space-y-3">
+              {filteredTags.length === 0 ? (
+                <div className="text-center py-10 text-text-muted text-xs">No tags found. Create some tags by editing or importing contacts.</div>
+              ) : (
+                filteredTags.map(t => {
+                  const isEditing = editingTag === t.name;
+                  return (
+                    <div key={t.name} className="bg-surface border border-border/60 hover:border-jade/30 rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-4 transition-all">
+                      <div className="flex items-center gap-4 flex-1">
+                        <div className="w-10 h-10 bg-purple-500/10 border border-purple-500/25 rounded-xl flex items-center justify-center text-purple-400 shadow-sm">
+                          <Tag className="w-4 h-4" />
+                        </div>
+                        
+                        <div className="flex-1 space-y-1">
+                          {isEditing ? (
+                            <div className="flex gap-2 items-center">
+                              <input
+                                value={editTagName}
+                                onChange={e => setEditTagName(e.target.value)}
+                                className="input-field py-1 px-2 text-xs flex-1 max-w-[250px] bg-background border-border font-bold uppercase tracking-wider"
+                                autoFocus
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') handleTagRename(t.name);
+                                  if (e.key === 'Escape') setEditingTag(null);
+                                }}
+                              />
+                              <button
+                                onClick={() => handleTagRename(t.name)}
+                                disabled={isTagSaving}
+                                className="text-xs text-jade font-bold hover:underline"
+                              >
+                                {isTagSaving ? "Saving..." : "Save"}
+                              </button>
+                              <button
+                                onClick={() => setEditingTag(null)}
+                                className="text-xs text-text-muted hover:underline"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : (
+                            <h4 className="text-sm font-bold text-text-primary flex items-center gap-2">
+                              <span className="inline-block bg-purple-500/10 text-purple-300 border border-purple-500/20 px-2.5 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider shadow-sm">
+                                {t.name}
+                              </span>
+                              <button
+                                onClick={() => {
+                                  setEditingTag(t.name);
+                                  setEditTagName(t.name);
+                                }}
+                                className="text-[10px] font-medium text-text-muted hover:text-jade transition-colors"
+                              >
+                                (Rename)
+                              </button>
+                            </h4>
+                          )}
+                          <p className="text-xs text-text-muted">Assigned to {t.count} contact{t.count !== 1 ? 's' : ''}</p>
+                        </div>
+                      </div>
 
-                <div className="flex items-center gap-2 self-end sm:self-auto">
-                  <button
-                    onClick={() => handleDelete(s.id)}
-                    disabled={isDeletingId === s.id}
-                    className="btn-secondary !border-rose-500/20 hover:!bg-rose-500/10 !text-rose-500 py-1.5 px-3 text-xs flex items-center gap-1"
-                  >
-                    {isDeletingId === s.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                    Delete List
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-
-          {filtered.length === 0 && (
-            <div className="py-12 text-center space-y-2">
-              <FileText className="w-12 h-12 text-text-muted opacity-25 mx-auto" />
-              <p className="text-sm font-semibold text-text-muted">No separate lists found</p>
-              <p className="text-xs text-text-muted">Create your first sheet/niche segment by clicking "New List"</p>
+                      <div className="flex items-center gap-2 self-end sm:self-auto">
+                        <button
+                          onClick={() => handleTagDelete(t.name)}
+                          disabled={deletingTag === t.name}
+                          className="btn-secondary !border-rose-500/20 hover:!bg-rose-500/10 !text-rose-500 py-1.5 px-3 text-xs flex items-center gap-1"
+                        >
+                          {deletingTag === t.name ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                          Remove Tag Globally
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })
+              )}
             </div>
           )}
         </div>
       </div>
-
-      {showCreate && (
-        <QuickCreateSegmentModal
-          onClose={() => setShowCreate(false)}
-          onSuccess={onSegmentCreated}
-        />
-      )}
     </div>
   );
 }
@@ -1172,6 +1670,7 @@ export default function ContactsPage() {
   const [sortField, setSortField] = useState<string>("created_at");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
+  const [selectedContactIdForProfile, setSelectedContactIdForProfile] = useState<string | null>(null);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -1458,12 +1957,21 @@ export default function ContactsPage() {
           onSegmentCreated={handleSegmentCreated}
           onSegmentUpdated={handleSegmentUpdated}
           onSegmentDeleted={handleSegmentDeleted}
+          onContactsUpdated={fetchContacts}
         />
       )}
       {showQuickCreateSegment && (
         <QuickCreateSegmentModal
           onClose={() => setShowQuickCreateSegment(false)}
           onSuccess={handleSegmentCreated}
+        />
+      )}
+      {selectedContactIdForProfile && (
+        <ContactProfileDrawer
+          contactId={selectedContactIdForProfile}
+          onClose={() => setSelectedContactIdForProfile(null)}
+          onUpdate={fetchContacts}
+          segments={segments}
         />
       )}
 
@@ -1474,6 +1982,13 @@ export default function ContactsPage() {
           <p className="text-sm text-text-muted">Manage your audience and subscriber lists.</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
+          <a
+            href={activeSegment !== "all" ? `/campaigns?new=true&segmentId=${activeSegment}` : "/campaigns?new=true"}
+            className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2 hover:border-jade/30 text-xs font-bold font-dm-sans"
+          >
+            <Send className="w-4 h-4 text-jade" />
+            Send Campaign
+          </a>
           <button
             onClick={handleExportContacts}
             className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2 hover:border-jade/30"
@@ -1581,25 +2096,36 @@ export default function ContactsPage() {
               {segments.map(s => {
                 const count = contacts.filter(c => c.segment_id === s.id).length;
                 return (
-                  <button
+                  <div
                     key={s.id}
-                    onClick={() => setActiveSegment(s.id)}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex justify-between items-center border ${
-                      activeSegment === s.id
-                        ? "bg-jade/10 border-jade/30 text-jade shadow-[0_0_15px_rgba(16,185,129,0.05)] font-extrabold"
-                        : "border-transparent text-text-muted hover:bg-surface hover:text-text-primary hover:border-border"
-                    }`}
+                    className="group/item flex items-center gap-1 w-full"
                   >
-                    <div className="flex items-center gap-2 truncate">
-                      <Tag className="w-3.5 h-3.5 shrink-0 text-text-muted/60" />
-                      <span className="truncate">{s.name}</span>
-                    </div>
-                    <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full font-bold ${
-                      activeSegment === s.id ? 'bg-jade/20 text-jade' : 'bg-surface text-text-muted border border-border/50'
-                    }`}>
-                  {count}
-                </span>
-              </button>
+                    <button
+                      onClick={() => setActiveSegment(s.id)}
+                      className={`flex-1 text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex justify-between items-center border ${
+                        activeSegment === s.id
+                          ? "bg-jade/10 border-jade/30 text-jade shadow-[0_0_15px_rgba(16,185,129,0.05)] font-extrabold"
+                          : "border-transparent text-text-muted hover:bg-surface hover:text-text-primary hover:border-border"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        <Tag className="w-3.5 h-3.5 shrink-0 text-text-muted/60" />
+                        <span className="truncate">{s.name}</span>
+                      </div>
+                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
+                        activeSegment === s.id ? 'bg-jade/20 text-jade' : 'bg-surface text-text-muted border border-border/50'
+                      }`}>
+                        {count}
+                      </span>
+                    </button>
+                    <a
+                      href={`/campaigns?new=true&segmentId=${s.id}`}
+                      className="opacity-0 group-hover/item:opacity-100 p-2 hover:bg-jade/10 text-text-muted hover:text-jade rounded-xl transition-all shrink-0 cursor-pointer"
+                      title="Send campaign to this niche"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
                 );
               })}
               
@@ -1735,7 +2261,24 @@ export default function ContactsPage() {
                       const avatarClass = getAvatarGradient(char);
                       const isSelected = selectedIds.includes(contact.id);
                       return (
-                        <tr key={contact.id || i} className={`hover:bg-card/50 transition-all group duration-200 ${isSelected ? 'bg-jade/5 border-l-2 border-l-jade' : ''}`}>
+                        <tr 
+                          key={contact.id || i} 
+                          onClick={(e) => {
+                            const target = e.target as HTMLElement;
+                            if (
+                              target.tagName === 'INPUT' || 
+                              target.tagName === 'BUTTON' || 
+                              target.tagName === 'A' || 
+                              target.closest('button') || 
+                              target.closest('a') ||
+                              target.closest('input')
+                            ) {
+                              return;
+                            }
+                            setSelectedContactIdForProfile(contact.id);
+                          }}
+                          className={`hover:bg-card/50 transition-all group duration-200 cursor-pointer ${isSelected ? 'bg-jade/5 border-l-2 border-l-jade' : ''}`}
+                        >
                           <td className="pl-6 pr-2 py-4">
                             <input
                               type="checkbox"

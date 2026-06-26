@@ -4,7 +4,15 @@ import { useState, useEffect } from "react";
 import { X, ChevronRight, ChevronLeft, Send, Users, FileText, Calendar, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import axios from "axios";
 
-export default function CampaignWizard({ onClose, onLaunch }: { onClose: () => void, onLaunch: () => void }) {
+export default function CampaignWizard({ 
+  onClose, 
+  onLaunch,
+  initialSegmentId
+}: { 
+  onClose: () => void;
+  onLaunch: () => void;
+  initialSegmentId?: string;
+}) {
   const [step, setStep] = useState(1);
   const [templates, setTemplates] = useState<any[]>([]);
   const [segments, setSegments] = useState<any[]>([]);
@@ -22,6 +30,12 @@ export default function CampaignWizard({ onClose, onLaunch }: { onClose: () => v
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (initialSegmentId) {
+      setFormData(prev => ({ ...prev, segment_id: initialSegmentId }));
+    }
+  }, [initialSegmentId]);
 
   useEffect(() => {
     fetchData();

@@ -169,3 +169,100 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
+
+export async function PUT(request: Request) {
+  try {
+    const cookieStore = await cookies()
+    const ssrClient = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
+    )
+    const { data: { user } } = await ssrClient.auth.getUser()
+    
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const serviceClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    // Check if it's a global tag operation
+    const { tagAction, oldTag, newTag } = body;
+    if (tagAction && oldTag) {
+      const { data: contacts, error: fetchErr } = await serviceClient
+        .from('contacts')
+        .select('id, custom2')
+        .eq('tenant_id', user.id)
+        .ilike('custom2', `%${oldTag}%`);
+
+      if (fetchErr) {
+        return NextResponse.json({ error: fetchErr.message }, { status: 500 });
+      }
+
+      let updatedCount = 0;
+      if (contacts && contacts.length > 0) {
+        const updatePromises = contacts.map(async (contact) => {
+          const rawTags = contact.custom2 || "";
+          const tags = rawTags.split(',').map((t: string) => t.trim()).filter(Boolean);
+          
+          const index = tags.findIndex((t: string) => t.toLowerCase() === oldTag.toLowerCase());
+          if (index !== -1) {
+            if (tagAction === 'rename' && newTag) {
+              tags[index] = newTag.trim();
+            } else if (tagAction === 'delete') {
+              tags.splice(index, 1);
+            } else {
+              return;
+            }
+            
+            const newCustom2 = tags.length > 0 ? tags.join(', ') : null;
+            
+            const { error: updateErr } = await serviceClient
+              .from('contacts')
+              .update({ custom2: newCustom2 })
+              .eq('id', contact.id)
+              .eq('tenant_id', user.id);
+
+            if (!updateErr) updatedCount++;
+          }
+        });
+        await Promise.all(updatePromises);
+      }
+
+      return NextResponse.json({ success: true, updatedCount });
+    }
+
+    // Otherwise, single contact update
+    const { id, name, phone, email, custom1, custom2, custom3, opted_in, segment_id } = body;
+    if (!id) {
+      return NextResponse.json({ error: 'Contact ID required' }, { status: 400 });
+    }
+
+    const { data, error } = await serviceClient
+      .from('contacts')
+      .update({
+        segment_id: segment_id || null,
+        name: name || '',
+        phone: phone || '',
+        email: email || null,
+        custom1: custom1 || null,
+        custom2: custom2 || null,
+        custom3: custom3 || null,
+        opted_in: opted_in !== undefined ? opted_in : true
+      })
+      .eq('id', id)
+      .eq('tenant_id', user.id)
+      .select()
+      .single();
+
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
