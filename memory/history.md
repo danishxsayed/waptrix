@@ -18,6 +18,12 @@
   - Modernized data rendering: compact ID badges, tag pills with tag icons, serialized appointment calendar/pin cards, and pulsing opted-in status dot indicators.
   - Added sleek circular action controls with responsive hover scale transitions.
   - Resolved page syntax compilation errors in `/src/app/(dashboard)/contacts/page.tsx` by correcting division tags and span className closures.
+- **Tag Filtering & Contacts Export Options**:
+  - Implemented dynamic tag extraction using React `useMemo` to construct a unique array of sorted tags from the active contacts list.
+  - Added a responsive filter select dropdown next to the search bar to filter contacts by selected tags.
+  - Configured segment and search query modifications to reset the active tag filter state to avoid empty pagination states.
+  - Integrated a client-side CSV export function that compiles all currently filtered contacts (Name, Phone, Email, User ID, Tags, Opted-in status, and parsed Appointment Time & Location) into a downloadable CSV file.
+  - Added the "Export CSV" trigger action button inside the primary header controls next to the Import action.
 
 ## [2026-06-24] - Landing Page, Error Boundaries, and UX Enhancements
 - **Landing Page Integration**:

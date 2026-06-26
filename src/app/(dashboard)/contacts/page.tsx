@@ -2,7 +2,7 @@
 export const dynamic = "force-dynamic";
 
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { 
   Users, 
   UserPlus, 
@@ -1158,6 +1158,7 @@ export default function ContactsPage() {
   const [segments, setSegments] = useState<any[]>([]);
   const [activeSegment, setActiveSegment] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTag, setSelectedTag] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
@@ -1208,9 +1209,10 @@ export default function ContactsPage() {
     }
   }, []);
 
-  // Reset to page 1 whenever search or segment filter changes
+  // Reset to page 1 and reset tag filter whenever search or segment filter changes
   useEffect(() => {
     setCurrentPage(1);
+    setSelectedTag("");
   }, [searchQuery, activeSegment]);
 
   const fetchContacts = async () => {
@@ -1235,12 +1237,79 @@ export default function ContactsPage() {
     }
   };
 
+  const allTags = useMemo(() => {
+    const tagsSet = new Set<string>();
+    contacts.forEach(c => {
+      if (c.custom2) {
+        c.custom2.split(',').forEach((t: string) => {
+          const trimmed = t.trim();
+          if (trimmed) tagsSet.add(trimmed);
+        });
+      }
+    });
+    return Array.from(tagsSet).sort();
+  }, [contacts]);
+
+  const handleExportContacts = () => {
+    if (filteredContacts.length === 0) {
+      showToast("No contacts to export.", "error");
+      return;
+    }
+    
+    const headers = ["Name", "Phone", "Email", "User ID", "Tags", "WhatsApp Opted", "Appointment Time", "Location"];
+    const csvRows = [headers.join(",")];
+    
+    filteredContacts.forEach(c => {
+      let appointment_time = "";
+      let location = "";
+      if (c.custom3) {
+        try {
+          const parsed = JSON.parse(c.custom3);
+          appointment_time = parsed.appointment_time || "";
+          location = parsed.location || "";
+        } catch {
+          location = c.custom3;
+        }
+      }
+      
+      const row = [
+        `"${(c.name || "").replace(/"/g, '""')}"`,
+        `"${(c.phone || "").replace(/"/g, '""')}"`,
+        `"${(c.email || "").replace(/"/g, '""')}"`,
+        `"${(c.custom1 || "").replace(/"/g, '""')}"`,
+        `"${(c.custom2 || "").replace(/"/g, '""')}"`,
+        c.opted_in ? "yes" : "no",
+        `"${appointment_time.replace(/"/g, '""')}"`,
+        `"${location.replace(/"/g, '""')}"`
+      ];
+      csvRows.push(row.join(","));
+    });
+    
+    const csvString = csvRows.join("\n");
+    const blob = new Blob([csvString], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", `waptrix_contacts_export_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast("Contacts exported successfully!");
+  };
+
   const filteredContacts = contacts.filter(c => {
     const matchesSearch =
       (c.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.phone || "").includes(searchQuery);
     const matchesSegment = activeSegment === "all" || c.segment_id === activeSegment;
-    return matchesSearch && matchesSegment;
+    
+    const matchesTag = !selectedTag || 
+      (c.custom2 || "")
+        .split(',')
+        .map((t: string) => t.trim().toLowerCase())
+        .includes(selectedTag.toLowerCase());
+
+    return matchesSearch && matchesSegment && matchesTag;
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredContacts.length / PAGE_SIZE));
@@ -1309,6 +1378,13 @@ export default function ContactsPage() {
           <p className="text-sm text-text-muted">Manage your audience and subscriber lists.</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
+          <button
+            onClick={handleExportContacts}
+            className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2 hover:border-jade/30"
+          >
+            <Download className="w-4 h-4 text-jade" />
+            Export CSV
+          </button>
           <button
             onClick={() => setShowImportModal(true)}
             className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2"
@@ -1445,15 +1521,33 @@ export default function ContactsPage() {
         {/* Contacts Table */}
         <div className="lg:col-span-3 space-y-4">
           <div className="glass-card !p-0 overflow-hidden">
-            <div className="p-4 border-b border-border flex flex-col md:flex-row gap-4 justify-between items-center">
-              <div className="relative w-full md:w-72">
-                <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
-                <input
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  placeholder="Search name or phone..."
-                  className="input-field w-full pl-10 text-xs"
-                />
+            <div className="p-4 border-b border-border flex flex-col md:flex-row gap-4 justify-between items-center w-full">
+              <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
+                <div className="relative w-full sm:w-64">
+                  <Search className="w-4 h-4 text-text-muted absolute left-3 top-1/2 -translate-y-1/2" />
+                  <input
+                    value={searchQuery}
+                    onChange={e => setSearchQuery(e.target.value)}
+                    placeholder="Search name or phone..."
+                    className="input-field w-full pl-10 text-xs h-9"
+                  />
+                </div>
+                
+                {/* Tag Filter Dropdown */}
+                <div className="relative w-full sm:w-48 flex items-center">
+                  <Filter className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <select
+                    value={selectedTag}
+                    onChange={e => setSelectedTag(e.target.value)}
+                    className="input-field w-full pl-9 pr-8 text-xs h-9 appearance-none bg-surface border-border focus:border-jade text-text-primary rounded-lg focus:outline-none"
+                  >
+                    <option value="">All Tags</option>
+                    {allTags.map(tag => (
+                      <option key={tag} value={tag}>{tag}</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
               </div>
               <div className="text-xs text-text-muted">
                 {filteredContacts.length} contact{filteredContacts.length !== 1 ? "s" : ""}
