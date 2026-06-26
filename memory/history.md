@@ -1,5 +1,19 @@
 # Implementation History
 
+## [2026-06-26] - Unified Contacts Drawer, Excel/CSV Importer & Database Upsert
+- **Unified CreateContactsDrawer**:
+  - Replaced separate manual addition and spreadsheet import modals with a single unified, right-sliding drawer (`CreateContactsDrawer`) supporting both creation flows.
+  - Implemented manual contact forms containing Name, Phone (with dropdown country code, combined on submit), User ID, Email, Tags, WhatsApp Opted, Appointment Time, and Location.
+  - Added multi-select Tag input (typing tags + Enter/comma adds badge pills), and excluded "Automated" contact creation or "Watch Video" options.
+  - Added drag-and-drop Excel/CSV spreadsheet upload with custom auto-column mapping, downloadable sample CSV button with advanced headers, and expandable instructions.
+- **Backend Matching Logic & DB constraints**:
+  - Configured contact creation and bulk import API routes (`/api/contacts` and `/api/contacts/import`) to use `.upsert(..., { onConflict: 'tenant_id,phone' })`, relying on database-level unique constraints to overwrite/update existing records in-place.
+  - Mapped custom fields seamlessly: User ID $\rightarrow$ `custom1`, Tags $\rightarrow$ `custom2` (comma-separated), WhatsApp Opted $\rightarrow$ `opted_in`, and Appointment/Location $\rightarrow$ `custom3` (serialized JSON).
+- **Contacts Table Upgrade**:
+  - Upgraded the contacts table to render all fields: Contact Name/Email, Phone, User ID, Tags (as badge pills), Appointment & Location details, and Status (Opted-in vs Opted-out).
+  - Added robust custom rendering for serialized appointment/location payloads with fallback checks.
+  - Resolved page syntax compilation errors around line 1227 in `/src/app/(dashboard)/contacts/page.tsx` by restoring the component layout structure.
+
 ## [2026-06-24] - Landing Page, Error Boundaries, and UX Enhancements
 - **Landing Page Integration**:
   - Created a fully responsive, interactive, and SEO-optimized static landing page at `public/index.html` featuring smooth scroll transitions, FAQs, dynamic testimonials, and a custom CSS style sheet matching the dark theme.

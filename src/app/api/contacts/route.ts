@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     }
 
     const body = await request.json();
-    const { name, phone, email, custom1, custom2, custom3, segment_id } = body;
+    const { name, phone, email, custom1, custom2, custom3, opted_in, segment_id } = body;
 
     const serviceClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
 
     const { data, error } = await serviceClient
       .from('contacts')
-      .insert({
+      .upsert({
         tenant_id: user.id,
         segment_id: segment_id || null,
         name: name || '',
@@ -72,8 +72,8 @@ export async function POST(request: Request) {
         custom1: custom1 || null,
         custom2: custom2 || null,
         custom3: custom3 || null,
-        opted_in: true
-      })
+        opted_in: opted_in !== undefined ? opted_in : true
+      }, { onConflict: 'tenant_id,phone' })
       .select()
       .single();
 

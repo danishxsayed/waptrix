@@ -197,9 +197,9 @@ export default function CampaignWizard({ onClose, onLaunch }: { onClose: () => v
                                 <option value="name">Contact Name</option>
                                 <option value="phone">Phone Number</option>
                                 <option value="email">Email</option>
-                                <option value="custom1">Custom Field 1</option>
-                                <option value="custom2">Custom Field 2</option>
-                                <option value="custom3">Custom Field 3</option>
+                                <option value="custom1">User ID (Custom 1)</option>
+                                <option value="custom2">Tags (Custom 2)</option>
+                                <option value="custom3">Appointment & Location (Custom 3)</option>
                               </select>
                             </div>
                           );

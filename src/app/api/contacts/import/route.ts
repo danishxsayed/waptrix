@@ -34,7 +34,7 @@ export async function POST(request: Request) {
       custom1: c.custom1 || null,
       custom2: c.custom2 || null,
       custom3: c.custom3 || null,
-      opted_in: true
+      opted_in: c.opted_in !== undefined ? c.opted_in : true
     }));
 
     const serviceClient = createClient(
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
 
     const { data, error } = await serviceClient
       .from('contacts')
-      .insert(formattedContacts)
+      .upsert(formattedContacts, { onConflict: 'tenant_id,phone' })
       .select();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
