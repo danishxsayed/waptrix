@@ -420,18 +420,20 @@ function CreateContactsDrawer({
 
               {showInstructions && (
                 <div className="p-4 pt-0 border-t border-border/40 text-xs text-text-muted space-y-2.5 leading-relaxed">
-                  <p className="font-semibold text-text-primary">Upload a spreadsheet file (.csv, .xlsx, .xls) to bulk upload:</p>
+                  <p className="font-semibold text-text-primary">Upload a spreadsheet file (.csv, .xlsx, .xls) to bulk upload contacts to Waptrix:</p>
                   <ul className="list-disc pl-4 space-y-1.5">
-                    <li>Max <strong className="text-text-primary">50 MB</strong> file allowed (up to 500,000 contacts).</li>
+                    <li>Max file size <strong className="text-text-primary">50 MB</strong> (up to 500,000 contacts).</li>
                     <li>
-                      File columns should mandatorily contain either:
-                      <ul className="list-circle pl-4 mt-1 space-y-1">
-                        <li><strong className="text-text-primary">Phone</strong> and <strong className="text-text-primary">Country Code</strong> in any 2 columns, OR</li>
-                        <li>Full Phone Number (combined with Country Code, e.g. <code className="text-jade font-mono bg-jade/5 px-1 rounded">+919876543210</code>) in any 1 column.</li>
-                      </ul>
+                      File columns should contain a <strong className="text-text-primary">Phone Number</strong> column (supported headers: <code className="text-jade font-mono bg-jade/5 px-1 rounded">Phone</code>, <code className="text-jade font-mono bg-jade/5 px-1 rounded">Mobile</code>, <code className="text-jade font-mono bg-jade/5 px-1 rounded">WhatsApp</code>, etc.).
                     </li>
-                    <li>If multiple rows contain duplicate phone numbers, only one will be processed.</li>
-                    <li>If a contact already exists, their traits (<strong className="text-text-primary">Name, Email, User ID, Tags, Appointment Time, Location</strong>) will be updated in-place automatically.</li>
+                    <li>
+                      Phone numbers must include a country code. If a 10-digit number is provided without a country code, Waptrix automatically prepends your selected default country code (<strong className="text-text-primary">{form.countryCode}</strong>).
+                    </li>
+                    <li>
+                      Optional headers: <code className="text-text-primary">Name</code>, <code className="text-text-primary">Email</code>, <code className="text-text-primary">User ID</code>, <code className="text-text-primary">Tags</code> (comma-separated), <code className="text-text-primary">WhatsApp Opted</code> (yes/no), <code className="text-text-primary">Appointment Time</code>, and <code className="text-text-primary">Location</code>.
+                    </li>
+                    <li>If multiple rows in the file contain the same phone number, the last row will be processed.</li>
+                    <li>If a contact already exists in your Waptrix list, their traits (Name, Email, User ID, Tags, Appointment &amp; Location, and Opted status) will be updated in-place automatically.</li>
                   </ul>
                 </div>
               )}

@@ -6,6 +6,7 @@
   - Implemented manual contact forms containing Name, Phone (with dropdown country code, combined on submit), User ID, Email, Tags, WhatsApp Opted, Appointment Time, and Location.
   - Added multi-select Tag input (typing tags + Enter/comma adds badge pills), and excluded "Automated" contact creation or "Watch Video" options.
   - Added drag-and-drop Excel/CSV spreadsheet upload with custom auto-column mapping, downloadable sample CSV button with advanced headers, and expandable instructions.
+  - Rewrote expandable CSV/Excel instructions to be specific to Waptrix, detailing default country code prepending, single-column phone mapping, supported fields, and overwrite behavior.
 - **Backend Matching Logic & DB constraints**:
   - Configured contact creation and bulk import API routes (`/api/contacts` and `/api/contacts/import`) to use `.upsert(..., { onConflict: 'tenant_id,phone' })`, relying on database-level unique constraints to overwrite/update existing records in-place.
   - Mapped custom fields seamlessly: User ID $\rightarrow$ `custom1`, Tags $\rightarrow$ `custom2` (comma-separated), WhatsApp Opted $\rightarrow$ `opted_in`, and Appointment/Location $\rightarrow$ `custom3` (serialized JSON).
