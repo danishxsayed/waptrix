@@ -35,16 +35,59 @@ import * as XLSX from "xlsx";
 import ContactProfileDrawer from "@/components/contacts/ContactProfileDrawer";
 
 const COUNTRY_CODES = [
+  // South Asia
   { code: "+91", label: "🇮🇳 India (+91)" },
-  { code: "+1", label: "🇺🇸 United States (+1)" },
-  { code: "+44", label: "🇬🇧 United Kingdom (+44)" },
   { code: "+92", label: "🇵🇰 Pakistan (+92)" },
-  { code: "+62", label: "🇮🇩 Indonesia (+62)" },
+  { code: "+880", label: "🇧🇩 Bangladesh (+880)" },
+  { code: "+94", label: "🇱🇰 Sri Lanka (+94)" },
+  { code: "+977", label: "🇳🇵 Nepal (+977)" },
+  // Middle East
   { code: "+971", label: "🇦🇪 UAE (+971)" },
+  { code: "+966", label: "🇸🇦 Saudi Arabia (+966)" },
+  { code: "+974", label: "🇶🇦 Qatar (+974)" },
+  { code: "+973", label: "🇧🇭 Bahrain (+973)" },
+  { code: "+968", label: "🇴🇲 Oman (+968)" },
+  { code: "+965", label: "🇰🇼 Kuwait (+965)" },
+  { code: "+972", label: "🇮🇱 Israel (+972)" },
+  { code: "+90", label: "🇹🇷 Turkey (+90)" },
+  { code: "+964", label: "🇮🇶 Iraq (+964)" },
+  { code: "+20", label: "🇪🇬 Egypt (+20)" },
+  // Southeast Asia
+  { code: "+62", label: "🇮🇩 Indonesia (+62)" },
   { code: "+60", label: "🇲🇾 Malaysia (+60)" },
   { code: "+65", label: "🇸🇬 Singapore (+65)" },
+  { code: "+63", label: "🇵🇭 Philippines (+63)" },
+  { code: "+66", label: "🇹🇭 Thailand (+66)" },
+  { code: "+84", label: "🇻🇳 Vietnam (+84)" },
+  // East Asia
+  { code: "+86", label: "🇨🇳 China (+86)" },
+  { code: "+81", label: "🇯🇵 Japan (+81)" },
+  { code: "+82", label: "🇰🇷 South Korea (+82)" },
+  // Americas
+  { code: "+1", label: "🇺🇸 United States / Canada (+1)" },
+  { code: "+55", label: "🇧🇷 Brazil (+55)" },
+  { code: "+52", label: "🇲🇽 Mexico (+52)" },
+  { code: "+57", label: "🇨🇴 Colombia (+57)" },
+  { code: "+54", label: "🇦🇷 Argentina (+54)" },
+  // Europe
+  { code: "+44", label: "🇬🇧 United Kingdom (+44)" },
+  { code: "+49", label: "🇩🇪 Germany (+49)" },
+  { code: "+33", label: "🇫🇷 France (+33)" },
+  { code: "+39", label: "🇮🇹 Italy (+39)" },
+  { code: "+34", label: "🇪🇸 Spain (+34)" },
+  { code: "+31", label: "🇳🇱 Netherlands (+31)" },
+  { code: "+48", label: "🇵🇱 Poland (+48)" },
+  { code: "+7", label: "🇷🇺 Russia (+7)" },
+  // Africa
+  { code: "+234", label: "🇳🇬 Nigeria (+234)" },
+  { code: "+27", label: "🇿🇦 South Africa (+27)" },
+  { code: "+254", label: "🇰🇪 Kenya (+254)" },
+  { code: "+233", label: "🇬🇭 Ghana (+233)" },
+  { code: "+255", label: "🇹🇿 Tanzania (+255)" },
+  { code: "+251", label: "🇪🇹 Ethiopia (+251)" },
+  // Oceania
   { code: "+61", label: "🇦🇺 Australia (+61)" },
-  { code: "+966", label: "🇸🇦 Saudi Arabia (+966)" },
+  { code: "+64", label: "🇳🇿 New Zealand (+64)" },
 ];
 
 function CreateContactsDrawer({
@@ -123,7 +166,14 @@ function CreateContactsDrawer({
   // Download Sample CSV helper
   const downloadSampleCSV = () => {
     const headers = "Name,Phone,Email,User ID,Tags,WhatsApp Opted,Appointment Time,Location";
-    const rows = "Ahmed Khan,+923001234567,ahmed@example.com,USR001,VIP,Yes,2026-06-26 14:00,Karachi\nJohn Doe,+14155552671,john@example.com,USR002,\"Lead, VIP\",Yes,2026-06-27 10:30,San Francisco";
+    const rows = [
+      "Ahmed Khan,+923001234567,ahmed@example.com,USR001,VIP,Yes,2026-06-26 14:00,Karachi",
+      "John Doe,+14155552671,john@example.com,USR002,\"Lead, VIP\",Yes,2026-06-27 10:30,San Francisco",
+      "Fatima Ali,+971501234567,fatima@example.com,USR003,Client,Yes,2026-06-28 09:00,Dubai",
+      "Ravi Kumar,+919876543210,ravi@example.com,USR004,\"Lead, Newsletter\",Yes,,Mumbai",
+      "Sarah Jones,+447911123456,sarah@example.com,USR005,VIP,No,,London",
+      "Mohammed Zayed,+966501234567,,USR006,Client,Yes,2026-06-30 11:00,Riyadh",
+    ].join("\n");
     const blob = new Blob([headers + "\n" + rows], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");

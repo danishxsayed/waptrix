@@ -25,7 +25,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid contacts list' }, { status: 400 });
     }
 
-    const formattedContacts = contacts.map((c: any) => ({
+    // Deduplicate by phone — last row wins (same behaviour as the instructions say)
+    const phoneMap = new Map<string, any>();
+    for (const c of contacts) {
+      const key = (c.phone || '').trim();
+      if (key) phoneMap.set(key, c);
+    }
+
+    const formattedContacts = Array.from(phoneMap.values()).map((c: any) => ({
       tenant_id: user.id,
       segment_id: segment_id || null,
       name: c.name || '',
