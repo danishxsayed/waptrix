@@ -1,5 +1,12 @@
 # Implementation History
 
+## [2026-06-27] - Country Code Mapping & Deduplication Enhancements in CSV Importer
+- **Country Code Column Mapping**:
+  - Implemented automatic column matching and selection for country codes in the CSV importer.
+  - Added a default bulk country code selector dropdown (`defaultBulkCountryCode`, defaulting to `+91`) as a fallback if no country code column is mapped in the spreadsheet.
+- **Robust Phone Parsing & Normalization**:
+  - Refactored phone number normalization in the importer to strip leading zeros (`replace(/^0+/, "")`) and correctly prepend either the per-row mapped country code or fallback country code, improving contact deduplication accuracy.
+
 ## [2026-06-26] - Unified Contacts Drawer, Excel/CSV Importer & Database Upsert
 - **Unified CreateContactsDrawer**:
   - Replaced separate manual addition and spreadsheet import modals with a single unified, right-sliding drawer (`CreateContactsDrawer`) supporting both creation flows.
