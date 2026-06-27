@@ -120,6 +120,7 @@ function CreateContactsDrawer({
   const [columnMappings, setColumnMappings] = useState<Record<string, string>>({
     name: "",
     phone: "",
+    country_code: "",
     email: "",
     custom1: "",
     custom2: "",
@@ -127,6 +128,7 @@ function CreateContactsDrawer({
     appointment_time: "",
     location: ""
   });
+  const [defaultBulkCountryCode, setDefaultBulkCountryCode] = useState("+91");
   
   // Ingestion Progress States
   const [importProgress, setImportProgress] = useState(0);
@@ -206,6 +208,7 @@ function CreateContactsDrawer({
       return {
         name: guess(['name', 'full name', 'fullname', 'contact name', 'customer name']),
         phone: guess(['phone', 'phone number', 'phonenumber', 'mobile', 'cell', 'whatsapp', 'contact phone', 'mob', 'number']),
+        country_code: guess(['country code', 'country_code', 'countrycode', 'dial code', 'dialcode', 'country dial', 'isd code', 'isd']),
         email: guess(['email', 'email address', 'emailaddress']),
         custom1: guess(['user id', 'userid', 'user_id', 'id', 'customer id', 'uid']),
         custom2: guess(['tags', 'tag', 'labels', 'label', 'segments']),
@@ -305,13 +308,19 @@ function CreateContactsDrawer({
         ? JSON.stringify({ appointment_time, location }) 
         : "";
 
+      // Resolve per-row country code: mapped column > default bulk dropdown
+      let rowCountryCode = "";
+      if (columnMappings.country_code && row[columnMappings.country_code]) {
+        const raw = String(row[columnMappings.country_code]).trim().replace(/[^\d+]/g, "");
+        rowCountryCode = raw.startsWith("+") ? raw : "+" + raw;
+      }
+      const fallbackCode = (rowCountryCode || defaultBulkCountryCode).replace(/^\+/, "");
+
       let normalizedPhone = phoneVal.replace(/[^\d+]/g, "");
       if (normalizedPhone && !normalizedPhone.startsWith("+")) {
-        if (normalizedPhone.length === 10) {
-          normalizedPhone = "+" + form.countryCode.replace("+", "") + normalizedPhone;
-        } else {
-          normalizedPhone = "+" + normalizedPhone;
-        }
+        // Strip leading zeros then prepend resolved country code
+        const digits = normalizedPhone.replace(/^0+/, "");
+        normalizedPhone = "+" + fallbackCode + digits;
       }
 
       const opted_in = optedInText 
@@ -672,6 +681,50 @@ function CreateContactsDrawer({
                         <option key={h} value={h}>{h}</option>
                       ))}
                     </select>
+                  </div>
+
+                  {/* Country Code Mapping */}
+                  <div className="space-y-1.5">
+                    <div className="flex justify-between items-center">
+                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">
+                        Country Code Column <span className="text-text-muted/60 normal-case font-normal">(if separate column in file)</span>
+                      </label>
+                      {columnMappings.country_code && (
+                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
+                          Preview: "{rawFileRows[0]?.[columnMappings.country_code] || "Empty"}"
+                        </span>
+                      )}
+                    </div>
+                    <select
+                      value={columnMappings.country_code}
+                      onChange={e => setColumnMappings({ ...columnMappings, country_code: e.target.value })}
+                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
+                    >
+                      <option value="">-- No separate country code column --</option>
+                      {fileHeaders.map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    {/* Default fallback country code when no column is mapped */}
+                    {!columnMappings.country_code && (
+                      <div className="flex items-center gap-2 mt-1.5 p-2.5 bg-jade/5 border border-jade/20 rounded-xl">
+                        <span className="text-[10px] text-text-muted shrink-0">Default for numbers without country code:</span>
+                        <select
+                          value={defaultBulkCountryCode}
+                          onChange={e => setDefaultBulkCountryCode(e.target.value)}
+                          className="input-field flex-1 text-xs py-1.5 bg-background border-jade/30 text-jade font-bold"
+                        >
+                          {COUNTRY_CODES.map(c => (
+                            <option key={c.code + c.label} value={c.code}>{c.label}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {columnMappings.country_code && (
+                      <p className="text-[10px] text-jade mt-1">
+                        ✓ Country code will be read per-row from the mapped column. Accepted formats: <code className="bg-jade/10 px-1 rounded">+91</code>, <code className="bg-jade/10 px-1 rounded">91</code>, <code className="bg-jade/10 px-1 rounded">971</code>
+                      </p>
+                    )}
                   </div>
 
                   {/* Divider */}
