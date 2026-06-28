@@ -5,11 +5,16 @@
   - Implemented light theme overrides using CSS variables in `globals.css` with a default light mode.
   - Added a responsive theme toggle control (`Sun`/`Moon` icons) in `Topbar.tsx` that persists theme choices in `localStorage`.
   - Injected an inline theme initialization script in `layout.tsx` before paint to prevent initial page flash (FOUC).
-- **Contacts Page Layout & Action Upgrades**:
+- **Contacts Page Layout, Column Mapper & Action Upgrades**:
   - Migrated the segment/niche list layout from a left sidebar to a dropdown filter next to the search bar, enabling a full-width contacts list table.
   - Added a "Manage Segments" action button to easily access the Niche & List Library modal.
   - Created a separate dedicated country code column displaying parsed phone country codes (`parsePhone`).
-  - Replaced the direct phone call action link with a dedicated WhatsApp direct send icon/button (`WhatsAppIcon`).
+  - Simplified the contacts list table to display only Location (removing the Appointment time display).
+  - Designed and implemented a full-screen CSV/Excel importer column mapping interface.
+  - Replaced the WhatsApp direct send popup with a direct routing action (`router.push`) that redirects users to the `/inbox?phone=...` thread.
+- **Conversational Inbox Auto-Selection**:
+  - Wrapped `/inbox` page with a `Suspense` boundary and `useSearchParams` hook to dynamically intercept `phone` query parameters.
+  - Added auto-selection logic in `InboxPanel` that resolves the matching contact thread and opens it automatically on page load.
 ## [2026-06-27] - Country Code Mapping & Deduplication Enhancements in CSV Importer
 - **Country Code Column Mapping**:
   - Implemented automatic column matching and selection for country codes in the CSV importer.
