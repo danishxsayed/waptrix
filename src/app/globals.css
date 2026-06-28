@@ -22,6 +22,18 @@
   --foreground: #E2E8F0;
 }
 
+/* ── Light theme overrides ── */
+html.light {
+  --color-background: #F8FAFC;
+  --color-surface: #FFFFFF;
+  --color-card: #F1F5F9;
+  --color-border: #CBD5E1;
+  --color-text-primary: #0F172A;
+  --color-text-muted: #64748B;
+  --background: #F8FAFC;
+  --foreground: #0F172A;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);

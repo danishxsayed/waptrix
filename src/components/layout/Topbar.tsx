@@ -1,13 +1,35 @@
 "use client";
 
-import { Search, User, Loader2 } from "lucide-react";
+import { Search, User, Loader2, Sun, Moon } from "lucide-react";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { useTenant } from "@/context/TenantContext";
 import NotificationBell from "@/components/layout/NotificationBell";
 
 export default function Topbar() {
   const pathname = usePathname();
   const { tenant, loading } = useTenant();
+  const [isDark, setIsDark] = useState(false);
+
+  useEffect(() => {
+    // Sync with current class on mount
+    setIsDark(document.documentElement.classList.contains("dark"));
+  }, []);
+
+  const toggleTheme = () => {
+    const html = document.documentElement;
+    if (isDark) {
+      html.classList.remove("dark");
+      html.classList.add("light");
+      localStorage.setItem("waptrix-theme", "light");
+      setIsDark(false);
+    } else {
+      html.classList.remove("light");
+      html.classList.add("dark");
+      localStorage.setItem("waptrix-theme", "dark");
+      setIsDark(true);
+    }
+  };
   
   // Format pathname for title
   const getTitle = () => {
@@ -42,6 +64,15 @@ export default function Topbar() {
             className="input-field pl-10 w-64 text-sm"
           />
         </div>
+
+        {/* Theme Toggle */}
+        <button
+          onClick={toggleTheme}
+          title={isDark ? "Switch to Light Mode" : "Switch to Dark Mode"}
+          className="w-9 h-9 flex items-center justify-center rounded-xl border border-border hover:bg-card hover:border-jade/30 transition-all text-text-muted hover:text-jade"
+        >
+          {isDark ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        </button>
 
         <NotificationBell />
 

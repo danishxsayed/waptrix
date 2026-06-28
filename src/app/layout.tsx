@@ -26,6 +26,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      {/* Inline script runs before paint — prevents flash of wrong theme. Default: light */}
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('waptrix-theme')||'light';document.documentElement.classList.add(t);}catch(e){document.documentElement.classList.add('light');}})();`,
+          }}
+        />
+      </head>
       <body
         className={`${syne.variable} ${dmSans.variable} antialiased`}
         suppressHydrationWarning

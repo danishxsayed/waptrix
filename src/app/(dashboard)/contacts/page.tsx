@@ -3,12 +3,12 @@ export const dynamic = "force-dynamic";
 
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import { 
-  Users, 
-  UserPlus, 
-  Upload, 
-  Search, 
-  Filter, 
+import {
+  Users,
+  UserPlus,
+  Upload,
+  Search,
+  Filter,
   Mail,
   Phone,
   Trash2,
@@ -28,8 +28,18 @@ import {
   User,
   Hash,
   Folder,
-  Send
+  Send,
+  MessageCircle
 } from "lucide-react";
+
+// WhatsApp SVG icon (lucide doesn't include it)
+function WhatsAppIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+    </svg>
+  );
+}
 import axios from "axios";
 import * as XLSX from "xlsx";
 import ContactProfileDrawer from "@/components/contacts/ContactProfileDrawer";
@@ -89,6 +99,79 @@ const COUNTRY_CODES = [
   { code: "+61", label: "🇦🇺 Australia (+61)" },
   { code: "+64", label: "🇳🇿 New Zealand (+64)" },
 ];
+
+// ─── Phone Parser ─────────────────────────────────────────────────────────────
+function parsePhone(phone: string): { code: string; local: string } {
+  if (!phone) return { code: "", local: "" };
+  const normalized = phone.startsWith("+") ? phone : "+" + phone;
+  // Try longest match first so +971 beats +97
+  const uniqueCodes = Array.from(new Set(COUNTRY_CODES.map(c => c.code)))
+    .sort((a, b) => b.length - a.length);
+  for (const cc of uniqueCodes) {
+    if (normalized.startsWith(cc)) {
+      return { code: cc, local: normalized.slice(cc.length) };
+    }
+  }
+  // fallback: first char is +, next 1-3 digits
+  const m = normalized.match(/^(\+\d{1,3})(.*)/);
+  return m ? { code: m[1], local: m[2] } : { code: "", local: normalized };
+}
+
+// ─── WhatsApp Send Modal ───────────────────────────────────────────────────────
+function WhatsAppSendModal({ contact, onClose }: { contact: any; onClose: () => void }) {
+  const [message, setMessage] = useState("");
+  const phoneClean = (contact.phone || "").replace(/^\+/, "");
+
+  const handleOpen = () => {
+    const encoded = encodeURIComponent(message.trim());
+    window.open(`https://wa.me/${phoneClean}${encoded ? "?text=" + encoded : ""}`, "_blank");
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-card border border-border rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#25D366]/10 border border-[#25D366]/25 flex items-center justify-center text-[#25D366]">
+              <WhatsAppIcon className="w-5 h-5" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-text-primary">Send WhatsApp Message</p>
+              <p className="text-[10px] text-text-muted">{contact.name} · {contact.phone}</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="p-1 hover:bg-surface rounded-lg text-text-muted">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Message (Optional)</label>
+          <textarea
+            value={message}
+            onChange={e => setMessage(e.target.value)}
+            placeholder="Type a pre-filled message or leave blank to open empty chat…"
+            rows={4}
+            className="input-field w-full text-sm resize-none"
+            autoFocus
+          />
+          <p className="text-[10px] text-text-muted">Opens WhatsApp in a new tab.</p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={onClose} className="flex-1 btn-secondary py-2.5 text-sm">Cancel</button>
+          <button
+            onClick={handleOpen}
+            className="flex-1 py-2.5 text-sm font-bold rounded-lg flex items-center justify-center gap-2 text-white transition-all hover:brightness-110"
+            style={{ backgroundColor: "#25D366" }}
+          >
+            <WhatsAppIcon className="w-4 h-4" />
+            Open Chat
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function CreateContactsDrawer({
   segments,
@@ -1757,7 +1840,6 @@ const getAvatarGradient = (char: string) => {
 export default function ContactsPage() {
   const [contacts, setContacts] = useState<any[]>([]);
   const [segments, setSegments] = useState<any[]>([]);
-  const [activeSegment, setActiveSegment] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedTag, setSelectedTag] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -1774,6 +1856,8 @@ export default function ContactsPage() {
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("desc");
   const [isBulkUpdating, setIsBulkUpdating] = useState(false);
   const [selectedContactIdForProfile, setSelectedContactIdForProfile] = useState<string | null>(null);
+  const [waSendTarget, setWaSendTarget] = useState<any | null>(null);
+  const [activeSegmentFilter, setActiveSegmentFilter] = useState<string>("all");
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -1793,8 +1877,8 @@ export default function ContactsPage() {
   const handleSegmentDeleted = (id: string) => {
     setSegments(prev => prev.filter(s => s.id !== id));
     setContacts(prev => prev.map(c => c.segment_id === id ? { ...c, segment_id: null } : c));
-    if (activeSegment === id) {
-      setActiveSegment("all");
+    if (activeSegmentFilter === id) {
+      setActiveSegmentFilter("all");
     }
     showToast("Segment deleted successfully!");
   };
@@ -1869,7 +1953,7 @@ export default function ContactsPage() {
     setCurrentPage(1);
     setSelectedTag("");
     setSelectedIds([]);
-  }, [searchQuery, activeSegment]);
+  }, [searchQuery, activeSegmentFilter]);
 
   const fetchContacts = async () => {
     setIsLoading(true);
@@ -1957,9 +2041,9 @@ export default function ContactsPage() {
     const matchesSearch =
       (c.name || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
       (c.phone || "").includes(searchQuery);
-    const matchesSegment = activeSegment === "all" || c.segment_id === activeSegment;
-    
-    const matchesTag = !selectedTag || 
+    const matchesSegment = activeSegmentFilter === "all" || c.segment_id === activeSegmentFilter;
+
+    const matchesTag = !selectedTag ||
       (c.custom2 || "")
         .split(',')
         .map((t: string) => t.trim().toLowerCase())
@@ -2077,6 +2161,9 @@ export default function ContactsPage() {
           segments={segments}
         />
       )}
+      {waSendTarget && (
+        <WhatsAppSendModal contact={waSendTarget} onClose={() => setWaSendTarget(null)} />
+      )}
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -2086,7 +2173,7 @@ export default function ContactsPage() {
         </div>
         <div className="flex gap-3 w-full md:w-auto">
           <a
-            href={activeSegment !== "all" ? `/campaigns?new=true&segmentId=${activeSegment}` : "/campaigns?new=true"}
+            href={activeSegmentFilter !== "all" ? `/campaigns?new=true&segmentId=${activeSegmentFilter}` : "/campaigns?new=true"}
             className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2 hover:border-jade/30 text-xs font-bold font-dm-sans"
           >
             <Send className="w-4 h-4 text-jade" />
@@ -2154,6 +2241,7 @@ export default function ContactsPage() {
           <div className="space-y-1">
             <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Filtered View</p>
             <p className="text-2xl font-bold text-text-primary tracking-tight font-syne">{filteredContacts.length}</p>
+
           </div>
           <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center text-warning border border-warning/20 group-hover:scale-110 transition-transform">
             <Search className="w-5 h-5" />
@@ -2161,90 +2249,8 @@ export default function ContactsPage() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-        {/* Segments Sidebar */}
-        <div className="space-y-4">
-          <div className="glass-card !p-4 border-border/80 shadow-[0_4px_20px_rgba(0,0,0,0.15)] bg-gradient-to-b from-card/60 to-card/20">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-widest flex items-center gap-1">
-                <Folder className="w-3.5 h-3.5 text-jade" />
-                Segments
-              </h3>
-              <button
-                onClick={() => setShowLibraryModal(true)}
-                className="text-[9px] font-bold text-jade hover:text-jade-hover transition-colors hover:underline uppercase tracking-wider flex items-center gap-1"
-              >
-                Manage Library
-              </button>
-            </div>
-            <div className="space-y-1.5">
-              <button
-                onClick={() => setActiveSegment("all")}
-                className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center justify-between border ${
-                  activeSegment === "all"
-                    ? "bg-jade/10 border-jade/30 text-jade shadow-[0_0_15px_rgba(16,185,129,0.05)] font-extrabold"
-                    : "border-transparent text-text-muted hover:bg-surface hover:text-text-primary hover:border-border"
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <Users className="w-3.5 h-3.5" />
-                  <span>All Contacts</span>
-                </div>
-                <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full font-bold ${
-                  activeSegment === "all" ? 'bg-jade/20 text-jade' : 'bg-surface text-text-muted border border-border/50'
-                }`}>
-                  {contacts.length}
-                </span>
-              </button>
-              {segments.map(s => {
-                const count = contacts.filter(c => c.segment_id === s.id).length;
-                return (
-                  <div
-                    key={s.id}
-                    className="group/item flex items-center gap-1 w-full"
-                  >
-                    <button
-                      onClick={() => setActiveSegment(s.id)}
-                      className={`flex-1 text-left px-3 py-2.5 rounded-xl text-xs font-bold transition-all flex justify-between items-center border ${
-                        activeSegment === s.id
-                          ? "bg-jade/10 border-jade/30 text-jade shadow-[0_0_15px_rgba(16,185,129,0.05)] font-extrabold"
-                          : "border-transparent text-text-muted hover:bg-surface hover:text-text-primary hover:border-border"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        <Tag className="w-3.5 h-3.5 shrink-0 text-text-muted/60" />
-                        <span className="truncate">{s.name}</span>
-                      </div>
-                      <span className={`text-[9px] font-mono px-1.5 py-0.5 rounded-full font-bold shrink-0 ${
-                        activeSegment === s.id ? 'bg-jade/20 text-jade' : 'bg-surface text-text-muted border border-border/50'
-                      }`}>
-                        {count}
-                      </span>
-                    </button>
-                    <a
-                      href={`/campaigns?new=true&segmentId=${s.id}`}
-                      className="opacity-0 group-hover/item:opacity-100 p-2 hover:bg-jade/10 text-text-muted hover:text-jade rounded-xl transition-all shrink-0 cursor-pointer"
-                      title="Send campaign to this niche"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                    </a>
-                  </div>
-                );
-              })}
-              
-              <button
-                onClick={() => setShowQuickCreateSegment(true)}
-                className="w-full mt-2 border border-dashed border-border/60 hover:border-jade/40 rounded-xl px-3 py-2.5 text-xs font-bold text-text-muted hover:text-jade flex items-center justify-center gap-1.5 transition-all hover:bg-jade/5"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add New Niche
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Contacts Table */}
-        <div className="lg:col-span-3 space-y-4">
+      {/* Full-width Contacts Table */}
+      <div className="space-y-4">
           <div className="glass-card !p-0 overflow-hidden">
             <div className="p-4 border-b border-border flex flex-col md:flex-row gap-4 justify-between items-center w-full">
               <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto items-center">
@@ -2258,9 +2264,25 @@ export default function ContactsPage() {
                   />
                 </div>
                 
-                {/* Tag Filter Dropdown */}
+                {/* Segment Filter Dropdown */}
                 <div className="relative w-full sm:w-48 flex items-center">
-                  <Filter className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <Folder className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <select
+                    value={activeSegmentFilter}
+                    onChange={e => setActiveSegmentFilter(e.target.value)}
+                    className="input-field w-full pl-9 pr-8 text-xs h-9 appearance-none bg-surface border-border focus:border-jade text-text-primary rounded-lg focus:outline-none"
+                  >
+                    <option value="all">All Segments</option>
+                    {segments.map(s => (
+                      <option key={s.id} value={s.id}>{s.name} ({contacts.filter(c => c.segment_id === s.id).length})</option>
+                    ))}
+                  </select>
+                  <ChevronDown className="w-3.5 h-3.5 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                </div>
+
+                {/* Tag Filter Dropdown */}
+                <div className="relative w-full sm:w-40 flex items-center">
+                  <Tag className="w-3.5 h-3.5 text-text-muted absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                   <select
                     value={selectedTag}
                     onChange={e => setSelectedTag(e.target.value)}
@@ -2273,6 +2295,14 @@ export default function ContactsPage() {
                   </select>
                   <ChevronDown className="w-3.5 h-3.5 text-text-muted absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none" />
                 </div>
+
+                {/* Manage Segments button */}
+                <button
+                  onClick={() => setShowLibraryModal(true)}
+                  className="shrink-0 h-9 px-3 btn-secondary text-xs flex items-center gap-1.5 border-border/60"
+                >
+                  <FileText className="w-3.5 h-3.5 text-jade" /> Manage
+                </button>
               </div>
               <div className="text-xs text-text-muted">
                 {filteredContacts.length} contact{filteredContacts.length !== 1 ? "s" : ""}
@@ -2325,7 +2355,12 @@ export default function ContactsPage() {
                           {sortField === "name" && (sortDirection === "asc" ? " ↑" : " ↓")}
                         </span>
                       </th>
-                      <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors select-none" onClick={() => toggleSort("phone")}>
+                      <th className="px-3 py-4 text-center">
+                        <span className="flex items-center justify-center gap-1 text-[9px]">
+                          Code
+                        </span>
+                      </th>
+                      <th className="px-4 py-4 cursor-pointer hover:text-text-primary transition-colors select-none" onClick={() => toggleSort("phone")}>
                         <span className="flex items-center gap-1.5">
                           <Phone className="w-3.5 h-3.5 text-text-muted/60" /> Phone
                           {sortField === "phone" && (sortDirection === "asc" ? " ↑" : " ↓")}
@@ -2405,7 +2440,19 @@ export default function ContactsPage() {
                               </div>
                             </div>
                           </td>
-                          <td className="px-6 py-4 text-xs text-text-muted font-mono">{contact.phone}</td>
+                          {(() => {
+                            const { code, local } = parsePhone(contact.phone || "");
+                            return (
+                              <>
+                                <td className="px-3 py-4 text-center">
+                                  <span className="inline-block bg-surface border border-border px-2 py-0.5 rounded-md text-[10px] font-bold font-mono text-jade">
+                                    {code || "—"}
+                                  </span>
+                                </td>
+                                <td className="px-4 py-4 text-xs text-text-muted font-mono">{local || contact.phone}</td>
+                              </>
+                            );
+                          })()}
                           <td className="px-6 py-4 text-xs">
                             {contact.custom1 ? (
                               <span className="px-2 py-0.5 rounded bg-surface border border-border text-text-muted font-mono font-bold text-[9px] tracking-wide shadow-sm">
@@ -2483,13 +2530,13 @@ export default function ContactsPage() {
                                   <Mail className="w-3.5 h-3.5" />
                                 </a>
                               )}
-                              <a
-                                href={`tel:${contact.phone}`}
-                                className="w-8 h-8 rounded-lg bg-surface border border-border/40 hover:border-jade/30 flex items-center justify-center text-text-muted hover:text-jade hover:bg-jade/5 hover:scale-105 active:scale-95 transition-all shadow-sm"
-                                title="Call"
+                              <button
+                                onClick={() => setWaSendTarget(contact)}
+                                className="w-8 h-8 rounded-lg bg-surface border border-border/40 hover:border-[#25D366]/40 flex items-center justify-center text-text-muted hover:text-[#25D366] hover:bg-[#25D366]/5 hover:scale-105 active:scale-95 transition-all shadow-sm"
+                                title="Send WhatsApp message"
                               >
-                                <Phone className="w-3.5 h-3.5" />
-                              </a>
+                                <WhatsAppIcon className="w-3.5 h-3.5" />
+                              </button>
                               <button
                                 onClick={() => setDeleteTarget(contact)}
                                 className="w-8 h-8 rounded-lg bg-surface border border-border/40 hover:border-danger/30 flex items-center justify-center text-text-muted hover:text-danger hover:bg-danger/5 hover:scale-105 active:scale-95 transition-all shadow-sm"
@@ -2588,7 +2635,6 @@ export default function ContactsPage() {
             )}
           </div>
         </div>
-      </div>
 
       {/* Floating Bulk Actions Bar */}
       {selectedIds.length > 0 && (
