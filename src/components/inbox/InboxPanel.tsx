@@ -99,9 +99,11 @@ function StatusIcon({ status }: { status: string }) {
 export default function InboxPanel({
   onUnreadChange,
   fullHeight = false,
+  initialPhone,
 }: {
   onUnreadChange?: (count: number) => void;
   fullHeight?: boolean;
+  initialPhone?: string;
 }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<Conversation | null>(null);
@@ -216,6 +218,19 @@ export default function InboxPanel({
     fetchConversations();
     fetchTemplates();
   }, [fetchConversations, fetchTemplates]);
+
+  // ── Auto-select conversation when initialPhone is provided (from contacts page)
+  const didAutoSelect = useRef(false);
+  useEffect(() => {
+    if (!initialPhone || didAutoSelect.current || conversations.length === 0) return;
+    const clean = initialPhone.replace(/\D/g, "");
+    const match = conversations.find((c) => c.contact_phone.replace(/\D/g, "") === clean);
+    if (match) {
+      didAutoSelect.current = true;
+      selectConversation(match);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialPhone, conversations]);
 
   // ── Polling fallback — guarantees updates even if Supabase Realtime is down
   useEffect(() => {

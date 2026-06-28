@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-
+import { useRouter } from "next/navigation";
 import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Users,
@@ -117,58 +117,68 @@ function parsePhone(phone: string): { code: string; local: string } {
   return m ? { code: m[1], local: m[2] } : { code: "", local: normalized };
 }
 
-// ─── WhatsApp Send Modal ───────────────────────────────────────────────────────
-function WhatsAppSendModal({ contact, onClose }: { contact: any; onClose: () => void }) {
-  const [message, setMessage] = useState("");
-  const phoneClean = (contact.phone || "").replace(/^\+/, "");
+// WhatsApp button click navigates to /inbox?phone=... to open the conversation inline
 
-  const handleOpen = () => {
-    const encoded = encodeURIComponent(message.trim());
-    window.open(`https://wa.me/${phoneClean}${encoded ? "?text=" + encoded : ""}`, "_blank");
-    onClose();
-  };
-
+// ─── MappingCard helper (used in full-screen column mapper) ──────────────────
+function MappingCard({
+  icon,
+  label,
+  required = false,
+  hint,
+  mappingKey,
+  columnMappings,
+  setColumnMappings,
+  fileHeaders,
+  previewRow,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  required?: boolean;
+  hint?: string;
+  mappingKey: string;
+  columnMappings: Record<string, string>;
+  setColumnMappings: (m: Record<string, string>) => void;
+  fileHeaders: string[];
+  previewRow: any;
+}) {
+  const mapped = columnMappings[mappingKey];
+  const previewVal = mapped && previewRow ? previewRow[mapped] : null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-card border border-border rounded-2xl w-full max-w-sm shadow-2xl p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#25D366]/10 border border-[#25D366]/25 flex items-center justify-center text-[#25D366]">
-              <WhatsAppIcon className="w-5 h-5" />
-            </div>
-            <div>
-              <p className="text-sm font-bold text-text-primary">Send WhatsApp Message</p>
-              <p className="text-[10px] text-text-muted">{contact.name} · {contact.phone}</p>
-            </div>
+    <div className={`bg-card border rounded-2xl p-5 space-y-3 transition-all ${mapped ? "border-jade/30 shadow-[0_0_12px_rgba(16,185,129,0.08)]" : "border-border hover:border-border/80"}`}>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-all ${mapped ? "bg-jade/10 border-jade/25 text-jade" : "bg-surface border-border text-text-muted"}`}>
+            {icon}
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-surface rounded-lg text-text-muted">
-            <X className="w-4 h-4" />
-          </button>
+          <div>
+            <p className="text-sm font-bold text-text-primary">{label}</p>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full border font-semibold uppercase tracking-wide ${required ? "text-rose-400 bg-rose-400/10 border-rose-400/20" : "text-text-muted bg-surface border-border"}`}>
+              {required ? "required" : "optional"}
+            </span>
+            {hint && <span className="ml-1.5 text-[10px] text-text-muted italic">{hint}</span>}
+          </div>
         </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Message (Optional)</label>
-          <textarea
-            value={message}
-            onChange={e => setMessage(e.target.value)}
-            placeholder="Type a pre-filled message or leave blank to open empty chat…"
-            rows={4}
-            className="input-field w-full text-sm resize-none"
-            autoFocus
-          />
-          <p className="text-[10px] text-text-muted">Opens WhatsApp in a new tab.</p>
-        </div>
-        <div className="flex gap-3">
-          <button onClick={onClose} className="flex-1 btn-secondary py-2.5 text-sm">Cancel</button>
-          <button
-            onClick={handleOpen}
-            className="flex-1 py-2.5 text-sm font-bold rounded-lg flex items-center justify-center gap-2 text-white transition-all hover:brightness-110"
-            style={{ backgroundColor: "#25D366" }}
-          >
-            <WhatsAppIcon className="w-4 h-4" />
-            Open Chat
-          </button>
-        </div>
+        {previewVal && (
+          <span className="text-[10px] font-mono text-jade bg-jade/10 border border-jade/20 px-2 py-0.5 rounded-lg truncate max-w-[110px]" title={previewVal}>
+            {previewVal}
+          </span>
+        )}
       </div>
+      <select
+        value={mapped}
+        onChange={e => setColumnMappings({ ...columnMappings, [mappingKey]: e.target.value })}
+        className={`input-field w-full text-xs py-2.5 bg-background transition-all ${mapped ? "border-jade/30 text-text-primary" : "border-border text-text-muted"}`}
+      >
+        <option value="">{required ? "Select column…" : "— Don't Map / Skip —"}</option>
+        {fileHeaders.map(h => (
+          <option key={h} value={h}>{h}</option>
+        ))}
+      </select>
+      {mapped && (
+        <p className="text-[10px] text-jade flex items-center gap-1">
+          <CheckCircle2 className="w-3 h-3" /> Mapped to column: <span className="font-semibold">{mapped}</span>
+        </p>
+      )}
     </div>
   );
 }
@@ -705,263 +715,8 @@ function CreateContactsDrawer({
               </div>
             )}
 
-            {/* ════════════════ Step 2: Interactive Column Mapper ════════════════ */}
-            {uploadStep === "mapping" && (
-              <div className="space-y-4 pt-2 animate-in fade-in duration-200">
-                <div className="flex justify-between items-center">
-                  <h4 className="text-xs font-bold text-text-muted uppercase tracking-wider flex items-center gap-1.5">
-                    <Filter className="w-3.5 h-3.5 text-jade" /> Map File Columns to Waptrix Fields
-                  </h4>
-                  <button 
-                    type="button"
-                    onClick={() => { setFile(null); setUploadStep("upload"); setBulkError(""); }}
-                    className="text-[10px] text-rose-400 hover:text-rose-300 font-bold uppercase tracking-wider underline cursor-pointer"
-                  >
-                    Clear File
-                  </button>
-                </div>
-                
-                <div className="grid grid-cols-1 gap-3.5 p-4 bg-surface/30 rounded-2xl border border-border">
-                  {/* Name Mapping */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-bold text-text-primary uppercase tracking-wide">Full Name <span className="text-rose-500">*</span></label>
-                      {columnMappings.name && (
-                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
-                          Preview: "{rawFileRows[0]?.[columnMappings.name] || "Empty"}"
-                        </span>
-                      )}
-                    </div>
-                    <select
-                      value={columnMappings.name}
-                      onChange={e => setColumnMappings({ ...columnMappings, name: e.target.value })}
-                      className="input-field w-full text-xs py-2 bg-background border-border"
-                    >
-                      <option value="">Select column...</option>
-                      {fileHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Phone Mapping */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-bold text-text-primary uppercase tracking-wide">Phone Number <span className="text-rose-500">*</span></label>
-                      {columnMappings.phone && (
-                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
-                          Preview: "{rawFileRows[0]?.[columnMappings.phone] || "Empty"}"
-                        </span>
-                      )}
-                    </div>
-                    <select
-                      value={columnMappings.phone}
-                      onChange={e => setColumnMappings({ ...columnMappings, phone: e.target.value })}
-                      className="input-field w-full text-xs py-2 bg-background border-border"
-                    >
-                      <option value="">Select column...</option>
-                      {fileHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Country Code Mapping */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">
-                        Country Code Column <span className="text-text-muted/60 normal-case font-normal">(if separate column in file)</span>
-                      </label>
-                      {columnMappings.country_code && (
-                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
-                          Preview: "{rawFileRows[0]?.[columnMappings.country_code] || "Empty"}"
-                        </span>
-                      )}
-                    </div>
-                    <select
-                      value={columnMappings.country_code}
-                      onChange={e => setColumnMappings({ ...columnMappings, country_code: e.target.value })}
-                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
-                    >
-                      <option value="">-- No separate country code column --</option>
-                      {fileHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                    {/* Default fallback country code when no column is mapped */}
-                    {!columnMappings.country_code && (
-                      <div className="flex items-center gap-2 mt-1.5 p-2.5 bg-jade/5 border border-jade/20 rounded-xl">
-                        <span className="text-[10px] text-text-muted shrink-0">Default for numbers without country code:</span>
-                        <select
-                          value={defaultBulkCountryCode}
-                          onChange={e => setDefaultBulkCountryCode(e.target.value)}
-                          className="input-field flex-1 text-xs py-1.5 bg-background border-jade/30 text-jade font-bold"
-                        >
-                          {COUNTRY_CODES.map(c => (
-                            <option key={c.code + c.label} value={c.code}>{c.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                    )}
-                    {columnMappings.country_code && (
-                      <p className="text-[10px] text-jade mt-1">
-                        ✓ Country code will be read per-row from the mapped column. Accepted formats: <code className="bg-jade/10 px-1 rounded">+91</code>, <code className="bg-jade/10 px-1 rounded">91</code>, <code className="bg-jade/10 px-1 rounded">971</code>
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Divider */}
-                  <div className="h-px bg-border/40 my-1"></div>
-
-                  {/* Email Mapping */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">Email (Optional)</label>
-                      {columnMappings.email && (
-                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
-                          Preview: "{rawFileRows[0]?.[columnMappings.email] || "Empty"}"
-                        </span>
-                      )}
-                    </div>
-                    <select
-                      value={columnMappings.email}
-                      onChange={e => setColumnMappings({ ...columnMappings, email: e.target.value })}
-                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
-                    >
-                      <option value="">-- Don't Map / Skip --</option>
-                      {fileHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* User ID Mapping */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide font-mono">User ID (Optional)</label>
-                      {columnMappings.custom1 && (
-                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
-                          Preview: "{rawFileRows[0]?.[columnMappings.custom1] || "Empty"}"
-                        </span>
-                      )}
-                    </div>
-                    <select
-                      value={columnMappings.custom1}
-                      onChange={e => setColumnMappings({ ...columnMappings, custom1: e.target.value })}
-                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted font-mono"
-                    >
-                      <option value="">-- Don't Map / Skip --</option>
-                      {fileHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Tags Mapping */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">Tags (Optional)</label>
-                      {columnMappings.custom2 && (
-                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
-                          Preview: "{rawFileRows[0]?.[columnMappings.custom2] || "Empty"}"
-                        </span>
-                      )}
-                    </div>
-                    <select
-                      value={columnMappings.custom2}
-                      onChange={e => setColumnMappings({ ...columnMappings, custom2: e.target.value })}
-                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
-                    >
-                      <option value="">-- Don't Map / Skip --</option>
-                      {fileHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* WhatsApp Opted Mapping */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">WhatsApp Consent (Optional)</label>
-                      {columnMappings.whatsapp_opted && (
-                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
-                          Preview: "{rawFileRows[0]?.[columnMappings.whatsapp_opted] || "Empty"}"
-                        </span>
-                      )}
-                    </div>
-                    <select
-                      value={columnMappings.whatsapp_opted}
-                      onChange={e => setColumnMappings({ ...columnMappings, whatsapp_opted: e.target.value })}
-                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
-                    >
-                      <option value="">-- Don't Map / Skip --</option>
-                      {fileHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Appointment Time Mapping */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">Appointment Time (Optional)</label>
-                      {columnMappings.appointment_time && (
-                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
-                          Preview: "{rawFileRows[0]?.[columnMappings.appointment_time] || "Empty"}"
-                        </span>
-                      )}
-                    </div>
-                    <select
-                      value={columnMappings.appointment_time}
-                      onChange={e => setColumnMappings({ ...columnMappings, appointment_time: e.target.value })}
-                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
-                    >
-                      <option value="">-- Don't Map / Skip --</option>
-                      {fileHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Location Mapping */}
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <label className="text-[11px] font-bold text-text-muted uppercase tracking-wide">Location (Optional)</label>
-                      {columnMappings.location && (
-                        <span className="text-[9px] text-text-muted italic truncate max-w-[200px]">
-                          Preview: "{rawFileRows[0]?.[columnMappings.location] || "Empty"}"
-                        </span>
-                      )}
-                    </div>
-                    <select
-                      value={columnMappings.location}
-                      onChange={e => setColumnMappings({ ...columnMappings, location: e.target.value })}
-                      className="input-field w-full text-xs py-2 bg-background border-border text-text-muted"
-                    >
-                      <option value="">-- Don't Map / Skip --</option>
-                      {fileHeaders.map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-
-                {bulkError && (
-                  <div className="flex items-center gap-2 text-danger text-xs bg-danger/10 border border-danger/20 rounded-xl p-3">
-                    <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                    {bulkError}
-                  </div>
-                )}
-
-                <button
-                  type="button"
-                  onClick={handleGeneratePreview}
-                  className="w-full btn-primary py-3.5 flex items-center justify-center gap-2 text-xs font-bold uppercase tracking-wider"
-                >
-                  Configure &amp; Generate Preview
-                </button>
-              </div>
-            )}
+            {/* ════════════════ Step 2: Full-Screen Column Mapper (rendered as portal outside drawer) ════════════════ */}
+            {uploadStep === "mapping" && null /* Rendered as full-screen overlay below */}
 
             {/* ════════════════ Step 3: Preview List & Ingestion Progress ════════════════ */}
             {uploadStep === "preview" && (
@@ -1327,6 +1082,208 @@ function CreateContactsDrawer({
             setForm({ ...form, segment_id: newSeg.id });
           }}
         />
+      )}
+
+      {/* ════════════════ Full-Screen Column Mapping Overlay ════════════════ */}
+      {uploadStep === "mapping" && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-background/95 backdrop-blur-md overflow-hidden">
+          {/* Header */}
+          <div className="flex items-center justify-between px-8 py-5 border-b border-border bg-surface/80 backdrop-blur-sm shrink-0">
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 bg-jade/10 rounded-2xl flex items-center justify-center border border-jade/25 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
+                <Filter className="w-5 h-5 text-jade" />
+              </div>
+              <div>
+                <h2 className="text-lg font-bold font-syne text-text-primary">Map File Columns to Waptrix Fields</h2>
+                <p className="text-xs text-text-muted mt-0.5">
+                  Matched <span className="text-jade font-semibold">{rawFileRows.length}</span> rows from <span className="text-text-primary font-semibold">{file?.name}</span> — assign each Waptrix field to the correct column.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setFile(null); setUploadStep("upload"); setBulkError(""); }}
+              className="flex items-center gap-2 px-4 py-2 text-xs text-rose-400 hover:text-rose-300 border border-rose-400/20 hover:border-rose-400/40 rounded-xl transition-all font-bold"
+            >
+              <X className="w-3.5 h-3.5" /> Clear File
+            </button>
+          </div>
+
+          {/* Scrollable Cards Grid */}
+          <div className="flex-1 overflow-y-auto p-8">
+            <div className="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+
+              {/* ── Name ── */}
+              <MappingCard
+                icon={<User className="w-4 h-4" />}
+                label="Full Name"
+                required
+                mappingKey="name"
+                columnMappings={columnMappings}
+                setColumnMappings={setColumnMappings}
+                fileHeaders={fileHeaders}
+                previewRow={rawFileRows[0]}
+              />
+
+              {/* ── Phone ── */}
+              <MappingCard
+                icon={<Phone className="w-4 h-4" />}
+                label="Phone Number"
+                required
+                mappingKey="phone"
+                columnMappings={columnMappings}
+                setColumnMappings={setColumnMappings}
+                fileHeaders={fileHeaders}
+                previewRow={rawFileRows[0]}
+              />
+
+              {/* ── Country Code ── */}
+              <div className="bg-card border border-border rounded-2xl p-5 space-y-3 hover:border-border/80 transition-all">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-xl bg-surface border border-border flex items-center justify-center text-text-muted shrink-0">
+                      <Hash className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-text-primary">Country Code</p>
+                      <span className="text-[10px] text-text-muted px-1.5 py-0.5 rounded-full bg-surface border border-border font-semibold uppercase tracking-wide">
+                        optional
+                      </span>
+                    </div>
+                  </div>
+                  {columnMappings.country_code && rawFileRows[0]?.[columnMappings.country_code] && (
+                    <span className="text-[10px] font-mono text-jade bg-jade/10 border border-jade/20 px-2 py-0.5 rounded-lg truncate max-w-[110px]" title={rawFileRows[0][columnMappings.country_code]}>
+                      {rawFileRows[0][columnMappings.country_code]}
+                    </span>
+                  )}
+                </div>
+                <select
+                  value={columnMappings.country_code}
+                  onChange={e => setColumnMappings({ ...columnMappings, country_code: e.target.value })}
+                  className="input-field w-full text-xs py-2.5 bg-background border-border text-text-muted"
+                >
+                  <option value="">— No separate column —</option>
+                  {fileHeaders.map(h => (
+                    <option key={h} value={h}>{h}</option>
+                  ))}
+                </select>
+                {!columnMappings.country_code ? (
+                  <div className="p-3 bg-jade/5 border border-jade/20 rounded-xl space-y-1.5">
+                    <p className="text-[10px] text-text-muted">Default country code for numbers without one:</p>
+                    <select
+                      value={defaultBulkCountryCode}
+                      onChange={e => setDefaultBulkCountryCode(e.target.value)}
+                      className="input-field w-full text-xs py-2 bg-background border-jade/30 text-jade font-bold"
+                    >
+                      {COUNTRY_CODES.map(c => (
+                        <option key={c.code + c.label} value={c.code}>{c.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <p className="text-[10px] text-jade">
+                    ✓ Per-row from column. Formats: <code className="bg-jade/10 px-1 rounded">+91</code> <code className="bg-jade/10 px-1 rounded">91</code>
+                  </p>
+                )}
+              </div>
+
+              {/* ── Email ── */}
+              <MappingCard
+                icon={<Mail className="w-4 h-4" />}
+                label="Email Address"
+                mappingKey="email"
+                columnMappings={columnMappings}
+                setColumnMappings={setColumnMappings}
+                fileHeaders={fileHeaders}
+                previewRow={rawFileRows[0]}
+              />
+
+              {/* ── User ID ── */}
+              <MappingCard
+                icon={<Hash className="w-4 h-4" />}
+                label="User ID"
+                mappingKey="custom1"
+                columnMappings={columnMappings}
+                setColumnMappings={setColumnMappings}
+                fileHeaders={fileHeaders}
+                previewRow={rawFileRows[0]}
+              />
+
+              {/* ── Tags ── */}
+              <MappingCard
+                icon={<Tag className="w-4 h-4" />}
+                label="Tags"
+                hint="Comma-separated"
+                mappingKey="custom2"
+                columnMappings={columnMappings}
+                setColumnMappings={setColumnMappings}
+                fileHeaders={fileHeaders}
+                previewRow={rawFileRows[0]}
+              />
+
+              {/* ── WhatsApp Consent ── */}
+              <MappingCard
+                icon={<CheckCircle2 className="w-4 h-4" />}
+                label="WhatsApp Consent"
+                hint="yes / no / true / false"
+                mappingKey="whatsapp_opted"
+                columnMappings={columnMappings}
+                setColumnMappings={setColumnMappings}
+                fileHeaders={fileHeaders}
+                previewRow={rawFileRows[0]}
+              />
+
+              {/* ── Appointment Time ── */}
+              <MappingCard
+                icon={<Calendar className="w-4 h-4" />}
+                label="Appointment Time"
+                mappingKey="appointment_time"
+                columnMappings={columnMappings}
+                setColumnMappings={setColumnMappings}
+                fileHeaders={fileHeaders}
+                previewRow={rawFileRows[0]}
+              />
+
+              {/* ── Location ── */}
+              <MappingCard
+                icon={<MapPin className="w-4 h-4" />}
+                label="Location"
+                mappingKey="location"
+                columnMappings={columnMappings}
+                setColumnMappings={setColumnMappings}
+                fileHeaders={fileHeaders}
+                previewRow={rawFileRows[0]}
+              />
+
+            </div>
+          </div>
+
+          {/* Footer CTA */}
+          <div className="shrink-0 border-t border-border bg-surface/80 backdrop-blur-sm px-8 py-5">
+            <div className="max-w-5xl mx-auto flex items-center justify-between gap-6">
+              <div className="text-xs text-text-muted">
+                <span className="font-semibold text-jade">{rawFileRows.length} contacts</span> detected · {fileHeaders.length} columns available
+                {(!columnMappings.name || !columnMappings.phone) && (
+                  <span className="ml-3 text-rose-400">⚠ Name and Phone are required</span>
+                )}
+              </div>
+              {bulkError && (
+                <div className="flex items-center gap-2 text-danger text-xs bg-danger/10 border border-danger/20 rounded-xl px-3 py-2 flex-1">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  {bulkError}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={handleGeneratePreview}
+                className="btn-primary py-3 px-8 flex items-center gap-2 text-sm font-bold shrink-0 shadow-[0_4px_20px_rgba(16,185,129,0.25)]"
+              >
+                <CheckCircle2 className="w-4 h-4" />
+                Generate Preview
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -1838,6 +1795,7 @@ const getAvatarGradient = (char: string) => {
 };
 
 export default function ContactsPage() {
+  const router = useRouter();
   const [contacts, setContacts] = useState<any[]>([]);
   const [segments, setSegments] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -2161,9 +2119,7 @@ export default function ContactsPage() {
           segments={segments}
         />
       )}
-      {waSendTarget && (
-        <WhatsAppSendModal contact={waSendTarget} onClose={() => setWaSendTarget(null)} />
-      )}
+      {/* WhatsApp button navigates directly to /inbox?phone=... */}
 
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -2522,9 +2478,9 @@ export default function ContactsPage() {
                                 </a>
                               )}
                               <button
-                                onClick={() => setWaSendTarget(contact)}
+                                onClick={() => router.push(`/inbox?phone=${encodeURIComponent(contact.phone || "")}`)}
                                 className="w-8 h-8 rounded-lg bg-surface border border-border/40 hover:border-[#25D366]/40 flex items-center justify-center text-text-muted hover:text-[#25D366] hover:bg-[#25D366]/5 hover:scale-105 active:scale-95 transition-all shadow-sm"
-                                title="Send WhatsApp message"
+                                title="Open WhatsApp conversation in Inbox"
                               >
                                 <WhatsAppIcon className="w-3.5 h-3.5" />
                               </button>
