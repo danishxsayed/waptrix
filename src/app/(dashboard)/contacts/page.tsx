@@ -2380,7 +2380,7 @@ export default function ContactsPage() {
                       </th>
                       <th className="px-6 py-4 cursor-pointer hover:text-text-primary transition-colors select-none" onClick={() => toggleSort("appointment")}>
                         <span className="flex items-center gap-1.5">
-                          <Calendar className="w-3.5 h-3.5 text-text-muted/60" /> Appointment &amp; Location
+                          <MapPin className="w-3.5 h-3.5 text-text-muted/60" /> Location
                           {sortField === "appointment" && (sortDirection === "asc" ? " ↑" : " ↓")}
                         </span>
                       </th>
@@ -2481,25 +2481,16 @@ export default function ContactsPage() {
                               if (!contact.custom3) return <span className="text-text-muted/30">—</span>;
                               try {
                                 const parsed = JSON.parse(contact.custom3);
+                                const loc = parsed.location || "";
+                                if (!loc) return <span className="text-text-muted/30">—</span>;
                                 return (
-                                  <div className="space-y-1 text-[11px]">
-                                    {parsed.appointment_time && (
-                                      <p className="text-text-primary font-bold flex items-center gap-1.5 bg-jade/5 border border-jade/10 w-fit px-2 py-0.5 rounded-md">
-                                        <Calendar className="w-3.5 h-3.5 text-jade shrink-0" /> {new Date(parsed.appointment_time).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
-                                      </p>
-                                    )}
-                                    {parsed.location && (
-                                      <p className="text-text-muted text-[10px] flex items-center gap-1.5 pl-0.5">
-                                        <MapPin className="w-3.5 h-3.5 text-text-muted/70 shrink-0" /> <span className="truncate max-w-[160px]" title={parsed.location}>{parsed.location}</span>
-                                      </p>
-                                    )}
-                                    {!parsed.appointment_time && !parsed.location && (
-                                      <p className="text-text-muted">{contact.custom3}</p>
-                                    )}
-                                  </div>
+                                  <p className="text-text-muted text-[11px] flex items-center gap-1.5">
+                                    <MapPin className="w-3.5 h-3.5 text-text-muted/70 shrink-0" />
+                                    <span className="truncate max-w-[160px]" title={loc}>{loc}</span>
+                                  </p>
                                 );
                               } catch {
-                                return <span className="text-text-muted/70 bg-surface border border-border px-2 py-0.5 rounded text-[10px]">{contact.custom3}</span>;
+                                return <span className="text-text-muted/70 text-[11px]">{contact.custom3}</span>;
                               }
                             })()}
                           </td>
