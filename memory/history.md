@@ -52,6 +52,8 @@
   - Added an unsaved changes confirmation dialog in `TemplateBuilder.tsx` to prevent accidental loss of edits when closing the builder.
 - **Template Edit URL Separation**:
   - Fixed a template editing bug by separating media header URL resolution logic from text header fields during form state initialization.
+- **Media Upload Cache Pre-seeding**:
+  - Configured upload flow in `MediaLibrary.tsx` to pre-seed the client-side `thumbnailCache` with the newly uploaded file's data URL immediately on success, bypassing the need for a redundant API request to render the card thumbnail.
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:

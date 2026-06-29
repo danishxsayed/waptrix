@@ -62,3 +62,4 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Automatically classifies file attachments into specific groups (image, audio, video, document) in `/api/media/route.ts` and `MediaLibrary.tsx` by cross-referencing MIME types and filename extensions, resolving upload payloads and parsing issues.
   - Implemented a pulse-animated skeleton loader grid in `MediaLibrary.tsx` while fetching uploads to prevent brief flashes of empty folder states.
   - Lazy-loads card thumbnail previews dynamically via `GET /api/media/[id]` inside `LazyCard` after pulling only lightweight metadata list payloads from `GET /api/media` to keep lists under 10 KB regardless of file quantity or sizes.
+  - Pre-seeds newly uploaded file thumbnails directly in the client cache (`thumbnailCache`) to allow immediate rendering without redundant API fetches.
