@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   MessageSquare, Send, Paperclip, Search, CheckCheck, Check,
-  Clock, FileText, Mic, X, Loader2, Download, Play
+  Clock, FileText, Mic, X, Loader2, Download, Play, Plus, Phone, AlertCircle
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 
@@ -119,6 +119,14 @@ export default function InboxPanel({
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>("");
   const [sendError, setSendError] = useState<string>("");
+
+  // ── New Chat state
+  const [showNewChat, setShowNewChat] = useState(false);
+  const [newChatPhone, setNewChatPhone] = useState("");
+  const [newChatName, setNewChatName] = useState("");
+  const [newChatTemplate, setNewChatTemplate] = useState<Template | null>(null);
+  const [newChatSending, setNewChatSending] = useState(false);
+  const [newChatError, setNewChatError] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -477,6 +485,48 @@ export default function InboxPanel({
     setReplyMode("media");
   };
 
+  // ── Start a new conversation with any phone number via template message
+  const handleStartConversation = async () => {
+    if (!newChatPhone.trim()) { setNewChatError("Phone number is required."); return; }
+    if (!newChatTemplate) { setNewChatError("Select a template — WhatsApp requires a template to start a new conversation."); return; }
+    setNewChatError("");
+    setNewChatSending(true);
+    try {
+      const res = await fetch("/api/conversations/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          phone: newChatPhone.trim(),
+          contactName: newChatName.trim() || undefined,
+          templateName: newChatTemplate.name,
+          languageCode: newChatTemplate.language || "en_US",
+          components: [],
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setNewChatError(data.error || "Failed to start conversation.");
+        return;
+      }
+      // Add/refresh the conversation in the list and select it
+      const conv: Conversation = data.conversation;
+      setConversations((prev) => {
+        const exists = prev.find((c) => c.id === conv.id);
+        if (exists) return prev.map((c) => c.id === conv.id ? { ...c, ...conv } : c);
+        return [conv, ...prev];
+      });
+      setShowNewChat(false);
+      setNewChatPhone("");
+      setNewChatName("");
+      setNewChatTemplate(null);
+      selectConversation(conv);
+    } catch (err: any) {
+      setNewChatError(err.message || "Failed to start conversation.");
+    } finally {
+      setNewChatSending(false);
+    }
+  };
+
   const filteredConversations = conversations.filter(
     (c) =>
       c.contact_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -503,6 +553,13 @@ export default function InboxPanel({
             </p>
           </div>
         </div>
+        <button
+          onClick={() => { setShowNewChat(true); setNewChatError(""); }}
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-jade text-background text-xs font-bold rounded-xl hover:bg-jade-hover transition-all shadow-[0_0_12px_rgba(16,185,129,0.25)]"
+          title="Start a new conversation"
+        >
+          <Plus className="w-3.5 h-3.5" /> New Chat
+        </button>
       </div>
 
       <div className={`flex ${fullHeight ? "h-[calc(100vh-260px)]" : "h-[600px]"}`}>
@@ -908,11 +965,142 @@ export default function InboxPanel({
             </div>
             <h4 className="font-bold font-syne text-lg">WhatsApp Inbox</h4>
             <p className="text-sm text-text-muted mt-2 max-w-xs">
-              Select a conversation from the left to view messages and reply to customers.
+              Select a conversation from the left, or start a new one.
             </p>
+            <button
+              onClick={() => { setShowNewChat(true); setNewChatError(""); }}
+              className="mt-5 flex items-center gap-2 px-4 py-2.5 bg-jade text-background text-sm font-bold rounded-xl hover:bg-jade-hover transition-all shadow-[0_0_16px_rgba(16,185,129,0.25)]"
+            >
+              <Plus className="w-4 h-4" /> Start New Conversation
+            </button>
           </div>
         )}
       </div>
+
+      {/* ── New Chat Modal ──────────────────────────────────────────────────── */}
+      {showNewChat && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-card border border-border rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+            {/* Modal header */}
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 bg-jade/10 rounded-xl border border-jade/25 flex items-center justify-center">
+                  <Phone className="w-4 h-4 text-jade" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-text-primary">Start New Conversation</p>
+                  <p className="text-[10px] text-text-muted">Requires a WhatsApp-approved template</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setShowNewChat(false); setNewChatError(""); setNewChatPhone(""); setNewChatName(""); setNewChatTemplate(null); }}
+                className="p-1.5 hover:bg-surface rounded-lg text-text-muted transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Modal body */}
+            <div className="p-6 space-y-4">
+              {/* Info banner */}
+              <div className="flex gap-2.5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-xs text-amber-400">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>WhatsApp only allows template messages to start a new conversation. Free-text is available once the contact replies.</span>
+              </div>
+
+              {/* Phone */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-muted uppercase tracking-widest">
+                  Phone Number <span className="text-rose-400">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={newChatPhone}
+                  onChange={e => setNewChatPhone(e.target.value)}
+                  placeholder="+971501234567"
+                  className="input-field w-full text-sm font-mono"
+                  autoFocus
+                />
+                <p className="text-[10px] text-text-muted">Include country code, e.g. +971 for UAE, +91 for India</p>
+              </div>
+
+              {/* Contact name (optional) */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Contact Name (optional)</label>
+                <input
+                  type="text"
+                  value={newChatName}
+                  onChange={e => setNewChatName(e.target.value)}
+                  placeholder="e.g. Ahmed Khan"
+                  className="input-field w-full text-sm"
+                />
+              </div>
+
+              {/* Template picker */}
+              <div className="space-y-1.5">
+                <label className="text-xs font-bold text-text-muted uppercase tracking-widest">
+                  Template <span className="text-rose-400">*</span>
+                </label>
+                {templates.length === 0 ? (
+                  <div className="p-3 bg-surface border border-border rounded-xl text-xs text-text-muted text-center">
+                    No approved templates found. Create and get templates approved in the Templates section.
+                  </div>
+                ) : (
+                  <select
+                    value={newChatTemplate?.name || ""}
+                    onChange={e => {
+                      const t = templates.find(t => t.name === e.target.value) || null;
+                      setNewChatTemplate(t);
+                    }}
+                    className="input-field w-full text-sm bg-background border-border"
+                  >
+                    <option value="">Select an approved template…</option>
+                    {templates.map(t => (
+                      <option key={t.id} value={t.name}>{t.name} ({t.language})</option>
+                    ))}
+                  </select>
+                )}
+                {newChatTemplate && (
+                  <div className="p-3 bg-surface border border-border rounded-xl text-xs text-text-muted leading-relaxed">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1">Preview</span>
+                    {newChatTemplate.body}
+                  </div>
+                )}
+              </div>
+
+              {/* Error */}
+              {newChatError && (
+                <div className="flex items-start gap-2 text-danger text-xs bg-danger/10 border border-danger/20 rounded-xl p-3">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />
+                  {newChatError}
+                </div>
+              )}
+
+              {/* Actions */}
+              <div className="flex gap-3 pt-1">
+                <button
+                  onClick={() => { setShowNewChat(false); setNewChatError(""); setNewChatPhone(""); setNewChatName(""); setNewChatTemplate(null); }}
+                  className="flex-1 btn-secondary py-2.5 text-sm"
+                  disabled={newChatSending}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleStartConversation}
+                  disabled={newChatSending || !newChatPhone.trim() || !newChatTemplate}
+                  className="flex-1 btn-primary py-2.5 text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {newChatSending ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Sending…</>
+                  ) : (
+                    <><Send className="w-4 h-4" /> Send &amp; Open Chat</>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
