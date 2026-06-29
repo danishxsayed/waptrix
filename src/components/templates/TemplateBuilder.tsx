@@ -155,9 +155,7 @@ function PhonePreview({ formData, platform, metaStatus }: { formData: FormData; 
               )}
               <div className="px-3 pt-2 pb-2">
                 <p className="text-white text-[11px] leading-relaxed whitespace-pre-wrap">
-                  {formData.body.split(/({{[\d]+}})/g).map((part, i) =>
-                    part.match(/{{[\d]+}}/) ? <span key={i} className="italic" style={{ color: "#d0f0e8" }}>{part}</span> : part
-                  )}
+                  {renderWAText(formData.body)}
                 </p>
                 {formData.footer && <p className="mt-1 text-[9px] leading-snug" style={{ color: WA.footerText }}>{formData.footer}</p>}
                 <div className="flex items-center justify-end gap-1 mt-1">
@@ -253,6 +251,25 @@ const TEMPLATE_TYPES: { id: TemplateType; icon: React.ReactNode; title: string; 
   { id: "PAY", icon: <CreditCard className="w-5 h-5" />, title: "Template with WhatsApp Pay Checkout", desc: "Send messages through which customers can pay you" },
   { id: "CAROUSEL", icon: <LayoutGrid className="w-5 h-5" />, title: "Carousel", desc: "Send multiple product cards in a scrollable carousel" },
 ];
+
+// Parse WhatsApp formatting markers into React nodes
+function renderWAText(text: string): React.ReactNode {
+  // Split on *bold*, _italic_, ~strike~, `code`, {{N}} — in one pass
+  const parts = text.split(/(\*[^*\n]+\*|_[^_\n]+_|~[^~\n]+~|`[^`\n]+`|{{[\d]+}})/g);
+  return parts.map((part, i) => {
+    if (/^\*[^*]+\*$/.test(part))
+      return <strong key={i} style={{ fontWeight: 700 }}>{part.slice(1, -1)}</strong>;
+    if (/^_[^_]+_$/.test(part))
+      return <em key={i} style={{ fontStyle: "italic" }}>{part.slice(1, -1)}</em>;
+    if (/^~[^~]+~$/.test(part))
+      return <del key={i}>{part.slice(1, -1)}</del>;
+    if (/^`[^`]+`$/.test(part))
+      return <code key={i} style={{ fontFamily: "monospace", fontSize: "0.85em", background: "rgba(0,0,0,0.2)", padding: "0 2px", borderRadius: 3 }}>{part.slice(1, -1)}</code>;
+    if (/^{{[\d]+}}$/.test(part))
+      return <span key={i} style={{ color: "#d0f0e8", fontStyle: "italic" }}>{part}</span>;
+    return part;
+  });
+}
 
 const CATEGORY_LABELS: Record<string, string> = {
   MARKETING: "Marketing",
