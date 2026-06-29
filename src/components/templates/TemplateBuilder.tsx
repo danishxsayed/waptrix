@@ -127,7 +127,7 @@ function PhonePreview({ formData, platform, metaStatus }: { formData: FormData; 
           </div>
         </div>
         {/* Chat area */}
-        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 flex flex-col justify-start" style={{ backgroundColor: WA.bg }}>
+        <div className="flex-1 overflow-y-auto px-3 py-3 space-y-1 flex flex-col justify-start" style={{ backgroundColor: WA.bg, backgroundImage: 'url("/wa-wallpaper.png")', backgroundSize: "cover", backgroundPosition: "center" }}>
           <div className="flex justify-center mb-2">
             <span className="text-[9px] px-2 py-0.5 rounded-full font-medium" style={{ background: "#182229", color: WA.footerText }}>TODAY</span>
           </div>
