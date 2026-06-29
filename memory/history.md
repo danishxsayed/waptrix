@@ -46,6 +46,12 @@
 - **Base64 URL Safety Validation**:
   - Added strict checks in `/api/templates` and `/api/templates/[id]` PUT/POST API route handlers to reject media header paths starting with `data:` (base64 data URLs) which causes statement timeouts and Meta dispatch failures.
   - Linked matching warning prompts in `TemplateBuilder.tsx` to alert users to configure public URLs instead of local data URL files during template submissions.
+- **Media Library Lazy Loading**:
+  - Implemented dynamic lazy loading of thumbnails in `MediaLibrary.tsx` via `LazyCard` fetching `/api/media/[id]`. This keeps list payloads small (<10 KB) by excluding heavy base64 data URLs from main list query responses (`/api/media`).
+- **Template Unsaved Changes Protection**:
+  - Added an unsaved changes confirmation dialog in `TemplateBuilder.tsx` to prevent accidental loss of edits when closing the builder.
+- **Template Edit URL Separation**:
+  - Fixed a template editing bug by separating media header URL resolution logic from text header fields during form state initialization.
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:
