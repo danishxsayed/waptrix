@@ -47,6 +47,7 @@ export default function MediaLibrary({
   isInline = false,
 }: MediaLibraryProps) {
   const [items, setItems] = useState<MediaItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<MediaCategory | "ALL">(filterCategory || "ALL");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -60,12 +61,15 @@ export default function MediaLibrary({
     fetchMedia();
   }, []);
 
-  const fetchMedia = async () => {
+  const fetchMedia = async (quiet = false) => {
+    if (!quiet) setLoading(true);
     try {
       const res = await axios.get("/api/media");
       setItems(res.data);
     } catch (err) {
       console.error("Failed to fetch media", err);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -91,7 +95,7 @@ export default function MediaLibrary({
       }
     }
     setUploading(false);
-    fetchMedia();
+    fetchMedia(true);
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -105,7 +109,7 @@ export default function MediaLibrary({
       await axios.delete(`/api/media/${id}`);
       setDeleteConfirm(null);
       if (selected === id) setSelected(null);
-      fetchMedia();
+      fetchMedia(true);
     } catch (err) {
       console.error("Delete failed", err);
       alert("Failed to delete media item.");
@@ -343,7 +347,22 @@ export default function MediaLibrary({
           </div>
         )}
 
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border overflow-hidden animate-pulse">
+                <div className="w-full h-36 bg-border/50" />
+                <div className="p-2 bg-card space-y-1.5">
+                  <div className="h-2.5 bg-border rounded w-3/4" />
+                  <div className="flex justify-between">
+                    <div className="h-2 bg-border rounded w-1/3" />
+                    <div className="h-2 bg-border rounded w-1/4" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-4 text-center py-16">
             <FolderOpen className="w-14 h-14 text-text-muted opacity-20" />
             <div>
@@ -440,7 +459,7 @@ export default function MediaLibrary({
               </div>
             ))}
           </div>
-        )}
+        ) }
       </div>
 
       {/* Footer */}
