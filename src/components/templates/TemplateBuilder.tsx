@@ -311,6 +311,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [isDragOver, setIsDragOver] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -337,6 +338,23 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   const handleMediaFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const dataUrl = await readFileAsDataUrl(file);
+    const { addMedia } = await import("@/lib/mediaStore");
+    addMedia({ name: file.name, category: categoryFromMime(file.type), dataUrl, mimeType: file.type, sizeBytes: file.size });
+    setFormData({ ...formData, header_image_url: dataUrl });
+  };
+
+  const handleDrop = async (e: React.DragEvent, accept: "image" | "video" | "document") => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+    const isDoc = !isImage && !isVideo;
+    if (accept === "image" && !isImage) { showToast("Please drop an image file.", "error"); return; }
+    if (accept === "video" && !isVideo) { showToast("Please drop a video file (MP4, MOV, WebM).", "error"); return; }
+    if (accept === "document" && (isImage || isVideo)) { showToast("Please drop a document file (PDF, Word, etc.).", "error"); return; }
     const dataUrl = await readFileAsDataUrl(file);
     const { addMedia } = await import("@/lib/mediaStore");
     addMedia({ name: file.name, category: categoryFromMime(file.type), dataUrl, mimeType: file.type, sizeBytes: file.size });
@@ -709,12 +727,20 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                             )}
                           </div>
                         ) : (
-                          <button onClick={() => imageInputRef.current?.click()} disabled={isPostSubmit}
-                            className="w-full border-2 border-dashed border-border rounded-xl p-5 flex flex-col items-center gap-2 hover:border-jade/40 hover:bg-jade/5 transition-all">
-                            <ImageIcon className="w-7 h-7 text-text-muted" />
-                            <span className="text-sm font-semibold text-text-muted">Drop image or click to upload</span>
+                          <div
+                            onClick={() => imageInputRef.current?.click()}
+                            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                            onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                            onDragLeave={() => setIsDragOver(false)}
+                            onDrop={(e) => handleDrop(e, "image")}
+                            className={`w-full border-2 border-dashed rounded-xl p-5 flex flex-col items-center gap-2 cursor-pointer transition-all ${
+                              isDragOver ? "border-jade bg-jade/10 scale-[1.01]" : "border-border hover:border-jade/40 hover:bg-jade/5"
+                            }`}
+                          >
+                            <ImageIcon className={`w-7 h-7 ${isDragOver ? "text-jade" : "text-text-muted"}`} />
+                            <span className="text-sm font-semibold text-text-muted">{isDragOver ? "Drop to upload" : "Drop image or click to upload"}</span>
                             <span className="text-xs text-text-muted">JPG, PNG, WebP up to 20MB</span>
-                          </button>
+                          </div>
                         )}
                         <input className="input-field w-full text-xs" placeholder="or paste URL: https://example.com/banner.jpg"
                           value={formData.header_image_url.startsWith("data:") ? "" : formData.header_image_url}
@@ -742,12 +768,20 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                             {!isPostSubmit && <button onClick={() => setFormData({ ...formData, header_image_url: "" })} className="p-1.5 text-text-muted hover:text-danger"><Trash2 className="w-4 h-4" /></button>}
                           </div>
                         ) : (
-                          <button onClick={() => videoInputRef.current?.click()} disabled={isPostSubmit}
-                            className="w-full border-2 border-dashed border-border rounded-xl p-5 flex flex-col items-center gap-2 hover:border-blue-400/40 hover:bg-blue-400/5 transition-all">
-                            <Film className="w-7 h-7 text-text-muted" />
-                            <span className="text-sm font-semibold text-text-muted">Drop video or click to upload</span>
+                          <div
+                            onClick={() => videoInputRef.current?.click()}
+                            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                            onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                            onDragLeave={() => setIsDragOver(false)}
+                            onDrop={(e) => handleDrop(e, "video")}
+                            className={`w-full border-2 border-dashed rounded-xl p-5 flex flex-col items-center gap-2 cursor-pointer transition-all ${
+                              isDragOver ? "border-blue-400 bg-blue-400/10 scale-[1.01]" : "border-border hover:border-blue-400/40 hover:bg-blue-400/5"
+                            }`}
+                          >
+                            <Film className={`w-7 h-7 ${isDragOver ? "text-blue-400" : "text-text-muted"}`} />
+                            <span className="text-sm font-semibold text-text-muted">{isDragOver ? "Drop to upload" : "Drop video or click to upload"}</span>
                             <span className="text-xs text-text-muted">MP4, MOV, WebM up to 20MB</span>
-                          </button>
+                          </div>
                         )}
                       </div>
                     )}
@@ -772,12 +806,20 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                             {!isPostSubmit && <button onClick={() => setFormData({ ...formData, header_image_url: "" })} className="p-1.5 text-text-muted hover:text-danger"><Trash2 className="w-4 h-4" /></button>}
                           </div>
                         ) : (
-                          <button onClick={() => docInputRef.current?.click()} disabled={isPostSubmit}
-                            className="w-full border-2 border-dashed border-border rounded-xl p-5 flex flex-col items-center gap-2 hover:border-amber-400/40 hover:bg-amber-400/5 transition-all">
-                            <FileIcon className="w-7 h-7 text-text-muted" />
-                            <span className="text-sm font-semibold text-text-muted">Drop document or click to upload</span>
+                          <div
+                            onClick={() => docInputRef.current?.click()}
+                            onDragOver={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                            onDragEnter={(e) => { e.preventDefault(); setIsDragOver(true); }}
+                            onDragLeave={() => setIsDragOver(false)}
+                            onDrop={(e) => handleDrop(e, "document")}
+                            className={`w-full border-2 border-dashed rounded-xl p-5 flex flex-col items-center gap-2 cursor-pointer transition-all ${
+                              isDragOver ? "border-amber-400 bg-amber-400/10 scale-[1.01]" : "border-border hover:border-amber-400/40 hover:bg-amber-400/5"
+                            }`}
+                          >
+                            <FileIcon className={`w-7 h-7 ${isDragOver ? "text-amber-400" : "text-text-muted"}`} />
+                            <span className="text-sm font-semibold text-text-muted">{isDragOver ? "Drop to upload" : "Drop document or click to upload"}</span>
                             <span className="text-xs text-text-muted">PDF, Word, PowerPoint, Excel up to 20MB</span>
-                          </button>
+                          </div>
                         )}
                       </div>
                     )}
