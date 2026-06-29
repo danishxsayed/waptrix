@@ -462,7 +462,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
 
         <div className="flex-1 overflow-hidden flex min-h-0">
           {/* ── Left: Accordion Steps ──────────────────────────────── */}
-          <div className="flex-1 overflow-y-auto border-r border-border">
+          <div className="flex-1 overflow-y-auto border-r border-border min-h-0">
 
             {/* ── STEP 1 ── */}
             <div className="border-b border-border">
@@ -773,10 +773,15 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                     <div className="border border-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-jade/30">
                       {/* Highlight overlay wrapper */}
                       <div className="relative bg-surface">
-                        {/* Background layer — renders highlighted variables */}
+                        {/*
+                          Highlight overlay technique:
+                          • Bottom div: shows ALL text in normal color + variable marks in jade.
+                          • Top textarea: color:transparent + caretColor visible → user types normally,
+                            caret shows, but glyph pixels come from the div below.
+                        */}
                         <div
                           aria-hidden="true"
-                          className="absolute inset-0 px-4 py-3 text-sm whitespace-pre-wrap break-words overflow-hidden pointer-events-none select-none"
+                          className="absolute inset-0 px-4 py-3 text-sm whitespace-pre-wrap break-words overflow-hidden pointer-events-none select-none text-text-primary"
                           style={{ lineHeight: "1.625", fontFamily: "inherit" }}
                         >
                           {formData.body.length === 0 ? (
@@ -787,22 +792,22 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                                 <mark
                                   key={i}
                                   style={{
-                                    background: "rgba(16,185,129,0.18)",
+                                    background: "rgba(16,185,129,0.2)",
                                     color: "#10B981",
                                     borderRadius: "4px",
-                                    padding: "1px 3px",
-                                    fontWeight: 600,
+                                    padding: "0 3px",
+                                    fontWeight: 700,
                                   }}
                                 >
                                   {part}
                                 </mark>
                               ) : (
-                                <span key={i} style={{ color: "transparent" }}>{part}</span>
+                                <span key={i}>{part}</span>
                               )
                             )
                           )}
                         </div>
-                        {/* Transparent textarea on top */}
+                        {/* Transparent textarea — captures input; text is invisible so the div below shows through */}
                         <textarea
                           ref={bodyRef}
                           name="body"
@@ -815,7 +820,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                             caretColor: "var(--color-text-primary)",
                             lineHeight: "1.625",
                           }}
-                          placeholder="Write your template body here..."
+                          placeholder="x"
                           disabled={isPostSubmit}
                           onBlur={() => setShowEmojiPicker(false)}
                         />
