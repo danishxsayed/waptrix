@@ -39,6 +39,8 @@
 - **Media Upload Category Detection & Payload Fixes**:
   - Refactored category detection inside `/api/media/route.ts` and `MediaLibrary.tsx` to safely derive media groups (image, audio, video, document) from both MIME type and filename extension.
   - Corrected upload payload formats and patched file size parses to prevent `sizeBytes` NaN calculation errors.
+- **Media Library TypeScript Build Fix**:
+  - Resolved compiler error `TS2451` by renaming duplicate `ext` variable declarations inside the `renderThumbnail` helper in `MediaLibrary.tsx` to `fileExt` and `docExt`.
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:
