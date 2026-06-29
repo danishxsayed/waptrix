@@ -41,6 +41,11 @@
   - Corrected upload payload formats and patched file size parses to prevent `sizeBytes` NaN calculation errors.
 - **Media Library TypeScript Build Fix**:
   - Resolved compiler error `TS2451` by renaming duplicate `ext` variable declarations inside the `renderThumbnail` helper in `MediaLibrary.tsx` to `fileExt` and `docExt`.
+- **Media Library Skeleton Loaders**:
+  - Implemented a pulse-animated grid skeleton loading view in `MediaLibrary.tsx` during asynchronous fetches, solving the brief flash of "No files uploaded" empty states.
+- **Base64 URL Safety Validation**:
+  - Added strict checks in `/api/templates` and `/api/templates/[id]` PUT/POST API route handlers to reject media header paths starting with `data:` (base64 data URLs) which causes statement timeouts and Meta dispatch failures.
+  - Linked matching warning prompts in `TemplateBuilder.tsx` to alert users to configure public URLs instead of local data URL files during template submissions.
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:
