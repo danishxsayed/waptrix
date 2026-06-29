@@ -18,19 +18,21 @@ export async function GET() {
       process.env.SUPABASE_SERVICE_KEY!
     );
 
+    // Select metadata only — no data_url. Keeps list response tiny (<10 KB for 100 items)
+    // regardless of file sizes. Thumbnails are lazy-loaded per-item via GET /api/media/[id].
     const { data, error } = await serviceClient
       .from('media')
-      .select('*')
+      .select('id, name, type, size, created_at')
       .eq('tenant_id', user.id)
       .order('created_at', { ascending: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    
+
     const VIDEO_EXTS = ["mp4","mov","webm","avi","mkv","m4v","wmv"];
     const IMAGE_EXTS = ["jpg","jpeg","png","gif","webp","svg","avif"];
 
     const normalizedData = data.map(item => {
-      const mimeType: string = item.type || item.mime_type || "";
+      const mimeType: string = item.type || "";
       const ext = (item.name || "").split(".").pop()?.toLowerCase() || "";
 
       let category: "IMAGE" | "VIDEO" | "DOCUMENT" = "DOCUMENT";
@@ -43,7 +45,7 @@ export async function GET() {
         category,
         mimeType,
         sizeBytes: item.size ?? 0,
-        dataUrl: item.data_url,
+        dataUrl: null as string | null,  // populated lazily by the client
         uploadedAt: item.created_at,
       };
     });

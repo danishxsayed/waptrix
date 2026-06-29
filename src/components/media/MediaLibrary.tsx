@@ -11,6 +11,10 @@ import {
   readFileAsDataUrl, categoryFromMime, formatFileSize,
 } from "@/lib/mediaStore";
 
+// ─── Module-level thumbnail cache ─────────────────────────────────────────────
+// Persists across re-renders and re-opens within the same page session.
+const thumbnailCache = new Map<string, string>();
+
 // ─── Accept strings per category ─────────────────────────────────────────────
 const ACCEPT: Record<MediaCategory | "ALL", string> = {
   ALL: "image/*,video/*,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx",
@@ -31,11 +35,257 @@ const CAT_COLORS: Record<MediaCategory, string> = {
   DOCUMENT: "text-amber-400 bg-amber-400/10 border-amber-400/20",
 };
 
+const VIDEO_EXTS = ["mp4","mov","webm","avi","mkv","m4v","wmv"];
+const IMAGE_EXTS = ["jpg","jpeg","png","gif","webp","svg","avif"];
+
+function getEffectiveCatFromItem(m: MediaItem): MediaCategory {
+  const mime: string = (m as any).mimeType || "";
+  const ext = m.name.split(".").pop()?.toLowerCase() || "";
+  if (m.category && m.category !== "DOCUMENT") return m.category;
+  if (mime.startsWith("image/") || IMAGE_EXTS.includes(ext)) return "IMAGE";
+  if (mime.startsWith("video/") || VIDEO_EXTS.includes(ext)) return "VIDEO";
+  return m.category || "DOCUMENT";
+}
+
+function getDocStyle(name: string) {
+  const ext = name.split(".").pop()?.toUpperCase() || "FILE";
+  const map: Record<string, { bg: string; text: string }> = {
+    PDF:  { bg: "bg-red-500/20",    text: "text-red-400" },
+    DOC:  { bg: "bg-blue-500/20",   text: "text-blue-400" },
+    DOCX: { bg: "bg-blue-500/20",   text: "text-blue-400" },
+    XLS:  { bg: "bg-green-500/20",  text: "text-green-400" },
+    XLSX: { bg: "bg-green-500/20",  text: "text-green-400" },
+    PPT:  { bg: "bg-orange-500/20", text: "text-orange-400" },
+    PPTX: { bg: "bg-orange-500/20", text: "text-orange-400" },
+    TXT:  { bg: "bg-slate-500/20",  text: "text-slate-400" },
+  };
+  return { ext, style: map[ext] || { bg: "bg-amber-400/20", text: "text-amber-400" } };
+}
+
+// ─── Thumbnail renderer (receives resolved URL, not item.dataUrl) ─────────────
+function renderThumbnail(item: MediaItem, thumbnailUrl: string | null, size: "sm" | "lg" = "lg") {
+  const isLg = size === "lg";
+  const effectiveCat = getEffectiveCatFromItem(item);
+
+  if (effectiveCat === "IMAGE") {
+    if (thumbnailUrl) {
+      return (
+        <img
+          src={thumbnailUrl}
+          alt={item.name}
+          className={isLg ? "w-full h-36 object-cover rounded-t-xl" : "w-10 h-10 object-cover rounded-md flex-shrink-0"}
+        />
+      );
+    }
+    // Skeleton placeholder
+    return (
+      <div className={isLg ? "w-full h-36 bg-border/40 rounded-t-xl animate-pulse flex items-center justify-center" : "w-10 h-10 rounded-md flex-shrink-0 bg-border/40 animate-pulse"}>
+        {isLg && <ImageIcon className="w-8 h-8 text-border" />}
+      </div>
+    );
+  }
+
+  if (effectiveCat === "VIDEO") {
+    if (thumbnailUrl) {
+      return isLg ? (
+        <div className="relative w-full h-36 bg-black rounded-t-xl overflow-hidden">
+          <video
+            src={thumbnailUrl}
+            className="w-full h-full object-cover"
+            muted playsInline preload="metadata"
+            onLoadedMetadata={(e) => { (e.target as HTMLVideoElement).currentTime = 0.5; }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-9 h-9 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20">
+              <Film className="w-4 h-4 text-white" />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="relative w-10 h-10 flex-shrink-0 rounded-md overflow-hidden bg-black">
+          <video
+            src={thumbnailUrl}
+            className="w-full h-full object-cover"
+            muted playsInline preload="metadata"
+            onLoadedMetadata={(e) => { (e.target as HTMLVideoElement).currentTime = 0.5; }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+            <Film className="w-3 h-3 text-white" />
+          </div>
+        </div>
+      );
+    }
+    // Skeleton / placeholder for video
+    return isLg ? (
+      <div className="w-full h-36 bg-blue-400/8 rounded-t-xl flex items-center justify-center animate-pulse">
+        <Film className="w-8 h-8 text-blue-400/30" />
+      </div>
+    ) : (
+      <div className="w-10 h-10 flex-shrink-0 rounded-md bg-blue-400/10 flex items-center justify-center animate-pulse">
+        <Film className="w-4 h-4 text-blue-400/40" />
+      </div>
+    );
+  }
+
+  // DOCUMENT — no thumbnail needed, just a colored badge (instant)
+  const { ext: docExt, style } = getDocStyle(item.name);
+  return isLg ? (
+    <div className="w-full h-36 bg-amber-400/8 rounded-t-xl flex flex-col items-center justify-center gap-3 border-b border-amber-400/15">
+      <div className={`w-14 h-16 rounded-lg flex flex-col items-center justify-center gap-1 ${style.bg} border border-white/10`}>
+        <FileText className={`w-7 h-7 ${style.text}`} />
+        <span className={`text-[9px] font-bold tracking-wide ${style.text}`}>{docExt}</span>
+      </div>
+    </div>
+  ) : (
+    <div className={`relative w-10 h-10 flex-shrink-0 rounded-md flex items-center justify-center ${style.bg} border border-white/10`}>
+      <FileText className={`w-5 h-5 ${style.text}`} />
+      <span className={`absolute -bottom-1 -right-1 text-[7px] font-bold px-0.5 rounded ${style.bg} ${style.text}`}>{docExt.slice(0, 3)}</span>
+    </div>
+  );
+}
+
+// ─── LazyCard — fetches its own thumbnail when it enters the viewport ─────────
+function LazyCard({
+  item,
+  size,
+  isSelected,
+  selectionMode,
+  onSelect,
+  onDelete,
+  onClick,
+}: {
+  item: MediaItem;
+  size: "sm" | "lg";
+  isSelected: boolean;
+  selectionMode: boolean;
+  onSelect: (item: MediaItem, dataUrl: string | null) => void;
+  onDelete: (id: string) => void;
+  onClick: (item: MediaItem) => void;
+}) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const fetchingRef = useRef(false);
+  const effectiveCat = getEffectiveCatFromItem(item);
+
+  const [thumbnailUrl, setThumbnailUrl] = useState<string | null>(
+    // Documents don't need a URL; others check the cache first
+    effectiveCat === "DOCUMENT" ? "" : (thumbnailCache.get(item.id) || null)
+  );
+
+  useEffect(() => {
+    // Documents render instantly, no fetch needed
+    if (effectiveCat === "DOCUMENT" || thumbnailUrl || fetchingRef.current) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !fetchingRef.current) {
+          fetchingRef.current = true;
+          observer.disconnect();
+          axios.get(`/api/media/${item.id}`)
+            .then((res) => {
+              const url: string = res.data.dataUrl || "";
+              thumbnailCache.set(item.id, url);
+              setThumbnailUrl(url);
+            })
+            .catch(() => { fetchingRef.current = false; });
+        }
+      },
+      { threshold: 0.05, rootMargin: "100px" }
+    );
+
+    if (cardRef.current) observer.observe(cardRef.current);
+    return () => observer.disconnect();
+  }, [item.id, effectiveCat, thumbnailUrl]);
+
+  if (size === "lg") {
+    return (
+      <div
+        ref={cardRef}
+        onClick={() => onClick(item)}
+        className={`relative group rounded-xl overflow-hidden border cursor-pointer transition-all ${
+          isSelected
+            ? "border-jade shadow-[0_0_12px_rgba(16,185,129,0.3)] ring-2 ring-jade/30"
+            : "border-border hover:border-jade/30"
+        }`}
+      >
+        {renderThumbnail(item, thumbnailUrl, "lg")}
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
+          {selectionMode && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onSelect(item, thumbnailUrl); }}
+              className="px-3 py-1.5 bg-jade text-background text-xs font-bold rounded-lg w-full"
+            >
+              Use this
+            </button>
+          )}
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
+            className="px-3 py-1.5 bg-danger/80 text-white text-xs font-bold rounded-lg w-full flex items-center justify-center gap-1"
+          >
+            <Trash2 className="w-3 h-3" /> Delete
+          </button>
+        </div>
+        {isSelected && (
+          <div className="absolute top-2 right-2 w-6 h-6 bg-jade rounded-full flex items-center justify-center shadow-lg">
+            <CheckCircle2 className="w-4 h-4 text-background" />
+          </div>
+        )}
+        <div className="p-2 bg-card border-t border-border">
+          <p className="text-[10px] text-text-muted truncate font-medium">{item.name}</p>
+          <div className="flex items-center justify-between mt-1">
+            <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${CAT_COLORS[effectiveCat]}`}>
+              {effectiveCat}
+            </span>
+            <span className="text-[9px] text-text-muted">{item.sizeBytes ? formatFileSize(item.sizeBytes) : "—"}</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // List row
+  return (
+    <div
+      ref={cardRef}
+      onClick={() => onClick(item)}
+      className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-all ${
+        isSelected
+          ? "border-jade bg-jade/5"
+          : "border-border hover:border-jade/30 hover:bg-card/50"
+      }`}
+    >
+      {renderThumbnail(item, thumbnailUrl, "sm")}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-text-primary truncate">{item.name}</p>
+        <p className="text-xs text-text-muted">{formatFileSize(item.sizeBytes)} · {new Date(item.uploadedAt).toLocaleDateString()}</p>
+      </div>
+      <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border ${CAT_COLORS[effectiveCat]}`}>
+        {effectiveCat}
+      </span>
+      {isSelected && selectionMode && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onSelect(item, thumbnailUrl); }}
+          className="px-3 py-1.5 bg-jade text-background text-xs font-bold rounded-lg"
+        >
+          Use
+        </button>
+      )}
+      <button
+        onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
+        className="p-1.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 interface MediaLibraryProps {
   onSelect?: (item: MediaItem) => void;
   filterCategory?: MediaCategory;
   onClose: () => void;
-  selectionMode?: boolean; // true = picker mode, false = full manager
+  selectionMode?: boolean;
   isInline?: boolean;
 }
 
@@ -55,11 +305,10 @@ export default function MediaLibrary({
   const [uploading, setUploading] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
+  const [selectedDataUrl, setSelectedDataUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    fetchMedia();
-  }, []);
+  useEffect(() => { fetchMedia(); }, []);
 
   const fetchMedia = async (quiet = false) => {
     if (!quiet) setLoading(true);
@@ -75,21 +324,14 @@ export default function MediaLibrary({
 
   const uploadFiles = async (files: FileList | File[]) => {
     setUploading(true);
-    const arr = Array.from(files);
-    for (const file of arr) {
+    for (const file of Array.from(files)) {
       if (file.size > 20 * 1024 * 1024) {
         alert(`"${file.name}" exceeds 20 MB limit — skipped.`);
         continue;
       }
       try {
         const dataUrl = await readFileAsDataUrl(file);
-        const payload = {
-          name: file.name,
-          type: file.type,   // mimeType — API stores as `type`
-          size: file.size,   // API stores as `size`
-          dataUrl,
-        };
-        await axios.post("/api/media", payload);
+        await axios.post("/api/media", { name: file.name, type: file.type, size: file.size, dataUrl });
       } catch (err) {
         console.error("Failed to upload", file.name, err);
       }
@@ -107,8 +349,9 @@ export default function MediaLibrary({
   const handleDelete = async (id: string) => {
     try {
       await axios.delete(`/api/media/${id}`);
+      thumbnailCache.delete(id);
       setDeleteConfirm(null);
-      if (selected === id) setSelected(null);
+      if (selected === id) { setSelected(null); setSelectedDataUrl(null); }
       fetchMedia(true);
     } catch (err) {
       console.error("Delete failed", err);
@@ -116,31 +359,35 @@ export default function MediaLibrary({
     }
   };
 
-  const handleSelect = (item: MediaItem) => {
+  const handleCardClick = (item: MediaItem) => {
     setSelected(item.id);
   };
 
-  const handleConfirmSelect = () => {
-    const item = items.find((m) => m.id === selected);
-    if (item && onSelect) {
-      onSelect(item);
-      onClose();
-    }
+  const handleCardSelect = (item: MediaItem, dataUrl: string | null) => {
+    setSelected(item.id);
+    setSelectedDataUrl(dataUrl);
   };
 
-  const getEffectiveCat = (m: MediaItem): string => {
-    const mime: string = (m as any).mimeType || "";
-    const ext = m.name.split(".").pop()?.toLowerCase() || "";
-    const VIDEO_EXTS = ["mp4","mov","webm","avi","mkv","m4v","wmv"];
-    const IMAGE_EXTS = ["jpg","jpeg","png","gif","webp","svg","avif"];
-    if (m.category && m.category !== "DOCUMENT") return m.category;
-    if (mime.startsWith("image/") || IMAGE_EXTS.includes(ext)) return "IMAGE";
-    if (mime.startsWith("video/") || VIDEO_EXTS.includes(ext)) return "VIDEO";
-    return m.category || "DOCUMENT";
+  const handleConfirmSelect = async () => {
+    const item = items.find((m) => m.id === selected);
+    if (!item || !onSelect) return;
+
+    // Use cached/loaded dataUrl, or fetch it now if not yet loaded
+    let dataUrl = selectedDataUrl || thumbnailCache.get(item.id) || null;
+    if (!dataUrl && getEffectiveCatFromItem(item) !== "DOCUMENT") {
+      try {
+        const res = await axios.get(`/api/media/${item.id}`);
+        dataUrl = res.data.dataUrl || null;
+        if (dataUrl) thumbnailCache.set(item.id, dataUrl);
+      } catch {}
+    }
+
+    onSelect({ ...item, dataUrl: dataUrl ?? "" });
+    onClose();
   };
 
   const filtered = items.filter((m) => {
-    const matchTab = activeTab === "ALL" || getEffectiveCat(m) === activeTab;
+    const matchTab = activeTab === "ALL" || getEffectiveCatFromItem(m) === activeTab;
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
@@ -150,99 +397,7 @@ export default function MediaLibrary({
     : ["ALL", "IMAGE", "VIDEO", "DOCUMENT"];
 
   const tabLabel: Record<string, string> = {
-    ALL: "All Media",
-    IMAGE: "Images",
-    VIDEO: "Videos",
-    DOCUMENT: "Documents",
-  };
-
-  const getDocStyle = (name: string) => {
-    const ext = name.split(".").pop()?.toUpperCase() || "FILE";
-    const map: Record<string, { bg: string; text: string }> = {
-      PDF:  { bg: "bg-red-500/20",    text: "text-red-400" },
-      DOC:  { bg: "bg-blue-500/20",   text: "text-blue-400" },
-      DOCX: { bg: "bg-blue-500/20",   text: "text-blue-400" },
-      XLS:  { bg: "bg-green-500/20",  text: "text-green-400" },
-      XLSX: { bg: "bg-green-500/20",  text: "text-green-400" },
-      PPT:  { bg: "bg-orange-500/20", text: "text-orange-400" },
-      PPTX: { bg: "bg-orange-500/20", text: "text-orange-400" },
-      TXT:  { bg: "bg-slate-500/20",  text: "text-slate-400" },
-    };
-    return { ext, style: map[ext] || { bg: "bg-amber-400/20", text: "text-amber-400" } };
-  };
-
-  const renderThumbnail = (item: MediaItem, size: "sm" | "lg" = "lg") => {
-    const isLg = size === "lg";
-    // Derive effective category — API may have returned category already, but fall back to mimeType
-    const mime: string = (item as any).mimeType || "";
-    const fileExt = item.name.split(".").pop()?.toLowerCase() || "";
-    const VIDEO_EXTS = ["mp4","mov","webm","avi","mkv","m4v","wmv"];
-    const IMAGE_EXTS = ["jpg","jpeg","png","gif","webp","svg","avif"];
-    let effectiveCat = item.category;
-    if (!effectiveCat || effectiveCat === "DOCUMENT") {
-      if (mime.startsWith("image/") || IMAGE_EXTS.includes(fileExt)) effectiveCat = "IMAGE";
-      else if (mime.startsWith("video/") || VIDEO_EXTS.includes(fileExt)) effectiveCat = "VIDEO";
-    }
-
-    if (effectiveCat === "IMAGE") {
-      return (
-        <img
-          src={item.dataUrl}
-          alt={item.name}
-          className={isLg ? "w-full h-36 object-cover rounded-t-xl" : "w-10 h-10 object-cover rounded-md flex-shrink-0"}
-        />
-      );
-    }
-
-    if (effectiveCat === "VIDEO") {
-      return isLg ? (
-        <div className="relative w-full h-36 bg-black rounded-t-xl overflow-hidden">
-          <video
-            src={item.dataUrl}
-            className="w-full h-full object-cover"
-            muted
-            playsInline
-            preload="metadata"
-            onLoadedMetadata={(e) => { (e.target as HTMLVideoElement).currentTime = 0.5; }}
-          />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="w-9 h-9 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20">
-              <Film className="w-4 h-4 text-white" />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <div className="relative w-10 h-10 flex-shrink-0 rounded-md overflow-hidden bg-black">
-          <video
-            src={item.dataUrl}
-            className="w-full h-full object-cover"
-            muted
-            playsInline
-            preload="metadata"
-            onLoadedMetadata={(e) => { (e.target as HTMLVideoElement).currentTime = 0.5; }}
-          />
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-            <Film className="w-3 h-3 text-white" />
-          </div>
-        </div>
-      );
-    }
-
-    // DOCUMENT
-    const { ext: docExt, style } = getDocStyle(item.name);
-    return isLg ? (
-      <div className="w-full h-36 bg-amber-400/8 rounded-t-xl flex flex-col items-center justify-center gap-3 border-b border-amber-400/15">
-        <div className={`w-14 h-16 rounded-lg flex flex-col items-center justify-center gap-1 ${style.bg} border border-white/10`}>
-          <FileText className={`w-7 h-7 ${style.text}`} />
-          <span className={`text-[9px] font-bold tracking-wide ${style.text}`}>{docExt}</span>
-        </div>
-      </div>
-    ) : (
-      <div className={`relative w-10 h-10 flex-shrink-0 rounded-md flex items-center justify-center ${style.bg} border border-white/10`}>
-        <FileText className={`w-5 h-5 ${style.text}`} />
-        <span className={`absolute -bottom-1 -right-1 text-[7px] font-bold px-0.5 rounded ${style.bg} ${style.text}`}>{docExt.slice(0, 3)}</span>
-      </div>
-    );
+    ALL: "All Media", IMAGE: "Images", VIDEO: "Videos", DOCUMENT: "Documents",
   };
 
   const content = (
@@ -256,11 +411,10 @@ export default function MediaLibrary({
           </div>
           <div>
             <h2 className="text-lg font-bold font-syne">Media Library</h2>
-            <p className="text-xs text-text-muted">{items.length} file{items.length !== 1 ? "s" : ""} stored locally</p>
+            <p className="text-xs text-text-muted">{items.length} file{items.length !== 1 ? "s" : ""} stored</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          {/* View toggle */}
           <div className="flex border border-border rounded-lg overflow-hidden">
             <button onClick={() => setViewMode("grid")} className={`p-2 ${viewMode === "grid" ? "bg-jade/10 text-jade" : "text-text-muted hover:bg-surface"}`}>
               <Grid3X3 className="w-4 h-4" />
@@ -269,7 +423,6 @@ export default function MediaLibrary({
               <List className="w-4 h-4" />
             </button>
           </div>
-          {/* Upload */}
           <input
             ref={fileInputRef}
             type="file"
@@ -278,10 +431,7 @@ export default function MediaLibrary({
             className="hidden"
             onChange={(e) => e.target.files && uploadFiles(e.target.files)}
           />
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="btn-primary flex items-center gap-2 text-sm px-4 py-2"
-          >
+          <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center gap-2 text-sm px-4 py-2">
             <UploadCloud className="w-4 h-4" />
             Upload
           </button>
@@ -308,7 +458,7 @@ export default function MediaLibrary({
             >
               {tab !== "ALL" && CAT_ICONS[tab as MediaCategory]}
               {tabLabel[tab]}
-              <span className="opacity-60">({items.filter(m => tab === "ALL" || getEffectiveCat(m) === tab).length})</span>
+              <span className="opacity-60">({items.filter(m => tab === "ALL" || getEffectiveCatFromItem(m) === tab).length})</span>
             </button>
           ))}
         </div>
@@ -323,14 +473,13 @@ export default function MediaLibrary({
         </div>
       </div>
 
-      {/* Drop zone + content */}
+      {/* Content */}
       <div
         className="flex-1 overflow-y-auto p-6 relative"
         onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
       >
-        {/* Drag overlay */}
         {isDragging && (
           <div className="absolute inset-0 z-10 bg-jade/10 border-2 border-dashed border-jade rounded-2xl flex items-center justify-center">
             <div className="text-center">
@@ -376,90 +525,34 @@ export default function MediaLibrary({
         ) : viewMode === "grid" ? (
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
             {filtered.map((item) => (
-              <div
+              <LazyCard
                 key={item.id}
-                onClick={() => handleSelect(item)}
-                className={`relative group rounded-xl overflow-hidden border cursor-pointer transition-all ${
-                  selected === item.id
-                    ? "border-jade shadow-[0_0_12px_rgba(16,185,129,0.3)] ring-2 ring-jade/30"
-                    : "border-border hover:border-jade/30"
-                }`}
-              >
-                {renderThumbnail(item)}
-                {/* Overlay on hover */}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2 p-2">
-                  {selectionMode && (
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleSelect(item); }}
-                      className="px-3 py-1.5 bg-jade text-background text-xs font-bold rounded-lg w-full"
-                    >
-                      Use this
-                    </button>
-                  )}
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setDeleteConfirm(item.id); }}
-                    className="px-3 py-1.5 bg-danger/80 text-white text-xs font-bold rounded-lg w-full flex items-center justify-center gap-1"
-                  >
-                    <Trash2 className="w-3 h-3" /> Delete
-                  </button>
-                </div>
-                {/* Selected checkmark */}
-                {selected === item.id && (
-                  <div className="absolute top-2 right-2 w-6 h-6 bg-jade rounded-full flex items-center justify-center shadow-lg">
-                    <CheckCircle2 className="w-4 h-4 text-background" />
-                  </div>
-                )}
-                {/* Category badge */}
-                <div className="p-2 bg-card border-t border-border">
-                  <p className="text-[10px] text-text-muted truncate font-medium">{item.name}</p>
-                  <div className="flex items-center justify-between mt-1">
-                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${CAT_COLORS[item.category]}`}>
-                      {item.category}
-                    </span>
-                    <span className="text-[9px] text-text-muted">{item.sizeBytes ? formatFileSize(item.sizeBytes) : "—"}</span>
-                  </div>
-                </div>
-              </div>
+                item={item}
+                size="lg"
+                isSelected={selected === item.id}
+                selectionMode={selectionMode}
+                onSelect={handleCardSelect}
+                onDelete={(id) => setDeleteConfirm(id)}
+                onClick={handleCardClick}
+              />
             ))}
           </div>
         ) : (
           <div className="space-y-2">
             {filtered.map((item) => (
-              <div
+              <LazyCard
                 key={item.id}
-                onClick={() => handleSelect(item)}
-                className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-all ${
-                  selected === item.id
-                    ? "border-jade bg-jade/5"
-                    : "border-border hover:border-jade/30 hover:bg-card/50"
-                }`}
-              >
-                {renderThumbnail(item, "sm")}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-text-primary truncate">{item.name}</p>
-                  <p className="text-xs text-text-muted">{formatFileSize(item.sizeBytes)} · {new Date(item.uploadedAt).toLocaleDateString()}</p>
-                </div>
-                <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border ${CAT_COLORS[item.category]}`}>
-                  {item.category}
-                </span>
-                {selected === item.id && onSelect && selectionMode && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); onSelect(item); onClose(); }}
-                    className="px-3 py-1.5 bg-jade text-background text-xs font-bold rounded-lg"
-                  >
-                    Use
-                  </button>
-                )}
-                <button
-                  onClick={(e) => { e.stopPropagation(); setDeleteConfirm(item.id); }}
-                  className="p-1.5 text-text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-colors"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
+                item={item}
+                size="sm"
+                isSelected={selected === item.id}
+                selectionMode={selectionMode}
+                onSelect={handleCardSelect}
+                onDelete={(id) => setDeleteConfirm(id)}
+                onClick={handleCardClick}
+              />
             ))}
           </div>
-        ) }
+        )}
       </div>
 
       {/* Footer */}
@@ -481,7 +574,7 @@ export default function MediaLibrary({
         </div>
       )}
 
-      {/* Delete Confirm Dialog */}
+      {/* Delete confirm */}
       {deleteConfirm && (
         <div className="absolute inset-0 z-20 bg-background/70 backdrop-blur-sm flex items-center justify-center p-6">
           <div className="bg-surface border border-border rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center space-y-4">
@@ -502,9 +595,7 @@ export default function MediaLibrary({
     </div>
   );
 
-  if (isInline) {
-    return content;
-  }
+  if (isInline) return content;
 
   return (
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">

@@ -296,8 +296,11 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     category: editTemplate?.category || "MARKETING",
     language: editTemplate?.language || "en_US",
     header_type: editTemplate?.header_type || "NONE",
-    header_text: editTemplate?.header_type === "IMAGE" ? "" : (editTemplate?.header_text || ""),
-    header_image_url: editTemplate?.header_type === "IMAGE" ? (editTemplate?.header_text || "") : "",
+    // DB stores all media URLs in header_text column; split them back out on load
+    header_text: editTemplate?.header_type === "TEXT" ? (editTemplate?.header_text || "") : "",
+    header_image_url: (editTemplate?.header_type === "IMAGE" || editTemplate?.header_type === "VIDEO" || editTemplate?.header_type === "DOCUMENT")
+      ? (editTemplate?.header_text || "")
+      : "",
     body: editTemplate?.body || "",
     footer: editTemplate?.footer || "",
     buttons: editTemplate?.buttons || [],
@@ -312,10 +315,24 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
+  const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
+
+  // Track initial form state to detect unsaved changes
+  const savedFormRef = useRef(JSON.stringify(formData));
+  const isPostSubmit = metaStatus === "PENDING" || metaStatus === "APPROVED" || metaStatus === "REJECTED";
+  const isDirty = JSON.stringify(formData) !== savedFormRef.current;
+
+  const handleClose = () => {
+    if (isDirty && !isPostSubmit) {
+      setShowCloseConfirm(true);
+    } else {
+      onClose();
+    }
+  };
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -436,6 +453,9 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
       const templateId = res.data.id;
       setSavedTemplateId(templateId);
 
+      // Mark form as clean so close won't prompt
+      savedFormRef.current = JSON.stringify(formData);
+
       if (submitToMeta) {
         await axios.post(`/api/templates/${templateId}/submit`);
         showToast("Template submitted! Meta will review within 24h.");
@@ -472,14 +492,12 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     setFormData({ ...formData, buttons: [...formData.buttons, { type: "QUICK_REPLY", text: "" }] });
   };
 
-  const isPostSubmit = metaStatus === "PENDING" || metaStatus === "APPROVED" || metaStatus === "REJECTED";
-
   // Preview data: sample in step 1, live in step 2
   const previewData = step === 1 ? getSampleData(formData.category, templateType) : formData;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-background/80 backdrop-blur-sm" onClick={handleClose} />
 
       {/* Toast */}
       {toast && (
@@ -498,7 +516,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
             </h2>
             {isPostSubmit && <StatusBadge status={metaStatus} />}
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-surface rounded-lg text-text-muted transition-colors"><X className="w-5 h-5" /></button>
+          <button onClick={handleClose} className="p-2 hover:bg-surface rounded-lg text-text-muted transition-colors"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="flex-1 overflow-hidden flex min-h-0">
@@ -1088,6 +1106,37 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
             : undefined
           }
         />
+      )}
+
+      {/* Unsaved changes confirmation */}
+      {showCloseConfirm && (
+        <div className="absolute inset-0 z-[70] bg-background/70 backdrop-blur-sm flex items-center justify-center p-6">
+          <div className="bg-surface border border-border rounded-2xl p-6 max-w-sm w-full shadow-2xl text-center space-y-4">
+            <div className="w-12 h-12 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto border border-amber-500/20">
+              <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-bold text-sm">Discard unsaved changes?</p>
+              <p className="text-xs text-text-muted mt-1">You have unsaved changes. If you close now, your edits will be lost.</p>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowCloseConfirm(false)}
+                className="btn-secondary flex-1"
+              >
+                Keep Editing
+              </button>
+              <button
+                onClick={onClose}
+                className="flex-1 px-4 py-2 bg-danger text-white rounded-xl text-sm font-semibold hover:bg-danger/90 transition-colors"
+              >
+                Discard
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
