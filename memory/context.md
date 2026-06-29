@@ -49,3 +49,4 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Step 2: Detailed content editor supporting headers (text with variable options or media attachments), body texts with variable inserts, language selector dropdowns, and button types (quick replies, link triggers, and marketing opt-out buttons).
   - Integrates a real-time syntax highlighting overlay for variable placeholders (`{{N}}`) in the body editor by layering a transparent textarea over a highlighted mirror container.
   - Added formatting buttons to automatically wrap selected texts in WhatsApp-compliant bold (`*bold*`) and italic (`_italic_`) modifiers, and embedded an interactive emoji picker toolbar.
+  - Previews template body texts inside the `PhonePreview` using a parser (`renderWAText`) that renders bold (`*bold*`), italic (`_italic_`), strikethrough (`~strike~`), monospace code (`code`), and variables natively according to WhatsApp's formatting syntax.

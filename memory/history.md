@@ -22,6 +22,10 @@
   - Implemented real-time syntax highlighting for variables (`{{N}}`) inside the template body textarea using a dual-layered transparent textarea layout.
   - Added text utility actions in the toolbar to wrap text selections in WhatsApp bold (`*bold*`) and italic (`_italic_`) modifiers.
   - Integrated an interactive emoji picker grid to insert common emojis directly at the user's cursor position.
+- **Mockup Preview Formatting & Scroll Fixes**:
+  - Implemented a parser (`renderWAText`) inside the Phone mockup preview component (`PhonePreview`) to natively render WhatsApp formatting syntax, specifically styling bold (`*bold*`), italic (`_italic_`), strikethrough (`~strike~`), monospace code (`code`), and variable marks.
+  - Corrected the textarea highlight overlay technique by preserving text colors on the background layer and layering a transparent text input on top, making the body text input fully visible.
+  - Adjusted the layout settings with `min-h-0` to make the left panel scrollable in smaller vertical viewports.
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:
