@@ -381,7 +381,7 @@ function CreateContactsDrawer({
 
   const handleGeneratePreview = () => {
     if (!columnMappings.name || !columnMappings.phone) {
-      setBulkError("Please map the required Full Name and Phone Number columns.");
+      setBulkError("Please map the Full Name and Phone Number columns (both required).");
       return;
     }
     setBulkError("");
@@ -1137,17 +1137,17 @@ function CreateContactsDrawer({
                 previewRow={rawFileRows[0]}
               />
 
-              {/* ── Country Code ── */}
-              <div className="bg-card border border-border rounded-2xl p-5 space-y-3 hover:border-border/80 transition-all">
+              {/* ── Country Code (required — either column or default) ── */}
+              <div className="bg-card border border-jade/30 shadow-[0_0_12px_rgba(16,185,129,0.08)] rounded-2xl p-5 space-y-3 transition-all">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
-                    <div className="w-8 h-8 rounded-xl bg-surface border border-border flex items-center justify-center text-text-muted shrink-0">
+                    <div className="w-8 h-8 rounded-xl bg-jade/10 border border-jade/25 text-jade flex items-center justify-center shrink-0">
                       <Hash className="w-4 h-4" />
                     </div>
                     <div>
                       <p className="text-sm font-bold text-text-primary">Country Code</p>
-                      <span className="text-[10px] text-text-muted px-1.5 py-0.5 rounded-full bg-surface border border-border font-semibold uppercase tracking-wide">
-                        optional
+                      <span className="text-[10px] text-rose-400 bg-rose-400/10 border border-rose-400/20 px-1.5 py-0.5 rounded-full font-semibold uppercase tracking-wide">
+                        required
                       </span>
                     </div>
                   </div>
@@ -1157,19 +1157,21 @@ function CreateContactsDrawer({
                     </span>
                   )}
                 </div>
+                {/* If your sheet has a dedicated country code column, map it; otherwise pick the default below */}
                 <select
                   value={columnMappings.country_code}
                   onChange={e => setColumnMappings({ ...columnMappings, country_code: e.target.value })}
-                  className="input-field w-full text-xs py-2.5 bg-background border-border text-text-muted"
+                  className={`input-field w-full text-xs py-2.5 bg-background transition-all ${columnMappings.country_code ? "border-jade/30 text-text-primary" : "border-border text-text-muted"}`}
                 >
-                  <option value="">— No separate column —</option>
+                  <option value="">— Select column from file (if available) —</option>
                   {fileHeaders.map(h => (
                     <option key={h} value={h}>{h}</option>
                   ))}
                 </select>
                 {!columnMappings.country_code ? (
                   <div className="p-3 bg-jade/5 border border-jade/20 rounded-xl space-y-1.5">
-                    <p className="text-[10px] text-text-muted">Default country code for numbers without one:</p>
+                    <p className="text-[10px] text-text-primary font-semibold">Select default country code <span className="text-rose-400">*</span></p>
+                    <p className="text-[10px] text-text-muted">Applied to all numbers that don't already include a country code:</p>
                     <select
                       value={defaultBulkCountryCode}
                       onChange={e => setDefaultBulkCountryCode(e.target.value)}
@@ -1181,8 +1183,8 @@ function CreateContactsDrawer({
                     </select>
                   </div>
                 ) : (
-                  <p className="text-[10px] text-jade">
-                    ✓ Per-row from column. Formats: <code className="bg-jade/10 px-1 rounded">+91</code> <code className="bg-jade/10 px-1 rounded">91</code>
+                  <p className="text-[10px] text-jade flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Per-row from column. Formats accepted: <code className="bg-jade/10 px-1 rounded">+91</code> <code className="bg-jade/10 px-1 rounded">91</code>
                   </p>
                 )}
               </div>
@@ -1264,7 +1266,7 @@ function CreateContactsDrawer({
               <div className="text-xs text-text-muted">
                 <span className="font-semibold text-jade">{rawFileRows.length} contacts</span> detected · {fileHeaders.length} columns available
                 {(!columnMappings.name || !columnMappings.phone) && (
-                  <span className="ml-3 text-rose-400">⚠ Name and Phone are required</span>
+                  <span className="ml-3 text-rose-400">⚠ Name, Phone, and Country Code are required</span>
                 )}
               </div>
               {bulkError && (
