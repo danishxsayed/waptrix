@@ -15,6 +15,9 @@
   - Added dynamic input fields inside both the Template Reply pane and the New Chat modal to collect and parameterize text variables before sending, preventing Meta API parameter mismatches (such as error 132000).
 - **Brand Style Reversion**:
   - Reverted the brand style color experiment back to the original jade green (`#10B981` / `rgba(16,185,129,...)`) codebase-wide after testing color variations.
+- **Visual Template Builder Wizard**:
+  - Refactored `TemplateBuilder.tsx` to utilize a 2-step setup process. Step 1 selects the template category and type with a live mock preview (Android/iOS toggle), and Step 2 configures the content.
+  - Enhanced template customization options including rich headers (media/text), dynamic variables adding, AI-assisted body content generator, and interactive buttons (quick replies, URL links, and marketing opt-outs).
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:
