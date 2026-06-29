@@ -1,9 +1,12 @@
 # Implementation History
 
-## [2026-06-29] - Column Mapper Improvements
+## [2026-06-29] - Column Mapper Improvements & Inbox Chat Initiation
 - **Country Code Validation**:
   - Made the Country Code field required in the CSV/Excel importer column mapping interface.
   - Enhanced UI prompts and status badges (e.g. highlighting required indicator) to ensure either a dedicated country code column is mapped or a default fallback country code is selected.
+- **New Conversation Initiation**:
+  - Created `/api/conversations/start` API route handler to initiate brand-new WhatsApp conversations using Meta's messaging API, creating or reusing database threads.
+  - Built a "New Chat" modal and trigger button in `InboxPanel` enabling users to input custom phone numbers, select approved templates, and dynamically map variable parameters to kickstart external outreach directly from the Inbox.
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:
