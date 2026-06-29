@@ -142,21 +142,81 @@ export default function MediaLibrary({
     DOCUMENT: "Documents",
   };
 
+  const getDocStyle = (name: string) => {
+    const ext = name.split(".").pop()?.toUpperCase() || "FILE";
+    const map: Record<string, { bg: string; text: string }> = {
+      PDF:  { bg: "bg-red-500/20",    text: "text-red-400" },
+      DOC:  { bg: "bg-blue-500/20",   text: "text-blue-400" },
+      DOCX: { bg: "bg-blue-500/20",   text: "text-blue-400" },
+      XLS:  { bg: "bg-green-500/20",  text: "text-green-400" },
+      XLSX: { bg: "bg-green-500/20",  text: "text-green-400" },
+      PPT:  { bg: "bg-orange-500/20", text: "text-orange-400" },
+      PPTX: { bg: "bg-orange-500/20", text: "text-orange-400" },
+      TXT:  { bg: "bg-slate-500/20",  text: "text-slate-400" },
+    };
+    return { ext, style: map[ext] || { bg: "bg-amber-400/20", text: "text-amber-400" } };
+  };
+
   const renderThumbnail = (item: MediaItem, size: "sm" | "lg" = "lg") => {
-    const cls = size === "lg" ? "w-full h-32 object-cover rounded-lg" : "w-10 h-10 object-cover rounded-md flex-shrink-0";
+    const isLg = size === "lg";
+
     if (item.category === "IMAGE") {
-      return <img src={item.dataUrl} alt={item.name} className={cls} />;
-    }
-    if (item.category === "VIDEO") {
       return (
-        <div className={`${size === "lg" ? "w-full h-32" : "w-10 h-10 flex-shrink-0"} bg-blue-400/10 rounded-${size === "lg" ? "lg" : "md"} flex items-center justify-center border border-blue-400/20`}>
-          <Film className={`${size === "lg" ? "w-8 h-8" : "w-5 h-5"} text-blue-400`} />
+        <img
+          src={item.dataUrl}
+          alt={item.name}
+          className={isLg ? "w-full h-36 object-cover rounded-t-xl" : "w-10 h-10 object-cover rounded-md flex-shrink-0"}
+        />
+      );
+    }
+
+    if (item.category === "VIDEO") {
+      return isLg ? (
+        <div className="relative w-full h-36 bg-black rounded-t-xl overflow-hidden">
+          <video
+            src={item.dataUrl}
+            className="w-full h-full object-cover"
+            muted
+            playsInline
+            preload="metadata"
+            onLoadedMetadata={(e) => { (e.target as HTMLVideoElement).currentTime = 0.5; }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="w-9 h-9 bg-black/60 backdrop-blur-sm rounded-full flex items-center justify-center border border-white/20">
+              <Film className="w-4 h-4 text-white" />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="relative w-10 h-10 flex-shrink-0 rounded-md overflow-hidden bg-black">
+          <video
+            src={item.dataUrl}
+            className="w-full h-full object-cover"
+            muted
+            playsInline
+            preload="metadata"
+            onLoadedMetadata={(e) => { (e.target as HTMLVideoElement).currentTime = 0.5; }}
+          />
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+            <Film className="w-3 h-3 text-white" />
+          </div>
         </div>
       );
     }
-    return (
-      <div className={`${size === "lg" ? "w-full h-32" : "w-10 h-10 flex-shrink-0"} bg-amber-400/10 rounded-${size === "lg" ? "lg" : "md"} flex items-center justify-center border border-amber-400/20`}>
-        <FileText className={`${size === "lg" ? "w-8 h-8" : "w-5 h-5"} text-amber-400`} />
+
+    // DOCUMENT
+    const { ext, style } = getDocStyle(item.name);
+    return isLg ? (
+      <div className="w-full h-36 bg-amber-400/8 rounded-t-xl flex flex-col items-center justify-center gap-3 border-b border-amber-400/15">
+        <div className={`w-14 h-16 rounded-lg flex flex-col items-center justify-center gap-1 ${style.bg} border border-white/10`}>
+          <FileText className={`w-7 h-7 ${style.text}`} />
+          <span className={`text-[9px] font-bold tracking-wide ${style.text}`}>{ext}</span>
+        </div>
+      </div>
+    ) : (
+      <div className={`relative w-10 h-10 flex-shrink-0 rounded-md flex items-center justify-center ${style.bg} border border-white/10`}>
+        <FileText className={`w-5 h-5 ${style.text}`} />
+        <span className={`absolute -bottom-1 -right-1 text-[7px] font-bold px-0.5 rounded ${style.bg} ${style.text}`}>{ext.slice(0, 3)}</span>
       </div>
     );
   };
@@ -317,7 +377,7 @@ export default function MediaLibrary({
                     <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${CAT_COLORS[item.category]}`}>
                       {item.category}
                     </span>
-                    <span className="text-[9px] text-text-muted">{formatFileSize(item.sizeBytes)}</span>
+                    <span className="text-[9px] text-text-muted">{item.sizeBytes ? formatFileSize(item.sizeBytes) : "—"}</span>
                   </div>
                 </div>
               </div>
