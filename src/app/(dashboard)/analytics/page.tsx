@@ -45,7 +45,7 @@ const mockDailyData = [
 ];
 
 const mockStatusData = [
-  { name: 'Read', value: 62.4, color: '#10B981' },
+  { name: 'Read', value: 62.4, color: '#264C39' },
   { name: 'Delivered', value: 33.2, color: '#0EA5E9' },
   { name: 'Failed', value: 1.6, color: '#F43F5E' },
   { name: 'Sent', value: 2.8, color: '#F59E0B' },
@@ -141,7 +141,7 @@ export default function AnalyticsPage() {
   ];
 
   const statusData = totalSent > 0 ? [
-    { name: 'Read', value: readRate, color: '#10B981' },
+    { name: 'Read', value: readRate, color: '#264C39' },
     { name: 'Delivered', value: Math.max(0, Number((((totalDelivered - totalRead) / totalSent) * 100).toFixed(1))), color: '#0EA5E9' },
     { name: 'Failed', value: failedRate, color: '#F43F5E' },
     { name: 'Sent', value: Math.max(0, Number((((totalSent - totalDelivered - totalFailed) / totalSent) * 100).toFixed(1))), color: '#F59E0B' },
@@ -262,7 +262,7 @@ export default function AnalyticsPage() {
                     borderRadius: '12px'
                   }}
                 />
-                <Bar dataKey="sent" fill="#10B981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="sent" fill="#264C39" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="read" fill="#0EA5E9" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

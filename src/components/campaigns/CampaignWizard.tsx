@@ -109,7 +109,7 @@ export default function CampaignWizard({
           {[1, 2, 3, 4].map(s => (
             <div
               key={s}
-              className={`flex-1 h-full transition-all duration-500 ${s <= step ? "bg-jade shadow-[0_0_10px_rgba(16,185,129,0.5)]" : "bg-transparent"}`}
+              className={`flex-1 h-full transition-all duration-500 ${s <= step ? "bg-jade shadow-[0_0_10px_rgba(38,76,57,0.5)]" : "bg-transparent"}`}
             />
           ))}
         </div>

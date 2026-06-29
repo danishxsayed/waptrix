@@ -282,7 +282,7 @@ export default function MediaLibrary({
                 onClick={() => handleSelect(item)}
                 className={`relative group rounded-xl overflow-hidden border cursor-pointer transition-all ${
                   selected === item.id
-                    ? "border-jade shadow-[0_0_12px_rgba(16,185,129,0.3)] ring-2 ring-jade/30"
+                    ? "border-jade shadow-[0_0_12px_rgba(38,76,57,0.3)] ring-2 ring-jade/30"
                     : "border-border hover:border-jade/30"
                 }`}
               >

@@ -25,7 +25,7 @@ export default function TermsPage() {
             <p className="text-text-muted mt-2">Last updated: {lastUpdated}</p>
           </div>
           <div className="hidden md:block">
-            <div className="w-16 h-16 bg-jade/10 rounded-2xl flex items-center justify-center border border-jade/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]">
+            <div className="w-16 h-16 bg-jade/10 rounded-2xl flex items-center justify-center border border-jade/20 shadow-[0_0_20px_rgba(38,76,57,0.1)]">
               <Scale className="w-8 h-8 text-jade" />
             </div>
           </div>
