@@ -73,7 +73,7 @@ export default function Sidebar() {
     <aside className="w-64 min-h-screen bg-surface border-r border-border flex flex-col">
       <div className="p-6">
         <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 bg-jade rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(38,76,57,0.4)] group-hover:scale-110 transition-transform">
+          <div className="w-8 h-8 bg-jade rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.4)] group-hover:scale-110 transition-transform">
             <span className="text-background font-bold text-xl">W</span>
           </div>
           <span className="text-2xl font-bold font-syne tracking-tight text-jade">Waptrix</span>
@@ -94,7 +94,7 @@ export default function Sidebar() {
               href={item.href}
               className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
                 isActive
-                  ? "bg-jade/10 text-jade border border-jade/20 shadow-[0_0_10px_rgba(38,76,57,0.05)]"
+                  ? "bg-jade/10 text-jade border border-jade/20 shadow-[0_0_10px_rgba(16,185,129,0.05)]"
                   : "text-text-muted hover:text-text-primary hover:bg-card"
               }`}
             >
@@ -138,7 +138,7 @@ export default function Sidebar() {
           </div>
           <div className="w-full bg-surface rounded-full h-1.5 mb-2">
             <div
-              className="bg-jade h-full rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(38,76,57,0.4)]"
+              className="bg-jade h-full rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
               style={{ width: `${loading ? 0 : getProgress()}%` }}
             />
           </div>

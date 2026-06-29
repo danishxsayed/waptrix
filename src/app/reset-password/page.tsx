@@ -80,7 +80,7 @@ export default function ResetPasswordPage() {
       <div className="max-w-md w-full mx-auto space-y-10">
         <div>
           <Link href="/" className="flex items-center gap-2 mb-8 group">
-            <div className="w-10 h-10 bg-jade rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(38,76,57,0.4)] group-hover:scale-110 transition-transform">
+            <div className="w-10 h-10 bg-jade rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.4)] group-hover:scale-110 transition-transform">
               <span className="text-background font-bold text-2xl">W</span>
             </div>
             <span className="text-3xl font-bold font-syne tracking-tight text-jade">Waptrix</span>

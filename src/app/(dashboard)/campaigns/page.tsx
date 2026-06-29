@@ -208,7 +208,7 @@ export default function CampaignsPage() {
               </div>
               <div className="w-full bg-surface rounded-full h-2 overflow-hidden border border-border">
                 <div 
-                  className="bg-jade h-full rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(38,76,57,0.3)]"
+                  className="bg-jade h-full rounded-full transition-all duration-1000 shadow-[0_0_10px_rgba(16,185,129,0.3)]"
                   style={{ width: `${(campaign.sent_count / (campaign.total_contacts || 1)) * 100}%` }}
                 ></div>
               </div>

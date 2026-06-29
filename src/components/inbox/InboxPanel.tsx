@@ -572,7 +572,7 @@ export default function InboxPanel({
         </div>
         <button
           onClick={() => { setShowNewChat(true); setNewChatError(""); }}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-jade text-background text-xs font-bold rounded-xl hover:bg-jade-hover transition-all shadow-[0_0_12px_rgba(38,76,57,0.25)]"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-jade text-background text-xs font-bold rounded-xl hover:bg-jade-hover transition-all shadow-[0_0_12px_rgba(16,185,129,0.25)]"
           title="Start a new conversation"
         >
           <Plus className="w-3.5 h-3.5" /> New Chat
@@ -1019,7 +1019,7 @@ export default function InboxPanel({
             </p>
             <button
               onClick={() => { setShowNewChat(true); setNewChatError(""); }}
-              className="mt-5 flex items-center gap-2 px-4 py-2.5 bg-jade text-background text-sm font-bold rounded-xl hover:bg-jade-hover transition-all shadow-[0_0_16px_rgba(38,76,57,0.25)]"
+              className="mt-5 flex items-center gap-2 px-4 py-2.5 bg-jade text-background text-sm font-bold rounded-xl hover:bg-jade-hover transition-all shadow-[0_0_16px_rgba(16,185,129,0.25)]"
             >
               <Plus className="w-4 h-4" /> Start New Conversation
             </button>

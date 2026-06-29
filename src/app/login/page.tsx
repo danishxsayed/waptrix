@@ -50,7 +50,7 @@ export default function LoginPage() {
         <div className="max-w-md w-full mx-auto space-y-10">
           <div>
             <Link href="/" className="flex items-center gap-2 mb-8 group">
-              <div className="w-10 h-10 bg-jade rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(38,76,57,0.4)] group-hover:scale-110 transition-transform">
+              <div className="w-10 h-10 bg-jade rounded-xl flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.4)] group-hover:scale-110 transition-transform">
                 <span className="text-background font-bold text-2xl">W</span>
               </div>
               <span className="text-3xl font-bold font-syne tracking-tight text-jade">Waptrix</span>
@@ -125,7 +125,7 @@ export default function LoginPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-jade/10 rounded-full blur-[120px]"></div>
         
         <div className="z-10 text-center space-y-6 max-w-lg p-12">
-          <div className="w-24 h-24 bg-jade/20 border-2 border-jade/30 rounded-[40px] flex items-center justify-center mx-auto mb-12 shadow-[0_0_50px_rgba(38,76,57,0.3)] rotate-12">
+          <div className="w-24 h-24 bg-jade/20 border-2 border-jade/30 rounded-[40px] flex items-center justify-center mx-auto mb-12 shadow-[0_0_50px_rgba(16,185,129,0.3)] rotate-12">
             <Mail className="w-12 h-12 text-jade" />
           </div>
           <h2 className="text-4xl font-bold font-syne text-text-primary leading-tight">Scale your reach with official WhatsApp APIs.</h2>

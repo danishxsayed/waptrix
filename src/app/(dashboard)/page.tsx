@@ -172,8 +172,8 @@ export default function DashboardPage() {
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="colorSent" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#264C39" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#264C39" stopOpacity={0} />
+                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="#10B981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#273042" vertical={false} />
@@ -199,12 +199,12 @@ export default function DashboardPage() {
                     borderRadius: "12px",
                     fontSize: "12px"
                   }}
-                  itemStyle={{ color: "#264C39" }}
+                  itemStyle={{ color: "#10B981" }}
                 />
                 <Area
                   type="monotone"
                   dataKey="sent"
-                  stroke="#264C39"
+                  stroke="#10B981"
                   strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#colorSent)"

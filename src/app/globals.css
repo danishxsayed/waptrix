@@ -7,8 +7,8 @@
   --color-border: #273042;
   --color-text-primary: #E2E8F0;
   --color-text-muted: #8896AB;
-  --color-jade: #264C39;
-  --color-jade-hover: #2f6349;
+  --color-jade: #10B981;
+  --color-jade-hover: #34D399;
   --color-danger: #F43F5E;
   --color-warning: #F59E0B;
   --color-info: #0EA5E9;
@@ -47,7 +47,7 @@ h1, h2, h3, h4, h5, h6 {
 /* Custom Component Classes */
 @layer components {
   .btn-primary {
-    @apply bg-jade text-background px-4 py-2 rounded-lg font-semibold transition-all hover:bg-jade-hover hover:shadow-[0_0_20px_rgba(38,76,57,0.4)];
+    @apply bg-jade text-background px-4 py-2 rounded-lg font-semibold transition-all hover:bg-jade-hover hover:shadow-[0_0_20px_rgba(16,185,129,0.4)];
   }
   
   .btn-secondary {

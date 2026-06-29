@@ -430,7 +430,7 @@ export default function SettingsPage() {
         <div className="glass-card space-y-8">
           <div className="flex items-center justify-between p-6 bg-surface rounded-2xl border border-border">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-jade rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(38,76,57,0.2)]">
+              <div className="w-12 h-12 bg-jade rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.2)]">
                 <ShieldCheck className="w-6 h-6 text-background" />
               </div>
               <div>
@@ -450,7 +450,7 @@ export default function SettingsPage() {
               <span className="text-sm font-bold text-text-primary">7,500 / 10,000</span>
             </div>
             <div className="w-full bg-surface rounded-full h-3 border border-border overflow-hidden">
-              <div className="bg-jade h-full rounded-full shadow-[0_0_10px_rgba(38,76,57,0.3)]" style={{ width: '75%' }}></div>
+              <div className="bg-jade h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.3)]" style={{ width: '75%' }}></div>
             </div>
           </div>
         </div>

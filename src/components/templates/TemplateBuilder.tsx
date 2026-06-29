@@ -686,7 +686,7 @@ export default function TemplateBuilder({
                     disabled={isPostSubmit}
                     className={`px-4 py-2 rounded-xl text-xs font-semibold border transition-all ${
                       formData.header_type === type
-                        ? "bg-jade/10 border-jade text-jade shadow-[0_0_10px_rgba(38,76,57,0.1)]"
+                        ? "bg-jade/10 border-jade text-jade shadow-[0_0_10px_rgba(16,185,129,0.1)]"
                         : "bg-card border-border text-text-muted hover:border-jade/30"
                     }`}
                   >

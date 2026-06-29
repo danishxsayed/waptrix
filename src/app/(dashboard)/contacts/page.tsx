@@ -144,7 +144,7 @@ function MappingCard({
   const mapped = columnMappings[mappingKey];
   const previewVal = mapped && previewRow ? previewRow[mapped] : null;
   return (
-    <div className={`bg-card border rounded-2xl p-5 space-y-3 transition-all ${mapped ? "border-jade/30 shadow-[0_0_12px_rgba(38,76,57,0.08)]" : "border-border hover:border-border/80"}`}>
+    <div className={`bg-card border rounded-2xl p-5 space-y-3 transition-all ${mapped ? "border-jade/30 shadow-[0_0_12px_rgba(16,185,129,0.08)]" : "border-border hover:border-border/80"}`}>
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5">
           <div className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 border transition-all ${mapped ? "bg-jade/10 border-jade/25 text-jade" : "bg-surface border-border text-text-muted"}`}>
@@ -615,7 +615,7 @@ function CreateContactsDrawer({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border bg-card/65 backdrop-blur-md">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-jade/10 rounded-2xl flex items-center justify-center border border-jade/25 shadow-[0_0_15px_rgba(38,76,57,0.15)]">
+            <div className="w-10 h-10 bg-jade/10 rounded-2xl flex items-center justify-center border border-jade/25 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
               <UserPlus className="w-5 h-5 text-jade" />
             </div>
             <div>
@@ -801,7 +801,7 @@ function CreateContactsDrawer({
                       </div>
                       <div className="w-full bg-surface border border-border rounded-full h-2 overflow-hidden">
                         <div 
-                          className="bg-jade h-full rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(38,76,57,0.3)]" 
+                          className="bg-jade h-full rounded-full transition-all duration-300 shadow-[0_0_10px_rgba(16,185,129,0.3)]" 
                           style={{ width: `${importProgress}%` }}
                         />
                       </div>
@@ -820,7 +820,7 @@ function CreateContactsDrawer({
                       <button
                         type="button"
                         onClick={handleBulkImportSubmit}
-                        className="flex-1 btn-primary py-3.5 flex items-center justify-center gap-2 text-sm font-bold shadow-[0_4px_20px_rgba(38,76,57,0.2)]"
+                        className="flex-1 btn-primary py-3.5 flex items-center justify-center gap-2 text-sm font-bold shadow-[0_4px_20px_rgba(16,185,129,0.2)]"
                       >
                         <Upload className="w-4 h-4" />
                         Bulk Import {parsedContacts.length} Contacts
@@ -1090,7 +1090,7 @@ function CreateContactsDrawer({
           {/* Header */}
           <div className="flex items-center justify-between px-8 py-5 border-b border-border bg-surface/80 backdrop-blur-sm shrink-0">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 bg-jade/10 rounded-2xl flex items-center justify-center border border-jade/25 shadow-[0_0_15px_rgba(38,76,57,0.15)]">
+              <div className="w-10 h-10 bg-jade/10 rounded-2xl flex items-center justify-center border border-jade/25 shadow-[0_0_15px_rgba(16,185,129,0.15)]">
                 <Filter className="w-5 h-5 text-jade" />
               </div>
               <div>
@@ -1138,7 +1138,7 @@ function CreateContactsDrawer({
               />
 
               {/* ── Country Code (required — either column or default) ── */}
-              <div className="bg-card border border-jade/30 shadow-[0_0_12px_rgba(38,76,57,0.08)] rounded-2xl p-5 space-y-3 transition-all">
+              <div className="bg-card border border-jade/30 shadow-[0_0_12px_rgba(16,185,129,0.08)] rounded-2xl p-5 space-y-3 transition-all">
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex items-center gap-2.5">
                     <div className="w-8 h-8 rounded-xl bg-jade/10 border border-jade/25 text-jade flex items-center justify-center shrink-0">
@@ -1278,7 +1278,7 @@ function CreateContactsDrawer({
               <button
                 type="button"
                 onClick={handleGeneratePreview}
-                className="btn-primary py-3 px-8 flex items-center gap-2 text-sm font-bold shrink-0 shadow-[0_4px_20px_rgba(38,76,57,0.25)]"
+                className="btn-primary py-3 px-8 flex items-center gap-2 text-sm font-bold shrink-0 shadow-[0_4px_20px_rgba(16,185,129,0.25)]"
               >
                 <CheckCircle2 className="w-4 h-4" />
                 Generate Preview
@@ -2454,7 +2454,7 @@ export default function ContactsPage() {
                           </td>
                           <td className="px-6 py-4">
                             {contact.opted_in ? (
-                              <span className="inline-flex items-center gap-1.5 bg-jade/10 text-jade border border-jade/25 text-[10px] font-bold uppercase tracking-wider py-1 px-2.5 rounded-full shadow-[0_0_15px_rgba(38,76,57,0.1)]">
+                              <span className="inline-flex items-center gap-1.5 bg-jade/10 text-jade border border-jade/25 text-[10px] font-bold uppercase tracking-wider py-1 px-2.5 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.1)]">
                                 <span className="relative flex h-1.5 w-1.5">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jade opacity-75"></span>
                                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-jade"></span>
@@ -2541,7 +2541,7 @@ export default function ContactsPage() {
                           onClick={() => setCurrentPage(item as number)}
                           className={`w-8 h-8 text-xs font-semibold rounded-lg transition-colors ${
                             currentPage === item
-                              ? "bg-jade text-background shadow-[0_0_10px_rgba(38,76,57,0.3)]"
+                              ? "bg-jade text-background shadow-[0_0_10px_rgba(16,185,129,0.3)]"
                               : "border border-border text-text-muted hover:bg-surface"
                           }`}
                         >
