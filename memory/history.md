@@ -13,6 +13,8 @@
 - **Template Variables Ingestion**:
   - Implemented client-side parsing (`extractTemplateVars`) of template placeholders (`{{N}}`) inside `InboxPanel`.
   - Added dynamic input fields inside both the Template Reply pane and the New Chat modal to collect and parameterize text variables before sending, preventing Meta API parameter mismatches (such as error 132000).
+- **Brand Style Refresh**:
+  - Replaced the primary brand green color (`#10B981` / `rgba(16,185,129,...)`) with a darker forest/emerald green shade (`#264C39` / `rgba(38,76,57,...)`) consistently across all components, layout shells, landing/legal pages, and utility files.
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:
