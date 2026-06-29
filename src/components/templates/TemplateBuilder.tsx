@@ -417,6 +417,13 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     if (!formData.name.trim()) { setError("Template name is required."); return; }
     if (!formData.body.trim()) { setError("Body message is required."); return; }
 
+    // Meta requires a public URL for media headers — base64 data URLs will time out the DB and fail Meta
+    const isMediaHeader = formData.header_type === "IMAGE" || formData.header_type === "VIDEO" || formData.header_type === "DOCUMENT";
+    if (isMediaHeader && formData.header_image_url.startsWith("data:")) {
+      setError(`File uploads are for preview only. For Meta submission, paste a public HTTPS URL in the "${formData.header_type.charAt(0) + formData.header_type.slice(1).toLowerCase()} URL" field instead of uploading a file directly.`);
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       const payload = { ...formData };

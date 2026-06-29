@@ -75,7 +75,14 @@ export async function PUT(
       buttons 
     } = body;
 
-    const resolvedHeaderText = header_type === 'TEXT' ? header_text : header_image_url;
+    // Never store base64 data URLs — they cause DB statement timeouts.
+    const rawHeaderValue = header_type === 'TEXT' ? header_text : header_image_url;
+    if (rawHeaderValue && rawHeaderValue.startsWith('data:')) {
+      return NextResponse.json({
+        error: `${header_type} header must be a public URL. Please upload your file to the Media Library and paste its URL, or use a direct HTTPS link.`
+      }, { status: 400 });
+    }
+    const resolvedHeaderText = rawHeaderValue || '';
 
     const serviceClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
