@@ -49,4 +49,10 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Step 2: Detailed content editor supporting headers (text with variable options or media attachments), body texts with variable inserts, language selector dropdowns, and button types (quick replies, link triggers, and marketing opt-out buttons).
   - Integrates a real-time syntax highlighting overlay for variable placeholders (`{{N}}`) in the body editor by layering a transparent textarea over a highlighted mirror container.
   - Added formatting buttons to automatically wrap selected texts in WhatsApp-compliant bold (`*bold*`) and italic (`_italic_`) modifiers, and embedded an interactive emoji picker toolbar.
-  - Previews template body texts inside the `PhonePreview` using a parser (`renderWAText`) that renders bold (`*bold*`), italic (`_italic_`), strikethrough (`~strike~`), monospace code (`code`), and variables natively according to WhatsApp's formatting syntax.
+  - Previews template body texts inside the `PhonePreview` using a parser (`renderWAText`) that renders bold (`*bold*`), italic (`_italic_`), strikethrough (`~strike~`), monospace code (`code`), and variables natively according to WhatsApp's formatting syntax, layered over a realistic WhatsApp chat wallpaper background.
+  - Supports drag-and-drop file uploads in template builder image, video, and document header zones.
+  - Automatically closes the TemplateBuilder modal upon successful submission, triggers a success toast notification, and maps the review status to "Under Review".
+- **Unified Media Library Management**:
+  - Implemented `/media` and the `MediaLibrary.tsx` component to handle uploaded images, audio, video, and document attachments.
+  - Displays dynamic file previews including custom video frame thumbnails and document extension badges (e.g. PDF, CSV).
+  - Includes file size formatters that display exact storage footprints and prevent parsing failures.

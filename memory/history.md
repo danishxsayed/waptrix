@@ -26,6 +26,16 @@
   - Implemented a parser (`renderWAText`) inside the Phone mockup preview component (`PhonePreview`) to natively render WhatsApp formatting syntax, specifically styling bold (`*bold*`), italic (`_italic_`), strikethrough (`~strike~`), monospace code (`code`), and variable marks.
   - Corrected the textarea highlight overlay technique by preserving text colors on the background layer and layering a transparent text input on top, making the body text input fully visible.
   - Adjusted the layout settings with `min-h-0` to make the left panel scrollable in smaller vertical viewports.
+- **Drag-and-Drop & Media Upload Enhancements**:
+  - Added drag-and-drop file upload listeners in the image, video, and document header options inside `TemplateBuilder.tsx` to streamline header asset uploads.
+- **Media Library Previews & Storage Metadata**:
+  - Implemented dynamic media file previews in `MediaLibrary.tsx` (such as custom video thumbnails, and specific file type extension badges for documents like PDF or CSV).
+  - Patched file size formatting in the media library component to fix NaN MB calculation issues for valid uploads.
+- **Template Review Status & Close Handlers**:
+  - Updated Meta templates review status labels to read "Under Review" instead of the generic "Pending" status in `TemplateBuilder.tsx` and `/templates` page.
+  - Set the template builder modal to close automatically upon successful submit, raising a clean success toast alert.
+- **Mockup Wallpaper Style**:
+  - Restored the traditional WhatsApp chat wallpaper background inside `PhonePreview` to create a realistic mockup preview.
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:
