@@ -81,10 +81,9 @@ export default function MediaLibrary({
         const dataUrl = await readFileAsDataUrl(file);
         const payload = {
           name: file.name,
-          category: categoryFromMime(file.type),
+          type: file.type,   // mimeType — API stores as `type`
+          size: file.size,   // API stores as `size`
           dataUrl,
-          mimeType: file.type,
-          sizeBytes: file.size,
         };
         await axios.post("/api/media", payload);
       } catch (err) {
@@ -125,8 +124,19 @@ export default function MediaLibrary({
     }
   };
 
+  const getEffectiveCat = (m: MediaItem): string => {
+    const mime: string = (m as any).mimeType || "";
+    const ext = m.name.split(".").pop()?.toLowerCase() || "";
+    const VIDEO_EXTS = ["mp4","mov","webm","avi","mkv","m4v","wmv"];
+    const IMAGE_EXTS = ["jpg","jpeg","png","gif","webp","svg","avif"];
+    if (m.category && m.category !== "DOCUMENT") return m.category;
+    if (mime.startsWith("image/") || IMAGE_EXTS.includes(ext)) return "IMAGE";
+    if (mime.startsWith("video/") || VIDEO_EXTS.includes(ext)) return "VIDEO";
+    return m.category || "DOCUMENT";
+  };
+
   const filtered = items.filter((m) => {
-    const matchTab = activeTab === "ALL" || m.category === activeTab;
+    const matchTab = activeTab === "ALL" || getEffectiveCat(m) === activeTab;
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase());
     return matchTab && matchSearch;
   });
@@ -159,8 +169,18 @@ export default function MediaLibrary({
 
   const renderThumbnail = (item: MediaItem, size: "sm" | "lg" = "lg") => {
     const isLg = size === "lg";
+    // Derive effective category — API may have returned category already, but fall back to mimeType
+    const mime: string = (item as any).mimeType || "";
+    const ext = item.name.split(".").pop()?.toLowerCase() || "";
+    const VIDEO_EXTS = ["mp4","mov","webm","avi","mkv","m4v","wmv"];
+    const IMAGE_EXTS = ["jpg","jpeg","png","gif","webp","svg","avif"];
+    let effectiveCat = item.category;
+    if (!effectiveCat || effectiveCat === "DOCUMENT") {
+      if (mime.startsWith("image/") || IMAGE_EXTS.includes(ext)) effectiveCat = "IMAGE";
+      else if (mime.startsWith("video/") || VIDEO_EXTS.includes(ext)) effectiveCat = "VIDEO";
+    }
 
-    if (item.category === "IMAGE") {
+    if (effectiveCat === "IMAGE") {
       return (
         <img
           src={item.dataUrl}
@@ -170,7 +190,7 @@ export default function MediaLibrary({
       );
     }
 
-    if (item.category === "VIDEO") {
+    if (effectiveCat === "VIDEO") {
       return isLg ? (
         <div className="relative w-full h-36 bg-black rounded-t-xl overflow-hidden">
           <video
@@ -284,7 +304,7 @@ export default function MediaLibrary({
             >
               {tab !== "ALL" && CAT_ICONS[tab as MediaCategory]}
               {tabLabel[tab]}
-              <span className="opacity-60">({items.filter(m => tab === "ALL" || m.category === tab).length})</span>
+              <span className="opacity-60">({items.filter(m => tab === "ALL" || getEffectiveCat(m) === tab).length})</span>
             </button>
           ))}
         </div>

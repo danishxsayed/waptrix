@@ -26,14 +26,27 @@ export async function GET() {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     
-    const normalizedData = data.map(item => ({
-      id: item.id,
-      name: item.name,
-      type: item.type,
-      size: item.size,
-      dataUrl: item.data_url,
-      uploadedAt: item.created_at
-    }));
+    const VIDEO_EXTS = ["mp4","mov","webm","avi","mkv","m4v","wmv"];
+    const IMAGE_EXTS = ["jpg","jpeg","png","gif","webp","svg","avif"];
+
+    const normalizedData = data.map(item => {
+      const mimeType: string = item.type || item.mime_type || "";
+      const ext = (item.name || "").split(".").pop()?.toLowerCase() || "";
+
+      let category: "IMAGE" | "VIDEO" | "DOCUMENT" = "DOCUMENT";
+      if (mimeType.startsWith("image/") || IMAGE_EXTS.includes(ext)) category = "IMAGE";
+      else if (mimeType.startsWith("video/") || VIDEO_EXTS.includes(ext)) category = "VIDEO";
+
+      return {
+        id: item.id,
+        name: item.name,
+        category,
+        mimeType,
+        sizeBytes: item.size ?? 0,
+        dataUrl: item.data_url,
+        uploadedAt: item.created_at,
+      };
+    });
 
     return NextResponse.json(normalizedData);
   } catch (err: any) {
