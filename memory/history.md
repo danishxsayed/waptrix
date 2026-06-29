@@ -36,6 +36,9 @@
   - Set the template builder modal to close automatically upon successful submit, raising a clean success toast alert.
 - **Mockup Wallpaper Style**:
   - Restored the traditional WhatsApp chat wallpaper background inside `PhonePreview` to create a realistic mockup preview.
+- **Media Upload Category Detection & Payload Fixes**:
+  - Refactored category detection inside `/api/media/route.ts` and `MediaLibrary.tsx` to safely derive media groups (image, audio, video, document) from both MIME type and filename extension.
+  - Corrected upload payload formats and patched file size parses to prevent `sizeBytes` NaN calculation errors.
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:

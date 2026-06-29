@@ -56,3 +56,4 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Implemented `/media` and the `MediaLibrary.tsx` component to handle uploaded images, audio, video, and document attachments.
   - Displays dynamic file previews including custom video frame thumbnails and document extension badges (e.g. PDF, CSV).
   - Includes file size formatters that display exact storage footprints and prevent parsing failures.
+  - Automatically classifies file attachments into specific groups (image, audio, video, document) in `/api/media/route.ts` and `MediaLibrary.tsx` by cross-referencing MIME types and filename extensions, resolving upload payloads and parsing issues.
