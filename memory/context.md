@@ -33,6 +33,7 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Supports template selection and dynamic text replies with full attachment mime type mapping.
   - Supports auto-selecting matching active conversations on mount using the `initialPhone` property passed via search parameters (`/inbox?phone=...`).
   - Integrated a "New Chat" button and modal inside `InboxPanel` to initiate new conversations. Since Meta requires the first message to be an approved template, the modal prompts for a destination phone number, target template selection, and dynamic template variable inputs before calling `/api/conversations/start` to dispatch and create/reuse threads.
+  - Template names are automatically normalized to lowercase and underscores (e.g., replacing non-alphanumeric characters with underscores) both on Meta template submission (`/api/templates/[id]/submit`) and during message dispatch (reply/start endpoints) to prevent Meta API template name mismatch errors (such as error 132001).
 - **WhatsApp Business Profile Management**:
   - Integrated a dedicated settings pane on the `/settings` route to display active connection status, synced official business names, phone numbers, and last sync times.
   - Created `/api/whatsapp/profile` (GET to retrieve business details, and POST to update status/bio fields) interacting directly with Meta Graph API.

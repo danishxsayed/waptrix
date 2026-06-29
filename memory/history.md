@@ -7,6 +7,9 @@
 - **New Conversation Initiation**:
   - Created `/api/conversations/start` API route handler to initiate brand-new WhatsApp conversations using Meta's messaging API, creating or reusing database threads.
   - Built a "New Chat" modal and trigger button in `InboxPanel` enabling users to input custom phone numbers, select approved templates, and dynamically map variable parameters to kickstart external outreach directly from the Inbox.
+- **Template Name Normalization**:
+  - Implemented automatic template name normalization (lowercase + underscores) in template submission `/api/templates/[id]/submit` to sync DB and Meta names.
+  - Added matching template name normalization in the conversation reply `/api/conversations/[id]/reply` and conversation start `/api/conversations/start` routes to prevent Meta API template name mismatch errors (such as error 132001).
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:
