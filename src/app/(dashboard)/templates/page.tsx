@@ -77,7 +77,7 @@ export default function TemplatesPage() {
       case 'APPROVED':
         return <span className="badge-jade flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Approved</span>;
       case 'PENDING':
-        return <span className="bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full text-xs font-semibold border border-amber-500/20 flex items-center gap-1"><Clock className="w-3 h-3 animate-pulse" /> Pending</span>;
+        return <span className="bg-amber-500/10 text-amber-500 px-2 py-0.5 rounded-full text-xs font-semibold border border-amber-500/20 flex items-center gap-1"><Clock className="w-3 h-3 animate-pulse" /> Under Review</span>;
       case 'REJECTED':
         return <span className="bg-rose-500/10 text-rose-500 px-2 py-0.5 rounded-full text-xs font-semibold border border-rose-500/20 flex items-center gap-1"><XCircle className="w-3 h-3" /> Rejected</span>;
       default:

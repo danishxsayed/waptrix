@@ -79,7 +79,7 @@ function StatusBadge({ status }: { status: string }) {
     case "APPROVED":
       return <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-jade/15 text-jade border border-jade/30"><CheckCircle2 className="w-3.5 h-3.5" /> Approved by Meta</span>;
     case "PENDING":
-      return <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30"><Clock className="w-3.5 h-3.5 animate-pulse" /> Pending Meta Review</span>;
+      return <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30"><Clock className="w-3.5 h-3.5 animate-pulse" /> Under Review</span>;
     case "REJECTED":
       return <span className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-danger/15 text-danger border border-danger/30"><XCircle className="w-3.5 h-3.5" /> Rejected by Meta</span>;
     default:
@@ -431,15 +431,14 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
 
       if (submitToMeta) {
         await axios.post(`/api/templates/${templateId}/submit`);
-        setMetaStatus("PENDING");
-        showToast("Submitted to Meta! Review takes ~24h.");
+        showToast("Template submitted! Meta will review within 24h.");
+        onSave();
+        setTimeout(() => onClose(), 1800);
       } else {
-        setMetaStatus("DRAFT");
         showToast("Saved as draft successfully.");
         onSave();
         onClose();
       }
-      onSave();
     } catch (err: any) {
       const msg = err.response?.data?.error || err.response?.data?.hint || err.message || "Save failed.";
       setError(msg);
