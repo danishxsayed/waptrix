@@ -74,6 +74,12 @@ function groupByDate(messages: ChatMessage[]) {
   return groups;
 }
 
+/** Extract ordered variable indices from a template body, e.g. ["1","2"] from "Hello {{1}}, enjoy {{2}}!" */
+function extractTemplateVars(body: string): string[] {
+  const matches = [...new Set((body || "").match(/{{(\d+)}}/g)?.map(m => m.replace(/[{}]/g, "")) ?? [])];
+  return matches.sort((a, b) => Number(a) - Number(b));
+}
+
 function avatarInitials(name: string) {
   return name
     .split(" ")
@@ -119,12 +125,14 @@ export default function InboxPanel({
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>("");
   const [sendError, setSendError] = useState<string>("");
+  const [templateVarValues, setTemplateVarValues] = useState<string[]>([]);
 
   // ── New Chat state
   const [showNewChat, setShowNewChat] = useState(false);
   const [newChatPhone, setNewChatPhone] = useState("");
   const [newChatName, setNewChatName] = useState("");
   const [newChatTemplate, setNewChatTemplate] = useState<Template | null>(null);
+  const [newChatVarValues, setNewChatVarValues] = useState<string[]>([]);
   const [newChatSending, setNewChatSending] = useState(false);
   const [newChatError, setNewChatError] = useState("");
 
@@ -390,11 +398,15 @@ export default function InboxPanel({
       body = { type: "text", content: optimisticContent };
     } else if (replyMode === "template" && selectedTemplate) {
       optimisticContent = `[Template: ${selectedTemplate.name}]`;
+      const vars = extractTemplateVars(selectedTemplate.body);
+      const bodyComponents = vars.length > 0
+        ? [{ type: "body", parameters: templateVarValues.map(v => ({ type: "text", text: v || " " })) }]
+        : [];
       body = {
         type: "template",
         templateName: selectedTemplate.name,
         languageCode: selectedTemplate.language || "en_US",
-        components: [],
+        components: bodyComponents,
       };
     } else if (replyMode === "media" && mediaFile) {
       const mediaType = mediaFile.type.startsWith("image/") ? "image"
@@ -429,6 +441,7 @@ export default function InboxPanel({
     setMediaFile(null);
     setMediaPreview("");
     setSelectedTemplate(null);
+    setTemplateVarValues([]);
     setSendError("");
 
     setIsSending(true);
@@ -492,6 +505,10 @@ export default function InboxPanel({
     setNewChatError("");
     setNewChatSending(true);
     try {
+      const newChatVars = extractTemplateVars(newChatTemplate.body);
+      const newChatComponents = newChatVars.length > 0
+        ? [{ type: "body", parameters: newChatVarValues.map(v => ({ type: "text", text: v || " " })) }]
+        : [];
       const res = await fetch("/api/conversations/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -500,7 +517,7 @@ export default function InboxPanel({
           contactName: newChatName.trim() || undefined,
           templateName: newChatTemplate.name,
           languageCode: newChatTemplate.language || "en_US",
-          components: [],
+          components: newChatComponents,
         }),
       });
       const data = await res.json();
@@ -861,33 +878,66 @@ export default function InboxPanel({
                         onChange={(e) => {
                           const t = templates.find((t) => t.id === e.target.value) || null;
                           setSelectedTemplate(t);
+                          // Reset variable values for new template
+                          const vars = extractTemplateVars(t?.body || "");
+                          setTemplateVarValues(vars.map(() => ""));
                         }}
                         defaultValue=""
                       >
-                        <option value="" disabled>
-                          Choose a template...
-                        </option>
+                        <option value="" disabled>Choose a template...</option>
                         {templates.map((t) => (
-                          <option key={t.id} value={t.id}>
-                            {t.name}
-                          </option>
+                          <option key={t.id} value={t.id}>{t.name}</option>
                         ))}
                       </select>
-                      {selectedTemplate && (
-                        <div className="bg-surface border border-jade/20 rounded-xl p-3 text-xs text-text-muted italic">
-                          &ldquo;{selectedTemplate.body}&rdquo;
-                        </div>
-                      )}
+
+                      {selectedTemplate && (() => {
+                        const vars = extractTemplateVars(selectedTemplate.body);
+                        return (
+                          <>
+                            {/* Template body preview with variable placeholders highlighted */}
+                            <div className="bg-surface border border-jade/20 rounded-xl p-3 text-xs text-text-muted italic">
+                              &ldquo;{selectedTemplate.body}&rdquo;
+                            </div>
+
+                            {/* Variable inputs */}
+                            {vars.length > 0 && (
+                              <div className="space-y-2 p-3 bg-surface/50 border border-border rounded-xl">
+                                <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
+                                  Fill in template variables
+                                </p>
+                                {vars.map((varIndex, i) => (
+                                  <div key={varIndex} className="flex items-center gap-2">
+                                    <span className="text-[10px] font-mono text-jade bg-jade/10 border border-jade/20 px-1.5 py-0.5 rounded shrink-0">
+                                      {`{{${varIndex}}}`}
+                                    </span>
+                                    <input
+                                      type="text"
+                                      value={templateVarValues[i] || ""}
+                                      onChange={e => {
+                                        const updated = [...templateVarValues];
+                                        updated[i] = e.target.value;
+                                        setTemplateVarValues(updated);
+                                      }}
+                                      placeholder={`Value for {{${varIndex}}}`}
+                                      className="flex-1 bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-jade/50"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        );
+                      })()}
+
                       <button
                         onClick={sendReply}
-                        disabled={isSending || !selectedTemplate}
+                        disabled={isSending || !selectedTemplate || (
+                          extractTemplateVars(selectedTemplate?.body || "").length > 0 &&
+                          templateVarValues.some(v => !v.trim())
+                        )}
                         className="w-full py-2.5 bg-jade text-background text-sm font-bold rounded-xl disabled:opacity-40 hover:bg-jade/90 transition-colors flex items-center justify-center gap-2"
                       >
-                        {isSending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Send className="w-4 h-4" />
-                        )}
+                        {isSending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                         Send Template
                       </button>
                     </>
@@ -1051,6 +1101,8 @@ export default function InboxPanel({
                     onChange={e => {
                       const t = templates.find(t => t.name === e.target.value) || null;
                       setNewChatTemplate(t);
+                      const vars = extractTemplateVars(t?.body || "");
+                      setNewChatVarValues(vars.map(() => ""));
                     }}
                     className="input-field w-full text-sm bg-background border-border"
                   >
@@ -1060,12 +1112,40 @@ export default function InboxPanel({
                     ))}
                   </select>
                 )}
-                {newChatTemplate && (
-                  <div className="p-3 bg-surface border border-border rounded-xl text-xs text-text-muted leading-relaxed">
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted block mb-1">Preview</span>
-                    {newChatTemplate.body}
-                  </div>
-                )}
+                {newChatTemplate && (() => {
+                  const vars = extractTemplateVars(newChatTemplate.body);
+                  return (
+                    <>
+                      <div className="p-3 bg-surface border border-border rounded-xl text-xs text-text-muted leading-relaxed">
+                        <span className="text-[10px] font-bold uppercase tracking-wider block mb-1">Preview</span>
+                        {newChatTemplate.body}
+                      </div>
+                      {vars.length > 0 && (
+                        <div className="space-y-2 p-3 bg-surface/50 border border-border rounded-xl">
+                          <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Fill in variables</p>
+                          {vars.map((varIndex, i) => (
+                            <div key={varIndex} className="flex items-center gap-2">
+                              <span className="text-[10px] font-mono text-jade bg-jade/10 border border-jade/20 px-1.5 py-0.5 rounded shrink-0">
+                                {`{{${varIndex}}}`}
+                              </span>
+                              <input
+                                type="text"
+                                value={newChatVarValues[i] || ""}
+                                onChange={e => {
+                                  const updated = [...newChatVarValues];
+                                  updated[i] = e.target.value;
+                                  setNewChatVarValues(updated);
+                                }}
+                                placeholder={`Value for {{${varIndex}}}`}
+                                className="input-field flex-1 text-xs py-1.5"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
 
               {/* Error */}
@@ -1087,7 +1167,10 @@ export default function InboxPanel({
                 </button>
                 <button
                   onClick={handleStartConversation}
-                  disabled={newChatSending || !newChatPhone.trim() || !newChatTemplate}
+                  disabled={newChatSending || !newChatPhone.trim() || !newChatTemplate || (
+                    extractTemplateVars(newChatTemplate?.body || "").length > 0 &&
+                    newChatVarValues.some(v => !v.trim())
+                  )}
                   className="flex-1 btn-primary py-2.5 text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {newChatSending ? (
