@@ -170,12 +170,14 @@ export async function POST(
       return NextResponse.json({ error: 'Failed to obtain template ID from Meta' }, { status: 500 });
     }
 
-    // 5. Update local database
+    // 5. Update local database — also persist the normalized name so send routes stay in sync
+    const normalizedName = template.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
     const { error: dbError } = await serviceClient
       .from('templates')
       .update({
         meta_template_id: metaRes.id,
-        meta_status: 'PENDING'
+        meta_status: 'PENDING',
+        name: normalizedName,
       })
       .eq('id', id)
       .eq('tenant_id', user.id);

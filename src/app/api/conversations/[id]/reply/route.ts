@@ -74,17 +74,19 @@ export async function POST(
 
     } else if (type === 'template') {
       // ── Template message (works outside 24h window)
+      // Normalize name to match how it was submitted to Meta (lowercase + underscores)
+      const normalizedTemplateName = (templateName || '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
       metaPayload = {
         messaging_product: 'whatsapp',
         to: conv.contact_phone,
         type: 'template',
         template: {
-          name: templateName,
+          name: normalizedTemplateName,
           language: { code: languageCode || 'en_US' },
           components: components || [],
         },
       };
-      storedContent = `[Template: ${templateName}]`;
+      storedContent = `[Template: ${normalizedTemplateName}]`;
 
     } else if (['image', 'document', 'video', 'audio'].includes(type)) {
       // ── Media message — upload file to Meta first if raw URL provided

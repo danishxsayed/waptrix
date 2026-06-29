@@ -68,12 +68,14 @@ export async function POST(req: Request) {
     const sendToken = process.env.META_SYSTEM_TOKEN || waConn.access_token;
 
     // ── Send template via Meta API ────────────────────────────────────────────
+    // Normalize name to match exactly how it was submitted to Meta
+    const normalizedTemplateName = (templateName || '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
     const metaPayload = {
       messaging_product: 'whatsapp',
       to: normalizedPhone,
       type: 'template',
       template: {
-        name: templateName,
+        name: normalizedTemplateName,
         language: { code: languageCode },
         components,
       },
@@ -117,7 +119,7 @@ export async function POST(req: Request) {
     }
 
     const metaMessageId = sendData.messages?.[0]?.id ?? null;
-    const storedContent = `[Template: ${templateName}]`;
+    const storedContent = `[Template: ${normalizedTemplateName}]`;
     const now = new Date().toISOString();
 
     // ── Upsert conversation ───────────────────────────────────────────────────
