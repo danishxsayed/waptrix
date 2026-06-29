@@ -18,6 +18,10 @@
 - **Visual Template Builder Wizard**:
   - Refactored `TemplateBuilder.tsx` to utilize a 2-step setup process. Step 1 selects the template category and type with a live mock preview (Android/iOS toggle), and Step 2 configures the content.
   - Enhanced template customization options including rich headers (media/text), dynamic variables adding, AI-assisted body content generator, and interactive buttons (quick replies, URL links, and marketing opt-outs).
+- **Rich Template Builder Editing Tools**:
+  - Implemented real-time syntax highlighting for variables (`{{N}}`) inside the template body textarea using a dual-layered transparent textarea layout.
+  - Added text utility actions in the toolbar to wrap text selections in WhatsApp bold (`*bold*`) and italic (`_italic_`) modifiers.
+  - Integrated an interactive emoji picker grid to insert common emojis directly at the user's cursor position.
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:

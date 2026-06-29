@@ -46,4 +46,6 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 - **WhatsApp Message Template Builder**:
   - Implemented a 2-step visual template builder wizard (`TemplateBuilder.tsx`) to create and register Meta WhatsApp templates.
   - Step 1: Category & Type selection interface with interactive mockup previews (Android/iOS toggle).
-  - Step 2: Detailed content editor supporting headers (text with variable options or media attachments), body texts with variable inserts, AI-assisted message generators, language selector dropdowns, and button types (quick replies, link triggers, and marketing opt-out buttons).
+  - Step 2: Detailed content editor supporting headers (text with variable options or media attachments), body texts with variable inserts, language selector dropdowns, and button types (quick replies, link triggers, and marketing opt-out buttons).
+  - Integrates a real-time syntax highlighting overlay for variable placeholders (`{{N}}`) in the body editor by layering a transparent textarea over a highlighted mirror container.
+  - Added formatting buttons to automatically wrap selected texts in WhatsApp-compliant bold (`*bold*`) and italic (`_italic_`) modifiers, and embedded an interactive emoji picker toolbar.
