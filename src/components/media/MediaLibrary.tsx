@@ -171,13 +171,13 @@ export default function MediaLibrary({
     const isLg = size === "lg";
     // Derive effective category — API may have returned category already, but fall back to mimeType
     const mime: string = (item as any).mimeType || "";
-    const ext = item.name.split(".").pop()?.toLowerCase() || "";
+    const fileExt = item.name.split(".").pop()?.toLowerCase() || "";
     const VIDEO_EXTS = ["mp4","mov","webm","avi","mkv","m4v","wmv"];
     const IMAGE_EXTS = ["jpg","jpeg","png","gif","webp","svg","avif"];
     let effectiveCat = item.category;
     if (!effectiveCat || effectiveCat === "DOCUMENT") {
-      if (mime.startsWith("image/") || IMAGE_EXTS.includes(ext)) effectiveCat = "IMAGE";
-      else if (mime.startsWith("video/") || VIDEO_EXTS.includes(ext)) effectiveCat = "VIDEO";
+      if (mime.startsWith("image/") || IMAGE_EXTS.includes(fileExt)) effectiveCat = "IMAGE";
+      else if (mime.startsWith("video/") || VIDEO_EXTS.includes(fileExt)) effectiveCat = "VIDEO";
     }
 
     if (effectiveCat === "IMAGE") {
@@ -225,18 +225,18 @@ export default function MediaLibrary({
     }
 
     // DOCUMENT
-    const { ext, style } = getDocStyle(item.name);
+    const { ext: docExt, style } = getDocStyle(item.name);
     return isLg ? (
       <div className="w-full h-36 bg-amber-400/8 rounded-t-xl flex flex-col items-center justify-center gap-3 border-b border-amber-400/15">
         <div className={`w-14 h-16 rounded-lg flex flex-col items-center justify-center gap-1 ${style.bg} border border-white/10`}>
           <FileText className={`w-7 h-7 ${style.text}`} />
-          <span className={`text-[9px] font-bold tracking-wide ${style.text}`}>{ext}</span>
+          <span className={`text-[9px] font-bold tracking-wide ${style.text}`}>{docExt}</span>
         </div>
       </div>
     ) : (
       <div className={`relative w-10 h-10 flex-shrink-0 rounded-md flex items-center justify-center ${style.bg} border border-white/10`}>
         <FileText className={`w-5 h-5 ${style.text}`} />
-        <span className={`absolute -bottom-1 -right-1 text-[7px] font-bold px-0.5 rounded ${style.bg} ${style.text}`}>{ext.slice(0, 3)}</span>
+        <span className={`absolute -bottom-1 -right-1 text-[7px] font-bold px-0.5 rounded ${style.bg} ${style.text}`}>{docExt.slice(0, 3)}</span>
       </div>
     );
   };
