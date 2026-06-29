@@ -10,6 +10,9 @@
 - **Template Name Normalization**:
   - Implemented automatic template name normalization (lowercase + underscores) in template submission `/api/templates/[id]/submit` to sync DB and Meta names.
   - Added matching template name normalization in the conversation reply `/api/conversations/[id]/reply` and conversation start `/api/conversations/start` routes to prevent Meta API template name mismatch errors (such as error 132001).
+- **Template Variables Ingestion**:
+  - Implemented client-side parsing (`extractTemplateVars`) of template placeholders (`{{N}}`) inside `InboxPanel`.
+  - Added dynamic input fields inside both the Template Reply pane and the New Chat modal to collect and parameterize text variables before sending, preventing Meta API parameter mismatches (such as error 132000).
 
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:
