@@ -5,7 +5,7 @@ import {
   X, Send, Save, Info, Plus, Trash2, Smartphone, Image as ImageIcon,
   CheckCircle2, Clock, XCircle, Link, Phone, MessageSquare, Globe,
   AlertCircle, Loader2, Upload, Film, FileText as FileIcon, FolderOpen,
-  ChevronDown, ChevronUp, Sparkles, CreditCard, LayoutGrid, Bold, Italic,
+  ChevronDown, ChevronUp, CreditCard, LayoutGrid, Bold, Italic,
   Smile
 } from "lucide-react";
 import axios from "axios";
@@ -260,6 +260,12 @@ const CATEGORY_LABELS: Record<string, string> = {
   AUTHENTICATION: "Authentication",
 };
 
+const COMMON_EMOJIS = [
+  "😊","👋","🎉","✅","🔥","💯","🎁","⭐","🚀","💪",
+  "❤️","👍","📞","📱","🛒","💰","🎊","🙌","✨","🎯",
+  "📣","⚡","🌟","💥","🏆","🙏","😍","💬","🎶","🌈",
+];
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onClose: () => void; onSave: () => void; editTemplate?: any }) {
   // Step state
@@ -287,6 +293,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   const [error, setError] = useState("");
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [showMediaLibrary, setShowMediaLibrary] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -338,6 +345,35 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     setTimeout(() => {
       textarea.focus();
       textarea.setSelectionRange(start + `{{${nextNum}}}`.length, start + `{{${nextNum}}}`.length);
+    }, 0);
+  };
+
+  // Wrap selected text with before/after markers (WhatsApp formatting)
+  const wrapSelection = (before: string, after: string = before) => {
+    const textarea = bodyRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const selected = formData.body.slice(start, end);
+    const newBody = formData.body.slice(0, start) + before + selected + after + formData.body.slice(end);
+    setFormData({ ...formData, body: newBody });
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + before.length, start + before.length + selected.length);
+    }, 0);
+  };
+
+  const insertEmoji = (emoji: string) => {
+    const textarea = bodyRef.current;
+    if (!textarea) return;
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newBody = formData.body.slice(0, start) + emoji + formData.body.slice(end);
+    setFormData({ ...formData, body: newBody });
+    setShowEmojiPicker(false);
+    setTimeout(() => {
+      textarea.focus();
+      textarea.setSelectionRange(start + [...emoji].length, start + [...emoji].length);
     }, 0);
   };
 
@@ -734,17 +770,56 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                   <div className="space-y-2">
                     <label className="text-xs font-bold text-text-muted uppercase tracking-wider block">Body</label>
                     <p className="text-xs text-text-muted">The WhatsApp message in the language you have selected</p>
-                    <div className="border border-border rounded-xl overflow-hidden">
-                      <textarea
-                        ref={bodyRef}
-                        name="body"
-                        value={formData.body}
-                        onChange={handleChange}
-                        rows={5}
-                        className="w-full bg-surface px-4 py-3 text-sm resize-none focus:outline-none text-text-primary placeholder:text-text-muted"
-                        placeholder="Write your template body here..."
-                        disabled={isPostSubmit}
-                      />
+                    <div className="border border-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-jade/30">
+                      {/* Highlight overlay wrapper */}
+                      <div className="relative bg-surface">
+                        {/* Background layer — renders highlighted variables */}
+                        <div
+                          aria-hidden="true"
+                          className="absolute inset-0 px-4 py-3 text-sm whitespace-pre-wrap break-words overflow-hidden pointer-events-none select-none"
+                          style={{ lineHeight: "1.625", fontFamily: "inherit" }}
+                        >
+                          {formData.body.length === 0 ? (
+                            <span className="text-text-muted">Write your template body here...</span>
+                          ) : (
+                            formData.body.split(/({{[\d]+}})/g).map((part, i) =>
+                              part.match(/{{[\d]+}}/) ? (
+                                <mark
+                                  key={i}
+                                  style={{
+                                    background: "rgba(16,185,129,0.18)",
+                                    color: "#10B981",
+                                    borderRadius: "4px",
+                                    padding: "1px 3px",
+                                    fontWeight: 600,
+                                  }}
+                                >
+                                  {part}
+                                </mark>
+                              ) : (
+                                <span key={i} style={{ color: "transparent" }}>{part}</span>
+                              )
+                            )
+                          )}
+                        </div>
+                        {/* Transparent textarea on top */}
+                        <textarea
+                          ref={bodyRef}
+                          name="body"
+                          value={formData.body}
+                          onChange={handleChange}
+                          rows={5}
+                          className="relative w-full bg-transparent px-4 py-3 text-sm resize-none focus:outline-none placeholder:text-transparent"
+                          style={{
+                            color: "transparent",
+                            caretColor: "var(--color-text-primary)",
+                            lineHeight: "1.625",
+                          }}
+                          placeholder="Write your template body here..."
+                          disabled={isPostSubmit}
+                          onBlur={() => setShowEmojiPicker(false)}
+                        />
+                      </div>
                       {/* Toolbar */}
                       <div className="flex items-center justify-between px-3 py-2 border-t border-border bg-card">
                         <button
@@ -753,23 +828,57 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                           className="flex items-center gap-1.5 text-xs font-semibold text-jade hover:text-jade-hover transition-colors"
                         >
                           <Plus className="w-3.5 h-3.5" /> Add variable
-                          <span className="ml-1 text-[10px] text-text-muted font-normal">inserts {"{{N}}"}  at cursor</span>
+                          <span className="ml-1 text-[10px] text-text-muted font-normal">inserts {"{{N}}"} at cursor</span>
                         </button>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-0.5">
                           <button
-                            onClick={() => showToast("AI generation coming soon!", "success")}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-jade/10 text-jade text-xs font-semibold hover:bg-jade/20 transition-colors"
+                            onMouseDown={(e) => { e.preventDefault(); wrapSelection("*"); }}
+                            disabled={isPostSubmit}
+                            className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface rounded transition-colors"
+                            title="Bold (wraps with *)"
                           >
-                            <Sparkles className="w-3.5 h-3.5" /> Generate with AI
+                            <Bold className="w-3.5 h-3.5" />
                           </button>
-                          <div className="w-px h-4 bg-border mx-1" />
-                          <button className="p-1.5 text-text-muted hover:text-text-primary rounded transition-colors" title="Bold"><Bold className="w-3.5 h-3.5" /></button>
-                          <button className="p-1.5 text-text-muted hover:text-text-primary rounded transition-colors" title="Italic"><Italic className="w-3.5 h-3.5" /></button>
-                          <button className="p-1.5 text-text-muted hover:text-text-primary rounded transition-colors" title="Emoji"><Smile className="w-3.5 h-3.5" /></button>
+                          <button
+                            onMouseDown={(e) => { e.preventDefault(); wrapSelection("_"); }}
+                            disabled={isPostSubmit}
+                            className="p-1.5 text-text-muted hover:text-text-primary hover:bg-surface rounded transition-colors italic"
+                            title="Italic (wraps with _)"
+                          >
+                            <Italic className="w-3.5 h-3.5" />
+                          </button>
+                          <div className="relative">
+                            <button
+                              onMouseDown={(e) => { e.preventDefault(); setShowEmojiPicker(p => !p); }}
+                              disabled={isPostSubmit}
+                              className={`p-1.5 rounded transition-colors ${showEmojiPicker ? "text-jade bg-jade/10" : "text-text-muted hover:text-text-primary hover:bg-surface"}`}
+                              title="Insert emoji"
+                            >
+                              <Smile className="w-3.5 h-3.5" />
+                            </button>
+                            {showEmojiPicker && (
+                              <div className="absolute bottom-full right-0 mb-2 w-56 p-2 bg-card border border-border rounded-xl shadow-xl z-20 grid grid-cols-6 gap-1">
+                                {COMMON_EMOJIS.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    onMouseDown={(e) => { e.preventDefault(); insertEmoji(emoji); }}
+                                    className="text-lg hover:bg-surface rounded-lg p-1 transition-colors leading-none"
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
-                    <p className="text-[10px] text-text-muted text-right">{formData.body.length} chars</p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-text-muted">
+                        Use <code className="bg-jade/10 text-jade px-1 rounded text-[9px]">*bold*</code> and <code className="bg-jade/10 text-jade px-1 rounded text-[9px]">_italic_</code> for WhatsApp formatting
+                      </p>
+                      <p className="text-[10px] text-text-muted">{formData.body.length} chars</p>
+                    </div>
                   </div>
 
                   {/* Footer */}
