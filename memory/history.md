@@ -1,5 +1,10 @@
 # Implementation History
 
+## [2026-06-29] - Column Mapper Improvements
+- **Country Code Validation**:
+  - Made the Country Code field required in the CSV/Excel importer column mapping interface.
+  - Enhanced UI prompts and status badges (e.g. highlighting required indicator) to ensure either a dedicated country code column is mapped or a default fallback country code is selected.
+
 ## [2026-06-28] - Light/Dark Theme & Contacts UI Refinements
 - **Light/Dark Theme Toggle**:
   - Implemented light theme overrides using CSS variables in `globals.css` with a default light mode.
