@@ -63,3 +63,5 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Implemented a pulse-animated skeleton loader grid in `MediaLibrary.tsx` while fetching uploads to prevent brief flashes of empty folder states.
   - Lazy-loads card thumbnail previews dynamically via `GET /api/media/[id]` inside `LazyCard` after pulling only lightweight metadata list payloads from `GET /api/media` to keep lists under 10 KB regardless of file quantity or sizes.
   - Pre-seeds newly uploaded file thumbnails directly in the client cache (`thumbnailCache`) to allow immediate rendering without redundant API fetches.
+  - Added a manual refresh button (`RefreshCw` icon) next to the file upload control to easily re-fetch assets.
+  - Implemented a user-friendly fallback error state displaying details and a retry button if queries to `/api/media` fail or return non-array results.
