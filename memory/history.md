@@ -16,6 +16,11 @@
   - Removed both the `size` and `type` column fields from the `/api/media` POST insert query and request payloads since they do not exist in the database table schema, preventing insert query failures.
 - **Preview Cache LocalStorage Quota Protections**:
   - Encapsulated mock file upload storage operations (`addMedia`) in try-catch structures inside `TemplateBuilder.tsx` to handle browser `QuotaExceededError` errors silently, ensuring preview operations still function even if user local storage is full.
+- **Supabase Storage Template Media Uploads**:
+  - Implemented `/api/upload/route.ts` API route using Supabase service client to upload files directly to the `template-media` storage bucket, scoping paths under user IDs.
+  - Linked uploading flows in `TemplateBuilder.tsx` to upload header media assets (images, videos, documents) and retrieve public URLs.
+  - Added visual uploading loader progress states in the builder and an automatic fallback to local previews with warning toasts if Supabase bucket errors occur.
+  - Patched template update/create API route handlers to strip base64 data URLs silently, resolving DB timeout errors on save.
 
 ## [2026-06-29] - Column Mapper Improvements & Inbox Chat Initiation
 - **Country Code Validation**:

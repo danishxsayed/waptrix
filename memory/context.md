@@ -57,6 +57,9 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Prompts users with an unsaved changes confirmation dialog on close if they have edited any template fields in `TemplateBuilder.tsx`.
   - Resolves and separates media header URLs correctly from text headers when loading existing templates in edit mode.
   - Wraps local mock file uploads/previews (`addMedia` cache calls) in try-catch handlers to prevent browser `QuotaExceededError` exceptions from crashing the page.
+  - Created a dedicated upload route `/api/upload` scoping file uploads under user folders inside the Supabase Storage `template-media` bucket.
+  - Integrates direct file uploads in template builder media header zones, rendering progress loader overlays during uploads and falling back automatically to local data URLs with warning toasts if Supabase bucket errors occur.
+  - Template API PUT/POST route handlers strip base64 data URLs silently before saving to DB, keeping only valid public URLs (or blank entries) persisted in columns to prevent DB statement timeouts.
 - **Unified Media Library Management**:
   - Implemented `/media` and the `MediaLibrary.tsx` component to handle uploaded images, audio, video, and document attachments.
   - Displays dynamic file previews including custom video frame thumbnails and document extension badges (e.g. PDF, CSV).
