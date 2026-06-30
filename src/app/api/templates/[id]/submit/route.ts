@@ -97,14 +97,12 @@ export async function POST(
         });
       } else {
         // IMAGE, VIDEO, DOCUMENT
+        // Meta requires header_handle to be a Meta-uploaded media ID, not a URL.
+        // Submitting just the format type (without example) is valid and gets approved.
+        // The actual media URL is supplied when sending the message, not during submission.
         metaComponents.push({
           type: 'HEADER',
           format: template.header_type,
-          example: {
-            header_handle: [
-              template.header_text || 'https://images.unsplash.com/photo-1579546929518-9e396f3cc809'
-            ]
-          }
         });
       }
     }
