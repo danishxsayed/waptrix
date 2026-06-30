@@ -35,8 +35,8 @@ const CAT_COLORS: Record<MediaCategory, string> = {
   DOCUMENT: "text-amber-400 bg-amber-400/10 border-amber-400/20",
 };
 
-const VIDEO_EXTS = ["mp4","mov","webm","avi","mkv","m4v","wmv"];
-const IMAGE_EXTS = ["jpg","jpeg","png","gif","webp","svg","avif"];
+const VIDEO_EXTS = ["mp4", "mov", "webm", "avi", "mkv", "m4v", "wmv"];
+const IMAGE_EXTS = ["jpg", "jpeg", "png", "gif", "webp", "svg", "avif"];
 
 function getEffectiveCatFromItem(m: MediaItem): MediaCategory {
   const mime: string = (m as any).mimeType || "";
@@ -50,14 +50,14 @@ function getEffectiveCatFromItem(m: MediaItem): MediaCategory {
 function getDocStyle(name: string) {
   const ext = name.split(".").pop()?.toUpperCase() || "FILE";
   const map: Record<string, { bg: string; text: string }> = {
-    PDF:  { bg: "bg-red-500/20",    text: "text-red-400" },
-    DOC:  { bg: "bg-blue-500/20",   text: "text-blue-400" },
-    DOCX: { bg: "bg-blue-500/20",   text: "text-blue-400" },
-    XLS:  { bg: "bg-green-500/20",  text: "text-green-400" },
-    XLSX: { bg: "bg-green-500/20",  text: "text-green-400" },
-    PPT:  { bg: "bg-orange-500/20", text: "text-orange-400" },
+    PDF: { bg: "bg-red-500/20", text: "text-red-400" },
+    DOC: { bg: "bg-blue-500/20", text: "text-blue-400" },
+    DOCX: { bg: "bg-blue-500/20", text: "text-blue-400" },
+    XLS: { bg: "bg-green-500/20", text: "text-green-400" },
+    XLSX: { bg: "bg-green-500/20", text: "text-green-400" },
+    PPT: { bg: "bg-orange-500/20", text: "text-orange-400" },
     PPTX: { bg: "bg-orange-500/20", text: "text-orange-400" },
-    TXT:  { bg: "bg-slate-500/20",  text: "text-slate-400" },
+    TXT: { bg: "bg-slate-500/20", text: "text-slate-400" },
   };
   return { ext, style: map[ext] || { bg: "bg-amber-400/20", text: "text-amber-400" } };
 }
@@ -201,11 +201,10 @@ function LazyCard({
       <div
         ref={cardRef}
         onClick={() => onClick(item)}
-        className={`relative group rounded-xl overflow-hidden border cursor-pointer transition-all ${
-          isSelected
+        className={`relative group rounded-xl overflow-hidden border cursor-pointer transition-all ${isSelected
             ? "border-jade shadow-[0_0_12px_rgba(16,185,129,0.3)] ring-2 ring-jade/30"
             : "border-border hover:border-jade/30"
-        }`}
+          }`}
       >
         {renderThumbnail(item, thumbnailUrl, "lg")}
         {/* Hover overlay */}
@@ -248,11 +247,10 @@ function LazyCard({
     <div
       ref={cardRef}
       onClick={() => onClick(item)}
-      className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-all ${
-        isSelected
+      className={`flex items-center gap-4 p-3 rounded-xl border cursor-pointer transition-all ${isSelected
           ? "border-jade bg-jade/5"
           : "border-border hover:border-jade/30 hover:bg-card/50"
-      }`}
+        }`}
     >
       {renderThumbnail(item, thumbnailUrl, "sm")}
       <div className="flex-1 min-w-0">
@@ -395,7 +393,7 @@ export default function MediaLibrary({
         const res = await axios.get(`/api/media/${item.id}`);
         dataUrl = res.data.dataUrl || null;
         if (dataUrl) thumbnailCache.set(item.id, dataUrl);
-      } catch {}
+      } catch { }
     }
 
     onSelect({ ...item, dataUrl: dataUrl ?? "" });
@@ -474,11 +472,10 @@ export default function MediaLibrary({
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                activeTab === tab
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${activeTab === tab
                   ? "bg-jade/10 border border-jade/30 text-jade"
                   : "text-text-muted hover:bg-surface border border-transparent"
-              }`}
+                }`}
             >
               {tab !== "ALL" && CAT_ICONS[tab as MediaCategory]}
               {tabLabel[tab]}
