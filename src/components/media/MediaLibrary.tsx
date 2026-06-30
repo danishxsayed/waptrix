@@ -302,6 +302,7 @@ export default function MediaLibrary({
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [isDragging, setIsDragging] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string>("");
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
   const [selectedDataUrl, setSelectedDataUrl] = useState<string | null>(null);
@@ -333,21 +334,23 @@ export default function MediaLibrary({
 
   const uploadFiles = async (files: FileList | File[]) => {
     setUploading(true);
+    setUploadError("");
     for (const file of Array.from(files)) {
       if (file.size > 20 * 1024 * 1024) {
-        alert(`"${file.name}" exceeds 20 MB limit — skipped.`);
+        setUploadError(`"${file.name}" exceeds 20 MB limit — skipped.`);
         continue;
       }
       try {
         const dataUrl = await readFileAsDataUrl(file);
         const res = await axios.post("/api/media", { name: file.name, type: file.type, size: file.size, dataUrl });
         // Pre-seed the cache so the new LazyCard renders the thumbnail instantly
-        // without needing an extra GET /api/media/[id] round-trip.
         if (res.data?.id) {
           thumbnailCache.set(res.data.id, dataUrl);
         }
-      } catch (err) {
-        console.error("Failed to upload", file.name, err);
+      } catch (err: any) {
+        const msg = err.response?.data?.error || err.message || "Upload failed.";
+        setUploadError(`Failed to upload "${file.name}": ${msg}`);
+        console.error("Upload error:", msg);
       }
     }
     setUploading(false);
@@ -514,6 +517,13 @@ export default function MediaLibrary({
           <div className="flex items-center gap-2 mb-4 text-jade text-sm">
             <div className="w-4 h-4 border-2 border-jade border-t-transparent rounded-full animate-spin" />
             Uploading…
+          </div>
+        )}
+        {uploadError && (
+          <div className="flex items-center gap-2 mb-4 px-4 py-2.5 bg-danger/10 border border-danger/20 rounded-xl text-danger text-xs font-medium">
+            <X className="w-4 h-4 shrink-0" />
+            {uploadError}
+            <button onClick={() => setUploadError("")} className="ml-auto text-danger/60 hover:text-danger">✕</button>
           </div>
         )}
 

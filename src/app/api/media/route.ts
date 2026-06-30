@@ -32,8 +32,7 @@ export async function GET() {
     const IMAGE_EXTS = ["jpg","jpeg","png","gif","webp","svg","avif"];
 
     const normalizedData = data.map(item => {
-      // Support both "mime_type" and "type" column names
-      const mimeType: string = item.mime_type || item.type || "";
+      const mimeType: string = item.type || item.mime_type || "";
       const ext = (item.name || "").split(".").pop()?.toLowerCase() || "";
 
       let category: "IMAGE" | "VIDEO" | "DOCUMENT" = "DOCUMENT";
@@ -80,7 +79,7 @@ export async function POST(request: Request) {
       .insert({
         tenant_id: user.id,
         name,
-        mime_type: type,  // DB column is mime_type
+        type,          // actual DB column name is "type"
         size,
         data_url: dataUrl,
       })

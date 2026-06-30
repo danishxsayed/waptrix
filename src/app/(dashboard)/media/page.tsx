@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 
 
 import { useState } from "react";
-import { UploadCloud, FolderOpen } from "lucide-react";
+import { FolderOpen } from "lucide-react";
 import MediaLibrary from "@/components/media/MediaLibrary";
 
 export default function MediaPage() {
@@ -16,9 +16,6 @@ export default function MediaPage() {
           <h2 className="text-xl font-bold font-syne">Media Library</h2>
           <p className="text-sm text-text-muted">Manage your images, videos, and documents. Reuse them across templates.</p>
         </div>
-        <button onClick={() => setOpen(true)} className="btn-primary flex items-center gap-2">
-          <UploadCloud className="w-4 h-4" /> Upload Files
-        </button>
       </div>
 
       {/* Always show the library inline (no modal) on this page */}
