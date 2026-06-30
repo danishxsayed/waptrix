@@ -65,4 +65,6 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Pre-seeds newly uploaded file thumbnails directly in the client cache (`thumbnailCache`) to allow immediate rendering without redundant API fetches.
   - Added a manual refresh button (`RefreshCw` icon) next to the file upload control to easily re-fetch assets.
   - Implemented a user-friendly fallback error state displaying details and a retry button if queries to `/api/media` fail or return non-array results.
-  - Aligned `/api/media` route handler to support varied database schemas flexibly, mapping metadata attributes from either `type` / `mime_type` and `size` / `size_bytes` columns.
+  - Aligned `/api/media` route handler mapping variables safely to resolve metadata attributes.
+  - Implemented a dismissible, inline warning banner in `MediaLibrary.tsx` to display upload failures (such as file size exceeding the 20MB limit or server exceptions) instead of browser `alert()` popups.
+  - Cleaned up the `/media` page dashboard header by removing the redundant upload file modal trigger, centralizing uploads directly in the inline library container.

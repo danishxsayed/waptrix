@@ -7,6 +7,9 @@
 - **Media Schema Compatibility**:
   - Updated `/api/media/route.ts` to flexibly read metadata parameters from different database schemas (handling `type` / `mime_type` and `size` / `size_bytes` keys cleanly).
   - Patched POST upload handler to write to `mime_type` instead of `type` to match database requirements.
+- **Media Upload Error Banner & Header Cleanups**:
+  - Implemented an inline, dismissible upload error notification banner inside `MediaLibrary.tsx` to print descriptive file size or API errors clearly without browser alert dialog popups.
+  - Removed the redundant upload modal launcher button on the `/media` page, decluttering the dashboard view since the inline container handles uploads directly.
 
 ## [2026-06-29] - Column Mapper Improvements & Inbox Chat Initiation
 - **Country Code Validation**:
