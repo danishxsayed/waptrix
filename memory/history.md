@@ -14,6 +14,8 @@
   - Implemented visual template message bubble rendering in `InboxPanel.tsx` using a custom `TemplateBubble` component that parses the template payload to render media headers, body text, footers, and buttons.
 - **Media API Database Alignment**:
   - Removed both the `size` and `type` column fields from the `/api/media` POST insert query and request payloads since they do not exist in the database table schema, preventing insert query failures.
+- **Preview Cache LocalStorage Quota Protections**:
+  - Encapsulated mock file upload storage operations (`addMedia`) in try-catch structures inside `TemplateBuilder.tsx` to handle browser `QuotaExceededError` errors silently, ensuring preview operations still function even if user local storage is full.
 
 ## [2026-06-29] - Column Mapper Improvements & Inbox Chat Initiation
 - **Country Code Validation**:

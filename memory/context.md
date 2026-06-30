@@ -56,6 +56,7 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Enforces public HTTPS URLs for media headers, rejecting base64 data URLs in `/api/templates`, `/api/templates/[id]`, and `TemplateBuilder.tsx` to prevent database statement timeouts and Meta submission failures.
   - Prompts users with an unsaved changes confirmation dialog on close if they have edited any template fields in `TemplateBuilder.tsx`.
   - Resolves and separates media header URLs correctly from text headers when loading existing templates in edit mode.
+  - Wraps local mock file uploads/previews (`addMedia` cache calls) in try-catch handlers to prevent browser `QuotaExceededError` exceptions from crashing the page.
 - **Unified Media Library Management**:
   - Implemented `/media` and the `MediaLibrary.tsx` component to handle uploaded images, audio, video, and document attachments.
   - Displays dynamic file previews including custom video frame thumbnails and document extension badges (e.g. PDF, CSV).
