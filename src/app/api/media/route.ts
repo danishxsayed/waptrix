@@ -18,11 +18,11 @@ export async function GET() {
       process.env.SUPABASE_SERVICE_KEY!
     );
 
-    // Select metadata only — no data_url. Keeps list response tiny (<10 KB for 100 items)
-    // regardless of file sizes. Thumbnails are lazy-loaded per-item via GET /api/media/[id].
+    // Select all columns, then strip data_url in code.
+    // This avoids hardcoding column names (the mime type column varies: "type" vs "mime_type").
     const { data, error } = await serviceClient
       .from('media')
-      .select('id, name, type, size, created_at')
+      .select('*')
       .eq('tenant_id', user.id)
       .order('created_at', { ascending: false });
 
@@ -32,7 +32,8 @@ export async function GET() {
     const IMAGE_EXTS = ["jpg","jpeg","png","gif","webp","svg","avif"];
 
     const normalizedData = data.map(item => {
-      const mimeType: string = item.type || "";
+      // Support both "mime_type" and "type" column names
+      const mimeType: string = item.mime_type || item.type || "";
       const ext = (item.name || "").split(".").pop()?.toLowerCase() || "";
 
       let category: "IMAGE" | "VIDEO" | "DOCUMENT" = "DOCUMENT";
@@ -44,7 +45,7 @@ export async function GET() {
         name: item.name,
         category,
         mimeType,
-        sizeBytes: item.size ?? 0,
+        sizeBytes: item.size ?? item.size_bytes ?? 0,
         dataUrl: null as string | null,  // populated lazily by the client
         uploadedAt: item.created_at,
       };
@@ -79,7 +80,7 @@ export async function POST(request: Request) {
       .insert({
         tenant_id: user.id,
         name,
-        type,
+        mime_type: type,  // DB column is mime_type
         size,
         data_url: dataUrl,
       })
