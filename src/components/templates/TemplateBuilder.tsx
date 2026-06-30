@@ -345,47 +345,42 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   };
 
   // Upload a file to Supabase Storage and return a public HTTPS URL.
-  // Falls back to a local data URL if the upload fails (bucket not set up yet, etc.)
   const uploadToStorage = async (file: File): Promise<string> => {
     const fd = new FormData();
     fd.append("file", file);
-    const res = await axios.post("/api/upload", fd);
+    const res = await axios.post("/api/upload", fd, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    if (!res.data?.url) throw new Error("No URL returned from upload");
     return res.data.url as string;
+  };
+
+  const handleUpload = async (file: File) => {
+    setUploadingMedia(true);
+    setError("");
+    try {
+      const url = await uploadToStorage(file);
+      setFormData(prev => ({ ...prev, header_image_url: url }));
+      showToast("Uploaded successfully.");
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || "Upload failed";
+      setError(`Upload failed: ${msg}`);
+      showToast(`Upload failed: ${msg}`, "error");
+    } finally {
+      setUploadingMedia(false);
+    }
   };
 
   const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploadingMedia(true);
-    try {
-      const url = await uploadToStorage(file);
-      setFormData(prev => ({ ...prev, header_image_url: url }));
-      showToast("Image uploaded successfully.");
-    } catch {
-      // Bucket not ready — fall back to local preview
-      const dataUrl = await readFileAsDataUrl(file);
-      setFormData(prev => ({ ...prev, header_image_url: dataUrl }));
-      showToast("Storage not set up — showing local preview only.", "error");
-    } finally {
-      setUploadingMedia(false);
-    }
+    await handleUpload(file);
   };
 
   const handleMediaFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploadingMedia(true);
-    try {
-      const url = await uploadToStorage(file);
-      setFormData(prev => ({ ...prev, header_image_url: url }));
-      showToast("File uploaded successfully.");
-    } catch {
-      const dataUrl = await readFileAsDataUrl(file);
-      setFormData(prev => ({ ...prev, header_image_url: dataUrl }));
-      showToast("Storage not set up — showing local preview only.", "error");
-    } finally {
-      setUploadingMedia(false);
-    }
+    await handleUpload(file);
   };
 
   const handleDrop = async (e: React.DragEvent, accept: "image" | "video" | "document") => {
@@ -398,18 +393,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     if (accept === "image" && !isImage) { showToast("Please drop an image file.", "error"); return; }
     if (accept === "video" && !isVideo) { showToast("Please drop a video file (MP4, MOV, WebM).", "error"); return; }
     if (accept === "document" && (isImage || isVideo)) { showToast("Please drop a document file (PDF, Word, etc.).", "error"); return; }
-    setUploadingMedia(true);
-    try {
-      const url = await uploadToStorage(file);
-      setFormData(prev => ({ ...prev, header_image_url: url }));
-      showToast("File uploaded successfully.");
-    } catch {
-      const dataUrl = await readFileAsDataUrl(file);
-      setFormData(prev => ({ ...prev, header_image_url: dataUrl }));
-      showToast("Storage not set up — showing local preview only.", "error");
-    } finally {
-      setUploadingMedia(false);
-    }
+    await handleUpload(file);
   };
 
   const handleLibrarySelect = (item: MediaItem) => {

@@ -1,4 +1,9 @@
 export const dynamic = "force-dynamic";
+// Increase Vercel body size limit to 50MB for media uploads
+export const maxDuration = 60;
+export const config = {
+  api: { bodyParser: false },
+};
 
 import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
