@@ -40,6 +40,10 @@ interface Template {
   language: string;
   components: any[];
   meta_status: string;
+  header_type?: string;
+  header_text?: string;
+  footer?: string;
+  buttons?: { type: string; text: string; url?: string; phone_number?: string }[];
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -72,6 +76,75 @@ function groupByDate(messages: ChatMessage[]) {
     groups[groups.length - 1].messages.push(msg);
   }
   return groups;
+}
+
+// ─── Template Bubble ──────────────────────────────────────────────────────────
+function TemplateBubble({ template }: { template: Template }) {
+  const headerType = template.header_type || "NONE";
+  const headerText = template.header_text || "";
+  const isMediaHeader = ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType);
+  const isUrl = headerText.startsWith("http");
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-background/20 min-w-[220px] max-w-[260px]">
+      {/* Header */}
+      {headerType === "TEXT" && headerText && (
+        <div className="px-3 pt-2.5 pb-1">
+          <p className="font-bold text-sm leading-snug">{headerText}</p>
+        </div>
+      )}
+      {headerType === "IMAGE" && (
+        isUrl ? (
+          <img src={headerText} alt="Header" className="w-full h-32 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display="none"; }} />
+        ) : (
+          <div className="w-full h-32 bg-background/20 flex items-center justify-center">
+            <FileText className="w-8 h-8 opacity-40" />
+          </div>
+        )
+      )}
+      {headerType === "VIDEO" && (
+        isUrl ? (
+          <video src={headerText} className="w-full h-32 object-cover" muted playsInline />
+        ) : (
+          <div className="w-full h-32 bg-background/20 flex items-center justify-center">
+            <Play className="w-8 h-8 opacity-40" />
+          </div>
+        )
+      )}
+      {headerType === "DOCUMENT" && (
+        <div className="w-full px-3 py-2 bg-background/20 flex items-center gap-2">
+          <FileText className="w-5 h-5 opacity-60" />
+          <span className="text-xs opacity-70 truncate">{isUrl ? headerText.split("/").pop() : "Document"}</span>
+        </div>
+      )}
+
+      {/* Body */}
+      <div className="px-3 py-2">
+        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{template.body}</p>
+      </div>
+
+      {/* Footer */}
+      {template.footer && (
+        <div className="px-3 pb-2">
+          <p className="text-xs opacity-50">{template.footer}</p>
+        </div>
+      )}
+
+      {/* Buttons */}
+      {template.buttons && template.buttons.length > 0 && (
+        <div className="border-t border-background/20">
+          {template.buttons.map((btn, i) => (
+            <div
+              key={i}
+              className="px-3 py-2 text-center text-xs font-semibold border-b border-background/10 last:border-b-0 opacity-80"
+            >
+              {btn.text}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Extract ordered variable indices from a template body, e.g. ["1","2"] from "Hello {{1}}, enjoy {{2}}!" */
@@ -763,8 +836,23 @@ export default function InboxPanel({
                               </div>
                             )}
 
+                            {/* Template message bubble */}
+                            {(msg.type === "template" || msg.content?.startsWith("[Template:")) && (() => {
+                              const nameMatch = msg.content?.match(/^\[Template:\s*(.+)\]$/);
+                              const tplName = nameMatch?.[1]?.trim();
+                              const tpl = templates.find(t => t.name === tplName);
+                              return tpl ? (
+                                <TemplateBubble template={tpl} />
+                              ) : (
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words opacity-70 italic">
+                                  {tplName ? `Template: ${tplName}` : msg.content}
+                                </p>
+                              );
+                            })()}
+
                             {/* Text content — show for text messages and as caption for media */}
-                            {(msg.type === "text" || (msg.content && !["[image]","[video]","[audio]","[document]","[sticker]"].includes(msg.content))) && (
+                            {msg.type !== "template" && !msg.content?.startsWith("[Template:") &&
+                             (msg.type === "text" || (msg.content && !["[image]","[video]","[audio]","[document]","[sticker]"].includes(msg.content))) && (
                               <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                                 {msg.content}
                               </p>

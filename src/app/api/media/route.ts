@@ -80,7 +80,7 @@ export async function POST(request: Request) {
         tenant_id: user.id,
         name,
         type,          // actual DB column name is "type"
-        size,
+        // "size" column does not exist in schema — skip it
         data_url: dataUrl,
       })
       .select()
