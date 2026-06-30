@@ -4,6 +4,9 @@
 - **Manual Refresh & Error States**:
   - Integrated a manual refresh action button (`RefreshCw` icon) next to the upload tool in `MediaLibrary.tsx` to reload files list quickly.
   - Implemented client-side API error handling with custom error description parsing and a fallback retry visual interface to handle network/endpoint failures gracefully.
+- **Media Schema Compatibility**:
+  - Updated `/api/media/route.ts` to flexibly read metadata parameters from different database schemas (handling `type` / `mime_type` and `size` / `size_bytes` keys cleanly).
+  - Patched POST upload handler to write to `mime_type` instead of `type` to match database requirements.
 
 ## [2026-06-29] - Column Mapper Improvements & Inbox Chat Initiation
 - **Country Code Validation**:
