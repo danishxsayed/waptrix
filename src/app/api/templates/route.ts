@@ -66,15 +66,10 @@ export async function POST(request: Request) {
       buttons 
     } = body;
 
-    // Never store base64 data URLs — they can be many MB and cause DB statement timeouts.
-    // Meta also requires a public HTTPS URL, not a data URL.
+    // Strip base64 data URLs before saving — they cause DB statement timeouts.
+    // The frontend keeps the data URL in memory for preview; only the public URL (if any) is persisted.
     const rawHeaderValue = header_type === 'TEXT' ? header_text : header_image_url;
-    if (rawHeaderValue && rawHeaderValue.startsWith('data:')) {
-      return NextResponse.json({
-        error: `${header_type} header must be a public URL. Please upload your file to the Media Library and paste its URL, or use a direct HTTPS link.`
-      }, { status: 400 });
-    }
-    const resolvedHeaderText = rawHeaderValue || '';
+    const resolvedHeaderText = (rawHeaderValue && rawHeaderValue.startsWith('data:')) ? '' : (rawHeaderValue || '');
 
     const serviceClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,

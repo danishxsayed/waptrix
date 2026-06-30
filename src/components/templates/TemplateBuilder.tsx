@@ -316,6 +316,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -343,27 +344,48 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
+  // Upload a file to Supabase Storage and return a public HTTPS URL.
+  // Falls back to a local data URL if the upload fails (bucket not set up yet, etc.)
+  const uploadToStorage = async (file: File): Promise<string> => {
+    const fd = new FormData();
+    fd.append("file", file);
+    const res = await axios.post("/api/upload", fd);
+    return res.data.url as string;
+  };
+
   const handleImageFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const dataUrl = await readFileAsDataUrl(file);
-    // addMedia writes to localStorage — wrap so a QuotaExceededError doesn't block the preview
+    setUploadingMedia(true);
     try {
-      const { addMedia } = await import("@/lib/mediaStore");
-      addMedia({ name: file.name, category: "IMAGE", dataUrl, mimeType: file.type, sizeBytes: file.size });
-    } catch { /* localStorage full — preview still works */ }
-    setFormData({ ...formData, header_image_url: dataUrl });
+      const url = await uploadToStorage(file);
+      setFormData(prev => ({ ...prev, header_image_url: url }));
+      showToast("Image uploaded successfully.");
+    } catch {
+      // Bucket not ready — fall back to local preview
+      const dataUrl = await readFileAsDataUrl(file);
+      setFormData(prev => ({ ...prev, header_image_url: dataUrl }));
+      showToast("Storage not set up — showing local preview only.", "error");
+    } finally {
+      setUploadingMedia(false);
+    }
   };
 
   const handleMediaFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const dataUrl = await readFileAsDataUrl(file);
+    setUploadingMedia(true);
     try {
-      const { addMedia } = await import("@/lib/mediaStore");
-      addMedia({ name: file.name, category: categoryFromMime(file.type), dataUrl, mimeType: file.type, sizeBytes: file.size });
-    } catch { /* localStorage full — preview still works */ }
-    setFormData({ ...formData, header_image_url: dataUrl });
+      const url = await uploadToStorage(file);
+      setFormData(prev => ({ ...prev, header_image_url: url }));
+      showToast("File uploaded successfully.");
+    } catch {
+      const dataUrl = await readFileAsDataUrl(file);
+      setFormData(prev => ({ ...prev, header_image_url: dataUrl }));
+      showToast("Storage not set up — showing local preview only.", "error");
+    } finally {
+      setUploadingMedia(false);
+    }
   };
 
   const handleDrop = async (e: React.DragEvent, accept: "image" | "video" | "document") => {
@@ -373,16 +395,21 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     if (!file) return;
     const isImage = file.type.startsWith("image/");
     const isVideo = file.type.startsWith("video/");
-    const isDoc = !isImage && !isVideo;
     if (accept === "image" && !isImage) { showToast("Please drop an image file.", "error"); return; }
     if (accept === "video" && !isVideo) { showToast("Please drop a video file (MP4, MOV, WebM).", "error"); return; }
     if (accept === "document" && (isImage || isVideo)) { showToast("Please drop a document file (PDF, Word, etc.).", "error"); return; }
-    const dataUrl = await readFileAsDataUrl(file);
+    setUploadingMedia(true);
     try {
-      const { addMedia } = await import("@/lib/mediaStore");
-      addMedia({ name: file.name, category: categoryFromMime(file.type), dataUrl, mimeType: file.type, sizeBytes: file.size });
-    } catch { /* localStorage full — preview still works */ }
-    setFormData({ ...formData, header_image_url: dataUrl });
+      const url = await uploadToStorage(file);
+      setFormData(prev => ({ ...prev, header_image_url: url }));
+      showToast("File uploaded successfully.");
+    } catch {
+      const dataUrl = await readFileAsDataUrl(file);
+      setFormData(prev => ({ ...prev, header_image_url: dataUrl }));
+      showToast("Storage not set up — showing local preview only.", "error");
+    } finally {
+      setUploadingMedia(false);
+    }
   };
 
   const handleLibrarySelect = (item: MediaItem) => {
@@ -441,10 +468,10 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     if (!formData.name.trim()) { setError("Template name is required."); return; }
     if (!formData.body.trim()) { setError("Body message is required."); return; }
 
-    // Meta requires a public URL for media headers — base64 data URLs will time out the DB and fail Meta
+    // When submitting to Meta, a public HTTPS URL is required — base64 data URLs won't work
     const isMediaHeader = formData.header_type === "IMAGE" || formData.header_type === "VIDEO" || formData.header_type === "DOCUMENT";
-    if (isMediaHeader && formData.header_image_url.startsWith("data:")) {
-      setError(`File uploads are for preview only. For Meta submission, paste a public HTTPS URL in the "${formData.header_type.charAt(0) + formData.header_type.slice(1).toLowerCase()} URL" field instead of uploading a file directly.`);
+    if (submitToMeta && isMediaHeader && formData.header_image_url.startsWith("data:")) {
+      setError(`To submit to Meta, paste a public HTTPS URL in the "${formData.header_type.charAt(0) + formData.header_type.slice(1).toLowerCase()} URL" field. File uploads are for preview only.`);
       return;
     }
 
@@ -738,16 +765,21 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                       <div className="space-y-3">
                         <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
                         <div className="flex gap-2">
-                          <button onClick={() => imageInputRef.current?.click()} disabled={isPostSubmit}
-                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-jade/40 hover:text-jade transition-all">
-                            <Upload className="w-3.5 h-3.5" /> Upload Image
+                          <button onClick={() => imageInputRef.current?.click()} disabled={isPostSubmit || uploadingMedia}
+                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-jade/40 hover:text-jade transition-all disabled:opacity-50">
+                            {uploadingMedia ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} Upload Image
                           </button>
-                          <button onClick={() => setShowMediaLibrary(true)} disabled={isPostSubmit}
-                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-jade/40 hover:text-jade transition-all">
+                          <button onClick={() => setShowMediaLibrary(true)} disabled={isPostSubmit || uploadingMedia}
+                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-jade/40 hover:text-jade transition-all disabled:opacity-50">
                             <FolderOpen className="w-3.5 h-3.5" /> Choose from Library
                           </button>
                         </div>
-                        {formData.header_image_url ? (
+                        {uploadingMedia ? (
+                          <div className="w-full border-2 border-dashed border-jade/40 rounded-xl p-5 flex flex-col items-center gap-2 bg-jade/5">
+                            <Loader2 className="w-7 h-7 text-jade animate-spin" />
+                            <span className="text-sm font-semibold text-jade">Uploading…</span>
+                          </div>
+                        ) : formData.header_image_url ? (
                           <div className="relative group">
                             <img src={formData.header_image_url} alt="Header" className="w-full max-h-36 object-cover rounded-xl border border-border" />
                             {!isPostSubmit && (
@@ -783,19 +815,24 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                       <div className="space-y-3">
                         <input ref={videoInputRef} type="file" accept="video/mp4,video/quicktime,video/webm" className="hidden" onChange={handleMediaFile} />
                         <div className="flex gap-2">
-                          <button onClick={() => videoInputRef.current?.click()} disabled={isPostSubmit}
-                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-blue-400/40 hover:text-blue-400 transition-all">
-                            <Upload className="w-3.5 h-3.5" /> Upload Video
+                          <button onClick={() => videoInputRef.current?.click()} disabled={isPostSubmit || uploadingMedia}
+                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-blue-400/40 hover:text-blue-400 transition-all disabled:opacity-50">
+                            {uploadingMedia ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} Upload Video
                           </button>
-                          <button onClick={() => setShowMediaLibrary(true)} disabled={isPostSubmit}
-                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-blue-400/40 hover:text-blue-400 transition-all">
+                          <button onClick={() => setShowMediaLibrary(true)} disabled={isPostSubmit || uploadingMedia}
+                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-blue-400/40 hover:text-blue-400 transition-all disabled:opacity-50">
                             <FolderOpen className="w-3.5 h-3.5" /> Choose from Library
                           </button>
                         </div>
-                        {formData.header_image_url ? (
+                        {uploadingMedia ? (
+                          <div className="w-full border-2 border-dashed border-blue-400/40 rounded-xl p-5 flex flex-col items-center gap-2 bg-blue-400/5">
+                            <Loader2 className="w-7 h-7 text-blue-400 animate-spin" />
+                            <span className="text-sm font-semibold text-blue-400">Uploading…</span>
+                          </div>
+                        ) : formData.header_image_url ? (
                           <div className="flex items-center gap-3 p-3 bg-blue-400/10 border border-blue-400/20 rounded-xl">
                             <Film className="w-7 h-7 text-blue-400 flex-shrink-0" />
-                            <p className="text-xs font-semibold text-blue-400 flex-1 truncate">{formData.header_image_url.startsWith("data:") ? "Video uploaded ✓" : formData.header_image_url}</p>
+                            <p className="text-xs font-semibold text-blue-400 flex-1 truncate">{formData.header_image_url.startsWith("data:") ? "Video (local preview)" : formData.header_image_url}</p>
                             {!isPostSubmit && <button onClick={() => setFormData({ ...formData, header_image_url: "" })} className="p-1.5 text-text-muted hover:text-danger"><Trash2 className="w-4 h-4" /></button>}
                           </div>
                         ) : (
@@ -821,19 +858,24 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                       <div className="space-y-3">
                         <input ref={docInputRef} type="file" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx" className="hidden" onChange={handleMediaFile} />
                         <div className="flex gap-2">
-                          <button onClick={() => docInputRef.current?.click()} disabled={isPostSubmit}
-                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-amber-400/40 hover:text-amber-400 transition-all">
-                            <Upload className="w-3.5 h-3.5" /> Upload Document
+                          <button onClick={() => docInputRef.current?.click()} disabled={isPostSubmit || uploadingMedia}
+                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-amber-400/40 hover:text-amber-400 transition-all disabled:opacity-50">
+                            {uploadingMedia ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />} Upload Document
                           </button>
-                          <button onClick={() => setShowMediaLibrary(true)} disabled={isPostSubmit}
-                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-amber-400/40 hover:text-amber-400 transition-all">
+                          <button onClick={() => setShowMediaLibrary(true)} disabled={isPostSubmit || uploadingMedia}
+                            className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-xl text-xs font-semibold text-text-muted hover:border-amber-400/40 hover:text-amber-400 transition-all disabled:opacity-50">
                             <FolderOpen className="w-3.5 h-3.5" /> Choose from Library
                           </button>
                         </div>
-                        {formData.header_image_url ? (
+                        {uploadingMedia ? (
+                          <div className="w-full border-2 border-dashed border-amber-400/40 rounded-xl p-5 flex flex-col items-center gap-2 bg-amber-400/5">
+                            <Loader2 className="w-7 h-7 text-amber-400 animate-spin" />
+                            <span className="text-sm font-semibold text-amber-400">Uploading…</span>
+                          </div>
+                        ) : formData.header_image_url ? (
                           <div className="flex items-center gap-3 p-3 bg-amber-400/10 border border-amber-400/20 rounded-xl">
                             <FileIcon className="w-7 h-7 text-amber-400 flex-shrink-0" />
-                            <p className="text-xs font-semibold text-amber-400 flex-1 truncate">{formData.header_image_url.startsWith("data:") ? "Document uploaded ✓" : formData.header_image_url}</p>
+                            <p className="text-xs font-semibold text-amber-400 flex-1 truncate">{formData.header_image_url.startsWith("data:") ? "Document (local preview)" : formData.header_image_url}</p>
                             {!isPostSubmit && <button onClick={() => setFormData({ ...formData, header_image_url: "" })} className="p-1.5 text-text-muted hover:text-danger"><Trash2 className="w-4 h-4" /></button>}
                           </div>
                         ) : (
