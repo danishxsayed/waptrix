@@ -10,6 +10,10 @@
 - **Media Upload Error Banner & Header Cleanups**:
   - Implemented an inline, dismissible upload error notification banner inside `MediaLibrary.tsx` to print descriptive file size or API errors clearly without browser alert dialog popups.
   - Removed the redundant upload modal launcher button on the `/media` page, decluttering the dashboard view since the inline container handles uploads directly.
+- **Conversational Inbox Visual Template Messages**:
+  - Implemented visual template message bubble rendering in `InboxPanel.tsx` using a custom `TemplateBubble` component that parses the template payload to render media headers, body text, footers, and buttons.
+- **Media API Database Alignment**:
+  - Removed the `size` column from the `/api/media` POST insert query since it does not exist in the database schema, resolving file upload failures.
 
 ## [2026-06-29] - Column Mapper Improvements & Inbox Chat Initiation
 - **Country Code Validation**:
