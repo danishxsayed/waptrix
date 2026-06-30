@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import {
   X, Search, Trash2, Image as ImageIcon, Film, FileText,
-  UploadCloud, CheckCircle2, Grid3X3, List, FolderOpen
+  UploadCloud, CheckCircle2, Grid3X3, List, FolderOpen, RefreshCw
 } from "lucide-react";
 import axios from "axios";
 import {
@@ -298,6 +298,7 @@ export default function MediaLibrary({
 }: MediaLibraryProps) {
   const [items, setItems] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string>("");
   const [search, setSearch] = useState("");
   const [activeTab, setActiveTab] = useState<MediaCategory | "ALL">(filterCategory || "ALL");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
@@ -312,11 +313,21 @@ export default function MediaLibrary({
 
   const fetchMedia = async (quiet = false) => {
     if (!quiet) setLoading(true);
+    setFetchError("");
     try {
       const res = await axios.get("/api/media");
-      setItems(res.data);
-    } catch (err) {
-      console.error("Failed to fetch media", err);
+      // Guard: API must return an array
+      if (Array.isArray(res.data)) {
+        setItems(res.data);
+      } else {
+        const msg = res.data?.error || "Unexpected response from server.";
+        setFetchError(msg);
+        console.error("Media API error:", msg);
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.error || err.message || "Failed to load media.";
+      setFetchError(msg);
+      console.error("Failed to fetch media:", msg);
     } finally {
       setLoading(false);
     }
@@ -436,6 +447,14 @@ export default function MediaLibrary({
             className="hidden"
             onChange={(e) => e.target.files && uploadFiles(e.target.files)}
           />
+          <button
+            onClick={() => fetchMedia(true)}
+            disabled={loading}
+            title="Refresh"
+            className="p-2 text-text-muted hover:bg-surface rounded-lg border border-border transition-colors"
+          >
+            <RefreshCw className={`w-4 h-4 ${loading ? "animate-spin" : ""}`} />
+          </button>
           <button onClick={() => fileInputRef.current?.click()} className="btn-primary flex items-center gap-2 text-sm px-4 py-2">
             <UploadCloud className="w-4 h-4" />
             Upload
@@ -501,7 +520,20 @@ export default function MediaLibrary({
           </div>
         )}
 
-        {loading ? (
+        {fetchError ? (
+          <div className="flex flex-col items-center justify-center h-full gap-4 text-center py-16">
+            <div className="w-14 h-14 rounded-full bg-danger/10 border border-danger/20 flex items-center justify-center">
+              <X className="w-7 h-7 text-danger" />
+            </div>
+            <div>
+              <p className="font-semibold text-danger">Failed to load media</p>
+              <p className="text-xs text-text-muted mt-1 max-w-xs">{fetchError}</p>
+            </div>
+            <button onClick={() => fetchMedia()} className="btn-primary flex items-center gap-2 mt-2">
+              <UploadCloud className="w-4 h-4" /> Retry
+            </button>
+          </div>
+        ) : loading ? (
           <div className="grid grid-cols-3 sm:grid-cols-4 gap-4">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="rounded-xl border border-border overflow-hidden animate-pulse">
