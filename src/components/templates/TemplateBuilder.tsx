@@ -347,8 +347,11 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     const file = e.target.files?.[0];
     if (!file) return;
     const dataUrl = await readFileAsDataUrl(file);
-    const { addMedia } = await import("@/lib/mediaStore");
-    addMedia({ name: file.name, category: "IMAGE", dataUrl, mimeType: file.type, sizeBytes: file.size });
+    // addMedia writes to localStorage — wrap so a QuotaExceededError doesn't block the preview
+    try {
+      const { addMedia } = await import("@/lib/mediaStore");
+      addMedia({ name: file.name, category: "IMAGE", dataUrl, mimeType: file.type, sizeBytes: file.size });
+    } catch { /* localStorage full — preview still works */ }
     setFormData({ ...formData, header_image_url: dataUrl });
   };
 
@@ -356,8 +359,10 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     const file = e.target.files?.[0];
     if (!file) return;
     const dataUrl = await readFileAsDataUrl(file);
-    const { addMedia } = await import("@/lib/mediaStore");
-    addMedia({ name: file.name, category: categoryFromMime(file.type), dataUrl, mimeType: file.type, sizeBytes: file.size });
+    try {
+      const { addMedia } = await import("@/lib/mediaStore");
+      addMedia({ name: file.name, category: categoryFromMime(file.type), dataUrl, mimeType: file.type, sizeBytes: file.size });
+    } catch { /* localStorage full — preview still works */ }
     setFormData({ ...formData, header_image_url: dataUrl });
   };
 
@@ -373,8 +378,10 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     if (accept === "video" && !isVideo) { showToast("Please drop a video file (MP4, MOV, WebM).", "error"); return; }
     if (accept === "document" && (isImage || isVideo)) { showToast("Please drop a document file (PDF, Word, etc.).", "error"); return; }
     const dataUrl = await readFileAsDataUrl(file);
-    const { addMedia } = await import("@/lib/mediaStore");
-    addMedia({ name: file.name, category: categoryFromMime(file.type), dataUrl, mimeType: file.type, sizeBytes: file.size });
+    try {
+      const { addMedia } = await import("@/lib/mediaStore");
+      addMedia({ name: file.name, category: categoryFromMime(file.type), dataUrl, mimeType: file.type, sizeBytes: file.size });
+    } catch { /* localStorage full — preview still works */ }
     setFormData({ ...formData, header_image_url: dataUrl });
   };
 
