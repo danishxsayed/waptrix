@@ -79,9 +79,9 @@ export async function POST(request: Request) {
       .insert({
         tenant_id: user.id,
         name,
-        type,          // actual DB column name is "type"
-        // "size" column does not exist in schema — skip it
         data_url: dataUrl,
+        // "type" and "size" columns don't exist in this schema — category
+        // and size are derived client-side from filename/file.size instead.
       })
       .select()
       .single();

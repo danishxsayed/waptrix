@@ -342,7 +342,7 @@ export default function MediaLibrary({
       }
       try {
         const dataUrl = await readFileAsDataUrl(file);
-        const res = await axios.post("/api/media", { name: file.name, type: file.type, size: file.size, dataUrl });
+        const res = await axios.post("/api/media", { name: file.name, dataUrl });
         // Pre-seed the cache so the new LazyCard renders the thumbnail instantly
         if (res.data?.id) {
           thumbnailCache.set(res.data.id, dataUrl);
