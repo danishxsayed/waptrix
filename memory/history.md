@@ -3,6 +3,9 @@
 ## [2026-07-01] - Template Submission Improvements
 - **Template Submit Validator Refinement**:
   - Removed client-side base64 validation block from `TemplateBuilder.tsx` since the backend API automatically handles and strips data URLs before submitting format-only components to Meta.
+- **Template Submission Constraint Norms & Error Parsing**:
+  - Refactored Meta template name normalization in the submit route `/api/templates/[id]/submit` to replace whitespace with underscores and strip invalid symbols to strictly follow Meta API naming rules.
+  - Enriched Meta API error logging and JSON response schemas to parse detailed user-facing rejections (`error_user_msg` and `error_subcode`) and expose them directly to the builder UI for better debuggability.
 
 ## [2026-06-30] - Media Library Refresh & Error Handling
 - **Manual Refresh & Error States**:
