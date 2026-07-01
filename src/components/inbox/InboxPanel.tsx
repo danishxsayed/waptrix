@@ -153,6 +153,15 @@ function extractTemplateVars(body: string): string[] {
   return matches.sort((a, b) => Number(a) - Number(b));
 }
 
+/** Returns the indices (in the buttons array) of URL buttons that have a dynamic {{1}} suffix */
+function urlButtonIndices(buttons?: { type: string; url?: string }[]): number[] {
+  if (!buttons) return [];
+  return buttons.reduce<number[]>((acc, btn, i) => {
+    if (btn.type === "URL" && btn.url && /\{\{1\}\}/.test(btn.url)) acc.push(i);
+    return acc;
+  }, []);
+}
+
 function avatarInitials(name: string) {
   return name
     .split(" ")
@@ -199,6 +208,7 @@ export default function InboxPanel({
   const [mediaPreview, setMediaPreview] = useState<string>("");
   const [sendError, setSendError] = useState<string>("");
   const [templateVarValues, setTemplateVarValues] = useState<string[]>([]);
+  const [templateBtnValues, setTemplateBtnValues] = useState<string[]>([]);
 
   // ── New Chat state
   const [showNewChat, setShowNewChat] = useState(false);
@@ -206,6 +216,7 @@ export default function InboxPanel({
   const [newChatName, setNewChatName] = useState("");
   const [newChatTemplate, setNewChatTemplate] = useState<Template | null>(null);
   const [newChatVarValues, setNewChatVarValues] = useState<string[]>([]);
+  const [newChatBtnValues, setNewChatBtnValues] = useState<string[]>([]);
   const [newChatSending, setNewChatSending] = useState(false);
   const [newChatError, setNewChatError] = useState("");
 
@@ -475,11 +486,18 @@ export default function InboxPanel({
       const bodyComponents = vars.length > 0
         ? [{ type: "body", parameters: templateVarValues.map(v => ({ type: "text", text: v || " " })) }]
         : [];
+      const btnIndices = urlButtonIndices(selectedTemplate.buttons);
+      const btnComponents = btnIndices.map((btnIdx, i) => ({
+        type: "button",
+        sub_type: "url",
+        index: String(btnIdx),
+        parameters: [{ type: "text", text: templateBtnValues[i] || "" }],
+      }));
       body = {
         type: "template",
         templateName: selectedTemplate.name,
         languageCode: selectedTemplate.language || "en_US",
-        components: bodyComponents,
+        components: [...bodyComponents, ...btnComponents],
       };
     } else if (replyMode === "media" && mediaFile) {
       const mediaType = mediaFile.type.startsWith("image/") ? "image"
@@ -515,6 +533,7 @@ export default function InboxPanel({
     setMediaPreview("");
     setSelectedTemplate(null);
     setTemplateVarValues([]);
+    setTemplateBtnValues([]);
     setSendError("");
 
     setIsSending(true);
@@ -579,9 +598,17 @@ export default function InboxPanel({
     setNewChatSending(true);
     try {
       const newChatVars = extractTemplateVars(newChatTemplate.body);
-      const newChatComponents = newChatVars.length > 0
+      const newChatBodyComponents = newChatVars.length > 0
         ? [{ type: "body", parameters: newChatVarValues.map(v => ({ type: "text", text: v || " " })) }]
         : [];
+      const newChatBtnIndices = urlButtonIndices(newChatTemplate.buttons);
+      const newChatBtnComponents = newChatBtnIndices.map((btnIdx, i) => ({
+        type: "button",
+        sub_type: "url",
+        index: String(btnIdx),
+        parameters: [{ type: "text", text: newChatBtnValues[i] || "" }],
+      }));
+      const newChatComponents = [...newChatBodyComponents, ...newChatBtnComponents];
       const res = await fetch("/api/conversations/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -609,6 +636,8 @@ export default function InboxPanel({
       setNewChatPhone("");
       setNewChatName("");
       setNewChatTemplate(null);
+      setNewChatVarValues([]);
+      setNewChatBtnValues([]);
       selectConversation(conv);
     } catch (err: any) {
       setNewChatError(err.message || "Failed to start conversation.");
@@ -966,9 +995,10 @@ export default function InboxPanel({
                         onChange={(e) => {
                           const t = templates.find((t) => t.id === e.target.value) || null;
                           setSelectedTemplate(t);
-                          // Reset variable values for new template
                           const vars = extractTemplateVars(t?.body || "");
                           setTemplateVarValues(vars.map(() => ""));
+                          const btnIdxs = urlButtonIndices(t?.buttons);
+                          setTemplateBtnValues(btnIdxs.map(() => ""));
                         }}
                         defaultValue=""
                       >
@@ -980,14 +1010,15 @@ export default function InboxPanel({
 
                       {selectedTemplate && (() => {
                         const vars = extractTemplateVars(selectedTemplate.body);
+                        const btnIdxs = urlButtonIndices(selectedTemplate.buttons);
                         return (
                           <>
-                            {/* Template body preview with variable placeholders highlighted */}
+                            {/* Template body preview */}
                             <div className="bg-surface border border-jade/20 rounded-xl p-3 text-xs text-text-muted italic">
                               &ldquo;{selectedTemplate.body}&rdquo;
                             </div>
 
-                            {/* Variable inputs */}
+                            {/* Body variable inputs */}
                             {vars.length > 0 && (
                               <div className="space-y-2 p-3 bg-surface/50 border border-border rounded-xl">
                                 <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">
@@ -1013,6 +1044,35 @@ export default function InboxPanel({
                                 ))}
                               </div>
                             )}
+
+                            {/* URL button suffix inputs */}
+                            {btnIdxs.length > 0 && (
+                              <div className="space-y-2 p-3 bg-surface/50 border border-amber-500/20 rounded-xl">
+                                <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">
+                                  Button URL suffix
+                                </p>
+                                {btnIdxs.map((btnIdx, i) => {
+                                  const btn = selectedTemplate.buttons![btnIdx];
+                                  const baseUrl = (btn.url || "").replace(/\{\{1\}\}$/, "");
+                                  return (
+                                    <div key={btnIdx} className="space-y-1">
+                                      <p className="text-[10px] text-text-muted truncate">{btn.text}: <span className="text-amber-400">{baseUrl}</span><span className="text-jade">…</span></p>
+                                      <input
+                                        type="text"
+                                        value={templateBtnValues[i] || ""}
+                                        onChange={e => {
+                                          const updated = [...templateBtnValues];
+                                          updated[i] = e.target.value;
+                                          setTemplateBtnValues(updated);
+                                        }}
+                                        placeholder="URL suffix (e.g. page/123)"
+                                        className="w-full bg-background border border-border rounded-lg px-3 py-1.5 text-xs text-text-primary focus:outline-none focus:border-amber-500/50"
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
                           </>
                         );
                       })()}
@@ -1022,6 +1082,9 @@ export default function InboxPanel({
                         disabled={isSending || !selectedTemplate || (
                           extractTemplateVars(selectedTemplate?.body || "").length > 0 &&
                           templateVarValues.some(v => !v.trim())
+                        ) || (
+                          urlButtonIndices(selectedTemplate?.buttons).length > 0 &&
+                          templateBtnValues.some(v => !v.trim())
                         )}
                         className="w-full py-2.5 bg-jade text-background text-sm font-bold rounded-xl disabled:opacity-40 hover:bg-jade/90 transition-colors flex items-center justify-center gap-2"
                       >
@@ -1191,6 +1254,8 @@ export default function InboxPanel({
                       setNewChatTemplate(t);
                       const vars = extractTemplateVars(t?.body || "");
                       setNewChatVarValues(vars.map(() => ""));
+                      const btnIdxs = urlButtonIndices(t?.buttons);
+                      setNewChatBtnValues(btnIdxs.map(() => ""));
                     }}
                     className="input-field w-full text-sm bg-background border-border"
                   >
@@ -1202,6 +1267,7 @@ export default function InboxPanel({
                 )}
                 {newChatTemplate && (() => {
                   const vars = extractTemplateVars(newChatTemplate.body);
+                  const btnIdxs = urlButtonIndices(newChatTemplate.buttons);
                   return (
                     <>
                       <div className="p-3 bg-surface border border-border rounded-xl text-xs text-text-muted leading-relaxed">
@@ -1231,6 +1297,31 @@ export default function InboxPanel({
                           ))}
                         </div>
                       )}
+                      {btnIdxs.length > 0 && (
+                        <div className="space-y-2 p-3 bg-surface/50 border border-amber-500/20 rounded-xl">
+                          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Button URL suffix</p>
+                          {btnIdxs.map((btnIdx, i) => {
+                            const btn = newChatTemplate.buttons![btnIdx];
+                            const baseUrl = (btn.url || "").replace(/\{\{1\}\}$/, "");
+                            return (
+                              <div key={btnIdx} className="space-y-1">
+                                <p className="text-[10px] text-text-muted truncate">{btn.text}: <span className="text-amber-400">{baseUrl}</span><span className="text-jade">…</span></p>
+                                <input
+                                  type="text"
+                                  value={newChatBtnValues[i] || ""}
+                                  onChange={e => {
+                                    const updated = [...newChatBtnValues];
+                                    updated[i] = e.target.value;
+                                    setNewChatBtnValues(updated);
+                                  }}
+                                  placeholder="URL suffix (e.g. page/123)"
+                                  className="input-field w-full text-xs py-1.5"
+                                />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
                     </>
                   );
                 })()}
@@ -1258,6 +1349,9 @@ export default function InboxPanel({
                   disabled={newChatSending || !newChatPhone.trim() || !newChatTemplate || (
                     extractTemplateVars(newChatTemplate?.body || "").length > 0 &&
                     newChatVarValues.some(v => !v.trim())
+                  ) || (
+                    urlButtonIndices(newChatTemplate?.buttons).length > 0 &&
+                    newChatBtnValues.some(v => !v.trim())
                   )}
                   className="flex-1 btn-primary py-2.5 text-sm flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
