@@ -186,33 +186,33 @@ function StatusIcon({ status }: { status: string }) {
 
 // ─── Quoted message bubble ────────────────────────────────────────────────────
 
-function QuotedMessage({ msg, isOutbound }: { msg: ChatMessage; isOutbound: boolean }) {
-  let preview = msg.content || "";
-  // Friendly labels for special types
-  if (msg.type === "template" || preview.startsWith("[Template:")) {
+/** Quoted context rendered INSIDE the message bubble — matches WhatsApp style */
+function QuotedBubble({ quoted, isOutbound }: { quoted: ChatMessage; isOutbound: boolean }) {
+  let preview = quoted.content || "";
+  if (quoted.type === "template" || preview.startsWith("[Template:")) {
     const m = preview.match(/^\[Template:\s*(.+)\]$/);
     preview = m ? `Template: ${m[1]}` : "Template message";
-  } else if (["image", "video", "audio", "document", "sticker"].includes(msg.type)) {
-    preview = `📎 ${msg.type.charAt(0).toUpperCase() + msg.type.slice(1)}`;
+  } else if (["image", "video", "audio", "document", "sticker"].includes(quoted.type)) {
+    preview = `📎 ${quoted.type.charAt(0).toUpperCase() + quoted.type.slice(1)}`;
   } else if (preview === "[button message]") {
     preview = "Button reply";
   }
-  if (preview.length > 80) preview = preview.slice(0, 80) + "…";
+  if (preview.length > 100) preview = preview.slice(0, 100) + "…";
 
   return (
-    <div className={`flex mb-1 ${isOutbound ? "justify-end" : "justify-start"}`}>
-      <div
-        className={`max-w-[85%] rounded-lg overflow-hidden border-l-4 ${
-          isOutbound
-            ? "border-jade/60 bg-jade/5 text-right"
-            : "border-text-muted/40 bg-surface/60"
-        } px-3 py-2`}
-      >
-        <p className={`text-[10px] font-bold mb-0.5 ${isOutbound ? "text-jade/80" : "text-text-muted"}`}>
-          {msg.direction === "outbound" ? "You" : "Contact"}
-        </p>
-        <p className="text-xs text-text-muted leading-snug line-clamp-2">{preview}</p>
-      </div>
+    <div
+      className={`border-l-4 pl-3 pr-2 py-1.5 mb-2 rounded-r-lg ${
+        isOutbound
+          ? "border-background/50 bg-background/10"
+          : "border-jade/60 bg-jade/5"
+      }`}
+    >
+      <p className={`text-[11px] font-bold mb-0.5 ${isOutbound ? "text-background/70" : "text-jade"}`}>
+        {quoted.direction === "outbound" ? "You" : "Contact"}
+      </p>
+      <p className={`text-xs leading-snug line-clamp-2 ${isOutbound ? "text-background/60" : "text-text-muted"}`}>
+        {preview}
+      </p>
     </div>
   );
 }
@@ -861,16 +861,12 @@ export default function InboxPanel({
                     <div className="space-y-2">
                       {group.messages.map((msg) => {
                         const isOutbound = msg.direction === "outbound";
-                        // Find the message being replied to (match by meta_message_id)
+                        // Find the message being replied to (matched by meta_message_id)
                         const quotedMsg = msg.replied_to_message_id
                           ? messages.find(m => m.meta_message_id === msg.replied_to_message_id)
                           : null;
                         return (
                         <div key={msg.id}>
-                          {/* Quoted context bubble */}
-                          {quotedMsg && (
-                            <QuotedMessage msg={quotedMsg} isOutbound={isOutbound} />
-                          )}
                         <div
                           className={`flex ${isOutbound ? "justify-end" : "justify-start"}`}
                         >
@@ -881,6 +877,11 @@ export default function InboxPanel({
                                 : "bg-card border border-border text-text-primary rounded-bl-sm"
                             }`}
                           >
+                            {/* Quoted context — inside the bubble */}
+                            {quotedMsg && (
+                              <QuotedBubble quoted={quotedMsg} isOutbound={isOutbound} />
+                            )}
+
                             {/* Media rendering */}
                             {msg.type === "image" && (msg.media_id || msg.media_url) && (() => {
                               const src = msg.media_url || `/api/whatsapp/media/${msg.media_id}`;
@@ -953,14 +954,11 @@ export default function InboxPanel({
                               );
                             })()}
 
-                            {/* Button reply (quick reply tap) */}
+                            {/* Button reply (quick reply tap) — render as plain text */}
                             {(msg.type === "button" || msg.content === "[button message]") && (
-                              <div className="flex items-center gap-2 text-sm">
-                                <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Quick Reply</span>
-                                <span className="font-semibold">
-                                  {msg.content === "[button message]" ? "Button reply" : msg.content}
-                                </span>
-                              </div>
+                              <p className="text-sm font-medium">
+                                {msg.content === "[button message]" ? "—" : msg.content}
+                              </p>
                             )}
 
                             {/* Text content — show for text messages and as caption for media */}
