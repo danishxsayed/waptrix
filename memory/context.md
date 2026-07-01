@@ -53,7 +53,7 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Previews template body texts inside the `PhonePreview` using a parser (`renderWAText`) that renders bold (`*bold*`), italic (`_italic_`), strikethrough (`~strike~`), monospace code (`code`), and variables natively according to WhatsApp's formatting syntax, layered over a realistic WhatsApp chat wallpaper background.
   - Supports drag-and-drop file uploads in template builder image, video, and document header zones.
   - Automatically closes the TemplateBuilder modal upon successful submission, triggers a success toast notification, and maps the review status to "Under Review".
-  - Enforces public HTTPS URLs for media headers, rejecting base64 data URLs in `/api/templates`, `/api/templates/[id]`, and `TemplateBuilder.tsx` to prevent database statement timeouts and Meta submission failures.
+  - Enforces public HTTPS URLs for media headers, rejecting base64 data URLs in `/api/templates` and `/api/templates/[id]` to prevent database statement timeouts and Meta submission failures (client-side base64 block removed since API filters it automatically for format-only Meta submissions).
   - Prompts users with an unsaved changes confirmation dialog on close if they have edited any template fields in `TemplateBuilder.tsx`.
   - Resolves and separates media header URLs correctly from text headers when loading existing templates in edit mode.
   - Wraps local mock file uploads/previews (`addMedia` cache calls) in try-catch handlers to prevent browser `QuotaExceededError` exceptions from crashing the page.

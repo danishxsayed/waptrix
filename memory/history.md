@@ -1,5 +1,9 @@
 # Implementation History
 
+## [2026-07-01] - Template Submission Improvements
+- **Template Submit Validator Refinement**:
+  - Removed client-side base64 validation block from `TemplateBuilder.tsx` since the backend API automatically handles and strips data URLs before submitting format-only components to Meta.
+
 ## [2026-06-30] - Media Library Refresh & Error Handling
 - **Manual Refresh & Error States**:
   - Integrated a manual refresh action button (`RefreshCw` icon) next to the upload tool in `MediaLibrary.tsx` to reload files list quickly.
