@@ -482,6 +482,21 @@ export default function InboxPanel({
       body = { type: "text", content: optimisticContent };
     } else if (replyMode === "template" && selectedTemplate) {
       optimisticContent = `[Template: ${selectedTemplate.name}]`;
+
+      // Header component — required for IMAGE/VIDEO/DOCUMENT headers on every send
+      const headerComponents: any[] = [];
+      if (
+        selectedTemplate.header_type &&
+        ["IMAGE", "VIDEO", "DOCUMENT"].includes(selectedTemplate.header_type) &&
+        selectedTemplate.header_text?.startsWith("https://")
+      ) {
+        const mediaType = selectedTemplate.header_type.toLowerCase(); // "image" | "video" | "document"
+        headerComponents.push({
+          type: "header",
+          parameters: [{ type: mediaType, [mediaType]: { link: selectedTemplate.header_text } }],
+        });
+      }
+
       const vars = extractTemplateVars(selectedTemplate.body);
       const bodyComponents = vars.length > 0
         ? [{ type: "body", parameters: templateVarValues.map(v => ({ type: "text", text: v || " " })) }]
@@ -497,7 +512,7 @@ export default function InboxPanel({
         type: "template",
         templateName: selectedTemplate.name,
         languageCode: selectedTemplate.language || "en_US",
-        components: [...bodyComponents, ...btnComponents],
+        components: [...headerComponents, ...bodyComponents, ...btnComponents],
       };
     } else if (replyMode === "media" && mediaFile) {
       const mediaType = mediaFile.type.startsWith("image/") ? "image"
@@ -597,6 +612,20 @@ export default function InboxPanel({
     setNewChatError("");
     setNewChatSending(true);
     try {
+      // Header component for media templates
+      const newChatHeaderComponents: any[] = [];
+      if (
+        newChatTemplate.header_type &&
+        ["IMAGE", "VIDEO", "DOCUMENT"].includes(newChatTemplate.header_type) &&
+        newChatTemplate.header_text?.startsWith("https://")
+      ) {
+        const mediaType = newChatTemplate.header_type.toLowerCase();
+        newChatHeaderComponents.push({
+          type: "header",
+          parameters: [{ type: mediaType, [mediaType]: { link: newChatTemplate.header_text } }],
+        });
+      }
+
       const newChatVars = extractTemplateVars(newChatTemplate.body);
       const newChatBodyComponents = newChatVars.length > 0
         ? [{ type: "body", parameters: newChatVarValues.map(v => ({ type: "text", text: v || " " })) }]
@@ -608,7 +637,7 @@ export default function InboxPanel({
         index: String(btnIdx),
         parameters: [{ type: "text", text: newChatBtnValues[i] || "" }],
       }));
-      const newChatComponents = [...newChatBodyComponents, ...newChatBtnComponents];
+      const newChatComponents = [...newChatHeaderComponents, ...newChatBodyComponents, ...newChatBtnComponents];
       const res = await fetch("/api/conversations/start", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
