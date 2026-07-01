@@ -344,15 +344,28 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Upload a file to Supabase Storage and return a public HTTPS URL.
+  // Upload a file directly to Supabase Storage via signed URL.
+  // The binary goes straight to Supabase — never through Vercel — so no 4.5MB limit.
   const uploadToStorage = async (file: File): Promise<string> => {
-    const fd = new FormData();
-    fd.append("file", file);
-    const res = await axios.post("/api/upload", fd, {
-      headers: { "Content-Type": "multipart/form-data" },
+    // 1. Get a signed upload URL from our API
+    const { data: urlData } = await axios.post("/api/upload-url", {
+      fileName: file.name,
+      contentType: file.type,
     });
-    if (!res.data?.url) throw new Error("No URL returned from upload");
-    return res.data.url as string;
+    if (!urlData?.signedUrl) throw new Error("Failed to get upload URL");
+
+    // 2. PUT the file directly to Supabase Storage
+    const uploadRes = await fetch(urlData.signedUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type, "x-upsert": "true" },
+      body: file,
+    });
+    if (!uploadRes.ok) {
+      const text = await uploadRes.text();
+      throw new Error(`Storage upload failed: ${uploadRes.status} ${text}`);
+    }
+
+    return urlData.publicUrl as string;
   };
 
   const handleUpload = async (file: File) => {

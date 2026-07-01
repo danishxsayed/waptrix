@@ -84,6 +84,49 @@ export async function POST(
     // Use META_SYSTEM_TOKEN for template operations when available
     const submitToken = process.env.META_SYSTEM_TOKEN || conn.access_token;
 
+    // ── Helper: upload an image to Meta's Resumable Upload API and return the handle ──
+    async function getMetaHandle(token: string, imageUrl: string): Promise<string | null> {
+      try {
+        // Fetch the image binary
+        const imgRes = await fetch(imageUrl);
+        if (!imgRes.ok) return null;
+        const imgBuffer = await imgRes.arrayBuffer();
+        const contentType = imgRes.headers.get('content-type') || 'image/jpeg';
+        const fileSize = imgBuffer.byteLength;
+
+        // Step 1: Create an upload session
+        const sessionRes = await fetch(
+          `https://graph.facebook.com/v19.0/app/uploads?file_type=${encodeURIComponent(contentType)}&file_length=${fileSize}&access_token=${token}`,
+          { method: 'POST' }
+        );
+        const sessionData = await sessionRes.json();
+        if (!sessionData.id) {
+          console.error('Meta upload session error:', sessionData);
+          return null;
+        }
+
+        // Step 2: Upload the file bytes
+        const uploadRes = await fetch(
+          `https://graph.facebook.com/v19.0/${sessionData.id}`,
+          {
+            method: 'POST',
+            headers: {
+              'Authorization': `OAuth ${token}`,
+              'file_offset': '0',
+              'Content-Type': contentType,
+            },
+            body: imgBuffer,
+          }
+        );
+        const uploadData = await uploadRes.json();
+        console.log('Meta upload result:', uploadData);
+        return uploadData.h || null;
+      } catch (e) {
+        console.error('getMetaHandle error:', e);
+        return null;
+      }
+    }
+
     // 3. Build Meta component payload format
     const metaComponents: any[] = [];
 
@@ -97,13 +140,31 @@ export async function POST(
         });
       } else {
         // IMAGE, VIDEO, DOCUMENT
-        // Meta requires header_handle to be a Meta-uploaded media ID, not a URL.
-        // Submitting just the format type (without example) is valid and gets approved.
-        // The actual media URL is supplied when sending the message, not during submission.
-        metaComponents.push({
-          type: 'HEADER',
-          format: template.header_type,
-        });
+        // Meta requires a header_handle (obtained via Meta's Upload API).
+        const headerUrl = template.header_text;
+
+        if (!headerUrl || !headerUrl.startsWith('https://')) {
+          return NextResponse.json({
+            error: 'Please upload an image/video/document first (or paste a public URL) before submitting to Meta.'
+          }, { status: 400 });
+        }
+
+        const handle = await getMetaHandle(submitToken, headerUrl);
+
+        if (handle) {
+          metaComponents.push({
+            type: 'HEADER',
+            format: template.header_type,
+            example: { header_handle: [handle] },
+          });
+        } else {
+          // Could not get a handle — submit without example as fallback
+          // (some WABA configurations may still accept this)
+          metaComponents.push({
+            type: 'HEADER',
+            format: template.header_type,
+          });
+        }
       }
     }
 
