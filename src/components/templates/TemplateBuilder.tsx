@@ -452,13 +452,6 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     if (!formData.name.trim()) { setError("Template name is required."); return; }
     if (!formData.body.trim()) { setError("Body message is required."); return; }
 
-    // When submitting to Meta, a public HTTPS URL is required — base64 data URLs won't work
-    const isMediaHeader = formData.header_type === "IMAGE" || formData.header_type === "VIDEO" || formData.header_type === "DOCUMENT";
-    if (submitToMeta && isMediaHeader && formData.header_image_url.startsWith("data:")) {
-      setError(`To submit to Meta, paste a public HTTPS URL in the "${formData.header_type.charAt(0) + formData.header_type.slice(1).toLowerCase()} URL" field. File uploads are for preview only.`);
-      return;
-    }
-
     setIsSubmitting(true);
     try {
       const payload = { ...formData };
