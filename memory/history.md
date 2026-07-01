@@ -17,6 +17,8 @@
 - **Branded Review Status Email Notifications**:
   - Built a styled status update email layout in `src/lib/email/template.ts` with Waptrix/Crawlers Technologies themes.
   - Linked it with the sync endpoint (`/api/templates/[id]/sync`) to email users through Resend API as soon as approved/rejected states are pulled from Meta.
+- **Inbox Media Template Header Parameter Integration**:
+  - Refactored `InboxPanel.tsx` template message send builders (for both template replies and New Chat initiations) to construct and append header media parameters (IMAGE/VIDEO/DOCUMENT) containing direct asset links when sending templates with media headers.
 
 ## [2026-06-30] - Media Library Refresh & Error Handling
 - **Manual Refresh & Error States**:
