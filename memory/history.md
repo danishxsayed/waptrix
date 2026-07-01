@@ -19,6 +19,9 @@
   - Linked it with the sync endpoint (`/api/templates/[id]/sync`) to email users through Resend API as soon as approved/rejected states are pulled from Meta.
 - **Inbox Media Template Header Parameter Integration**:
   - Refactored `InboxPanel.tsx` template message send builders (for both template replies and New Chat initiations) to construct and append header media parameters (IMAGE/VIDEO/DOCUMENT) containing direct asset links when sending templates with media headers.
+- **Inbox Quick Reply Webhook and Bubble Mapping**:
+  - Implemented support for quick reply button payloads, reactions, and order types in `api/webhooks/meta/route.ts` webhooks.
+  - Formatted quick replies in `InboxPanel.tsx` with a visual "Quick Reply" badge showing button clicks instead of generic text logs.
 
 ## [2026-06-30] - Media Library Refresh & Error Handling
 - **Manual Refresh & Error States**:
