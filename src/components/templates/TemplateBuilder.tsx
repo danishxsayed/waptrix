@@ -354,15 +354,17 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     });
     if (!urlData?.signedUrl) throw new Error("Failed to get upload URL");
 
-    // 2. PUT the file directly to Supabase Storage
+    // 2. Upload directly to Supabase Storage via FormData (matches Supabase SDK format)
+    const fd = new FormData();
+    fd.append("cacheControl", "3600");
+    fd.append("", file);
     const uploadRes = await fetch(urlData.signedUrl, {
       method: "PUT",
-      headers: { "Content-Type": file.type, "x-upsert": "true" },
-      body: file,
+      body: fd,
     });
     if (!uploadRes.ok) {
       const text = await uploadRes.text();
-      throw new Error(`Storage upload failed: ${uploadRes.status} ${text}`);
+      throw new Error(`Storage upload failed: ${uploadRes.status} — ${text}`);
     }
 
     return urlData.publicUrl as string;
