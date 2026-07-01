@@ -6,6 +6,10 @@
 - **Template Submission Constraint Norms & Error Parsing**:
   - Refactored Meta template name normalization in the submit route `/api/templates/[id]/submit` to replace whitespace with underscores and strip invalid symbols to strictly follow Meta API naming rules.
   - Enriched Meta API error logging and JSON response schemas to parse detailed user-facing rejections (`error_user_msg` and `error_subcode`) and expose them directly to the builder UI for better debuggability.
+- **Signed URL Upload Direct Flow**:
+  - Implemented `/api/upload-url/route.ts` generating signed upload URLs via Supabase Service Client, enabling direct browser-to-Supabase PUT requests. This completely bypasses Vercel's 4.5MB serverless body parser request limit, supporting large file uploads.
+- **Meta Resumable Upload API Integration**:
+  - Integrated Meta's Resumable Upload API during submission in `/api/templates/[id]/submit`. When submitting media templates, the server fetches the asset, registers an upload session with Meta (`/app/uploads`), uploads the binary to Meta, and appends the returned `header_handle` to the example payload, boosting template approvals.
 
 ## [2026-06-30] - Media Library Refresh & Error Handling
 - **Manual Refresh & Error States**:
