@@ -318,6 +318,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
   const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const bodyOverlayRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
@@ -904,9 +905,10 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                             caret shows, but glyph pixels come from the div below.
                         */}
                         <div
+                          ref={bodyOverlayRef}
                           aria-hidden="true"
-                          className="absolute inset-0 px-4 py-3 text-sm whitespace-pre-wrap break-words overflow-hidden pointer-events-none select-none text-text-primary"
-                          style={{ lineHeight: "1.625", fontFamily: "inherit" }}
+                          className="absolute inset-0 px-4 py-3 text-sm whitespace-pre-wrap break-words pointer-events-none select-none text-text-primary"
+                          style={{ lineHeight: "1.625", fontFamily: "inherit", overflowY: "hidden" }}
                         >
                           {formData.body.length === 0 ? (
                             <span className="text-text-muted">Write your template body here...</span>
@@ -943,10 +945,16 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                             color: "transparent",
                             caretColor: "var(--color-text-primary)",
                             lineHeight: "1.625",
+                            overflowY: "auto",
                           }}
                           placeholder="x"
                           disabled={isPostSubmit}
                           onBlur={() => setShowEmojiPicker(false)}
+                          onScroll={(e) => {
+                            if (bodyOverlayRef.current) {
+                              bodyOverlayRef.current.scrollTop = e.currentTarget.scrollTop;
+                            }
+                          }}
                         />
                       </div>
                       {/* Toolbar */}

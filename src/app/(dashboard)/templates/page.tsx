@@ -3,12 +3,12 @@ export const dynamic = "force-dynamic";
 
 
 import { useState, useEffect } from "react";
-import { 
-  Plus, 
-  FileText, 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
+import {
+  Plus,
+  FileText,
+  Clock,
+  CheckCircle2,
+  XCircle,
   MoreVertical,
   ChevronRight,
   RefreshCw,
@@ -17,8 +17,11 @@ import {
 import axios from "axios";
 import TemplateBuilder from "@/components/templates/TemplateBuilder";
 
+type StatusTab = 'ALL' | 'APPROVED' | 'PENDING' | 'DRAFT' | 'REJECTED';
+
 export default function TemplatesPage() {
   const [templates, setTemplates] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<StatusTab>('ALL');
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<any | null>(null);
   const [activeMenu, setActiveMenu] = useState<string | null>(null);
@@ -85,6 +88,27 @@ export default function TemplatesPage() {
     }
   };
 
+  // Tab definitions with counts
+  const tabs: { key: StatusTab; label: string }[] = [
+    { key: 'ALL', label: 'All' },
+    { key: 'APPROVED', label: 'Approved' },
+    { key: 'PENDING', label: 'Pending' },
+    { key: 'DRAFT', label: 'Draft' },
+    { key: 'REJECTED', label: 'Rejected' },
+  ];
+
+  const getTabCount = (key: StatusTab) => {
+    if (key === 'ALL') return templates.length;
+    if (key === 'DRAFT') return templates.filter(t => !t.meta_status || t.meta_status === 'DRAFT').length;
+    return templates.filter(t => t.meta_status === key).length;
+  };
+
+  const filteredTemplates = templates.filter(t => {
+    if (activeTab === 'ALL') return true;
+    if (activeTab === 'DRAFT') return !t.meta_status || t.meta_status === 'DRAFT';
+    return t.meta_status === activeTab;
+  });
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -134,7 +158,7 @@ export default function TemplatesPage() {
             <RefreshCw className={`w-4 h-4 ${isRefreshing ? "animate-spin" : ""}`} />
             Refresh
           </button>
-          <button 
+          <button
             onClick={() => setIsBuilderOpen(true)}
             className="btn-primary flex items-center gap-2"
           >
@@ -144,37 +168,92 @@ export default function TemplatesPage() {
         </div>
       </div>
 
-      {templates.length === 0 ? (
+      {/* Status filter tabs */}
+      {templates.length > 0 && (
+        <div className="flex gap-1 bg-surface border border-border rounded-xl p-1 w-fit">
+          {tabs.map(({ key, label }) => {
+            const count = getTabCount(key);
+            const isActive = activeTab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setActiveTab(key)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  isActive
+                    ? key === 'APPROVED'
+                      ? 'bg-jade/20 text-jade border border-jade/30'
+                      : key === 'PENDING'
+                      ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                      : key === 'REJECTED'
+                      ? 'bg-rose-500/20 text-rose-400 border border-rose-500/30'
+                      : 'bg-card text-text-primary border border-border shadow-sm'
+                    : 'text-text-muted hover:text-text-primary hover:bg-card/50'
+                }`}
+              >
+                {label}
+                {count > 0 && (
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                    isActive
+                      ? key === 'APPROVED' ? 'bg-jade/30 text-jade'
+                        : key === 'PENDING' ? 'bg-amber-500/30 text-amber-300'
+                        : key === 'REJECTED' ? 'bg-rose-500/30 text-rose-300'
+                        : 'bg-surface text-text-muted'
+                      : 'bg-surface text-text-muted'
+                  }`}>
+                    {count}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {filteredTemplates.length === 0 ? (
         <div className="glass-card py-20 flex flex-col items-center gap-4 text-center">
           <FileText className="w-12 h-12 text-text-muted opacity-20" />
           <div>
-            <p className="text-sm font-semibold text-text-muted">No templates yet</p>
-            <p className="text-xs text-text-muted mt-1">Create your first WhatsApp message template</p>
+            {templates.length === 0 ? (
+              <>
+                <p className="text-sm font-semibold text-text-muted">No templates yet</p>
+                <p className="text-xs text-text-muted mt-1">Create your first WhatsApp message template</p>
+              </>
+            ) : (
+              <>
+                <p className="text-sm font-semibold text-text-muted">No {activeTab.toLowerCase()} templates</p>
+                <p className="text-xs text-text-muted mt-1">Templates with this status will appear here</p>
+              </>
+            )}
           </div>
-          <button onClick={() => setIsBuilderOpen(true)} className="btn-primary flex items-center gap-2 mt-2">
-            <Plus className="w-4 h-4" /> Create Template
-          </button>
+          {templates.length === 0 && (
+            <button onClick={() => setIsBuilderOpen(true)} className="btn-primary flex items-center gap-2 mt-2">
+              <Plus className="w-4 h-4" /> Create Template
+            </button>
+          )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-4">
-          {templates.map((template) => (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
+          {filteredTemplates.map((template) => (
             <div key={template.id} className="glass-card flex flex-col group cursor-pointer hover:border-jade/30 transition-all">
               <div className="flex justify-between items-start mb-4">
                 <div className={`p-2 rounded-lg border transition-all ${
-                  template.meta_status === 'APPROVED' 
-                    ? 'bg-jade/10 border-jade/20' 
+                  template.meta_status === 'APPROVED'
+                    ? 'bg-jade/10 border-jade/20'
                     : template.meta_status === 'PENDING'
                     ? 'bg-amber-500/10 border-amber-500/20'
+                    : template.meta_status === 'REJECTED'
+                    ? 'bg-rose-500/10 border-rose-500/20'
                     : 'bg-surface border-border group-hover:border-jade/20'
                 }`}>
                   <FileText className={`w-5 h-5 ${
-                    template.meta_status === 'APPROVED' ? 'text-jade' 
+                    template.meta_status === 'APPROVED' ? 'text-jade'
                     : template.meta_status === 'PENDING' ? 'text-amber-500'
+                    : template.meta_status === 'REJECTED' ? 'text-rose-500'
                     : 'text-text-muted group-hover:text-jade'
                   } transition-colors`} />
                 </div>
                 <div className="relative">
-                  <button 
+                  <button
                     onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === template.id ? null : template.id); }}
                     className="p-1.5 text-text-muted hover:text-text-primary rounded-lg hover:bg-surface"
                   >
@@ -193,7 +272,7 @@ export default function TemplatesPage() {
                   )}
                 </div>
               </div>
-              
+
               <div className="flex-1 space-y-3">
                 <h3 className="font-bold font-syne group-hover:text-jade transition-colors">{template.name}</h3>
                 <div className="flex gap-2 flex-wrap">
@@ -205,13 +284,18 @@ export default function TemplatesPage() {
                 <p className="text-xs text-text-muted line-clamp-2 leading-relaxed italic">
                   &ldquo;{template.body}&rdquo;
                 </p>
+                {template.meta_status === 'REJECTED' && template.rejection_reason && (
+                  <p className="text-[10px] text-rose-400 bg-rose-500/5 border border-rose-500/20 rounded-lg px-2 py-1.5 leading-relaxed">
+                    <span className="font-bold">Reason: </span>{template.rejection_reason}
+                  </p>
+                )}
               </div>
 
               <div className="mt-6 pt-4 border-t border-border/50 flex items-center justify-between">
                 <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                   {new Date(template.updated_at).toLocaleDateString()}
                 </span>
-                <button 
+                <button
                   onClick={() => handleEdit(template)}
                   className="p-1 px-3 rounded-lg hover:bg-jade/10 text-jade transition-all flex items-center gap-1 text-[10px] font-bold uppercase"
                 >
@@ -224,12 +308,12 @@ export default function TemplatesPage() {
       )}
 
       {isBuilderOpen && (
-        <TemplateBuilder 
+        <TemplateBuilder
           editTemplate={editingTemplate}
           onClose={() => {
             setIsBuilderOpen(false);
             setEditingTemplate(null);
-          }} 
+          }}
           onSave={() => fetchTemplates(true)}
         />
       )}

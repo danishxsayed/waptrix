@@ -3,6 +3,8 @@ export const dynamic = "force-dynamic";
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { metaApi } from '@/lib/meta';
+import { sendEmail } from '@/lib/email/resend';
+import { getTemplateStatusEmail } from '@/lib/email/template';
 
 export async function POST(
   req: Request,
@@ -56,7 +58,7 @@ export async function POST(
 
     // 3. Retrieve status from Meta API
     const statusData = await metaApi.getTemplateStatus(conn.access_token, template.meta_template_id);
-    
+
     const metaStatus = statusData?.status || 'PENDING';
     const rejectionReason = statusData?.rejected_reason || null;
 
@@ -74,10 +76,54 @@ export async function POST(
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ 
-      success: true, 
-      metaStatus, 
-      rejectionReason 
+    // 5. Send email notification if status changed to APPROVED or REJECTED
+    const previousStatus = template.meta_status;
+    if (
+      (metaStatus === 'APPROVED' || metaStatus === 'REJECTED') &&
+      previousStatus !== metaStatus
+    ) {
+      try {
+        const userEmail = user.email;
+        if (userEmail) {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.waptrix.in';
+          const dashboardUrl = `${appUrl}/templates`;
+          const html = getTemplateStatusEmail(
+            template.name,
+            metaStatus as 'APPROVED' | 'REJECTED',
+            rejectionReason,
+            dashboardUrl
+          );
+
+          // Override the HTML produced by sendEmail — call Resend directly so we use our custom template
+          const RESEND_API_KEY = process.env.RESEND_API_KEY;
+          if (RESEND_API_KEY) {
+            await fetch('https://api.resend.com/emails', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${RESEND_API_KEY}`,
+              },
+              body: JSON.stringify({
+                from: 'Waptrix <no-reply@waptrix.in>',
+                to: userEmail,
+                subject: metaStatus === 'APPROVED'
+                  ? `✅ Template "${template.name}" Approved by Meta`
+                  : `❌ Template "${template.name}" Rejected by Meta`,
+                html,
+              }),
+            });
+          }
+        }
+      } catch (emailErr) {
+        // Non-fatal — log and continue
+        console.error('Template status email failed:', emailErr);
+      }
+    }
+
+    return NextResponse.json({
+      success: true,
+      metaStatus,
+      rejectionReason
     });
 
   } catch (err: any) {
