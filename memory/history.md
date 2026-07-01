@@ -10,6 +10,13 @@
   - Implemented `/api/upload-url/route.ts` generating signed upload URLs via Supabase Service Client, enabling direct browser-to-Supabase PUT requests. This completely bypasses Vercel's 4.5MB serverless body parser request limit, supporting large file uploads.
 - **Meta Resumable Upload API Integration**:
   - Integrated Meta's Resumable Upload API during submission in `/api/templates/[id]/submit`. When submitting media templates, the server fetches the asset, registers an upload session with Meta (`/app/uploads`), uploads the binary to Meta, and appends the returned `header_handle` to the example payload, boosting template approvals.
+- **Interactive Status Filters & Inline Rejection Reasons**:
+  - Implemented interactive status tabs (All, Approved, Pending, Rejected, Draft) with counts in `/templates` list, filtering cards dynamically and exposing rejection reasons inside rejected template items directly.
+- **Scroll Synchronization in Template Body Editor**:
+  - Wired `onScroll` events in the transparent textarea to synchronize vertical positions with the highlight backdrop mirror inside `TemplateBuilder.tsx`, keeping styling markers in alignment.
+- **Branded Review Status Email Notifications**:
+  - Built a styled status update email layout in `src/lib/email/template.ts` with Waptrix/Crawlers Technologies themes.
+  - Linked it with the sync endpoint (`/api/templates/[id]/sync`) to email users through Resend API as soon as approved/rejected states are pulled from Meta.
 
 ## [2026-06-30] - Media Library Refresh & Error Handling
 - **Manual Refresh & Error States**:
