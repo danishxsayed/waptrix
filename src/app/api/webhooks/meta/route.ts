@@ -135,8 +135,15 @@ async function handleMessages(db: SupabaseClient, value: any) {
       content = msg.interactive?.button_reply?.title
         || msg.interactive?.list_reply?.title
         || '[interactive]';
+    } else if (type === 'button') {
+      // Quick reply button tap (from a template message)
+      content = msg.button?.text || msg.button?.payload || '[button reply]';
+    } else if (type === 'order') {
+      content = '[order]';
+    } else if (type === 'reaction') {
+      content = msg.reaction?.emoji ? `Reacted ${msg.reaction.emoji}` : '[reaction]';
     } else {
-      content = `[${type} message]`;
+      content = `[${type}]`;
     }
 
     const msgTimestamp = new Date(parseInt(msg.timestamp) * 1000).toISOString();

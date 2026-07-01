@@ -908,8 +908,20 @@ export default function InboxPanel({
                               );
                             })()}
 
+                            {/* Button reply (quick reply tap) */}
+                            {(msg.type === "button" || msg.content === "[button message]") && (
+                              <div className="flex items-center gap-2 text-sm">
+                                <span className="text-[10px] font-bold uppercase tracking-wider opacity-60">Quick Reply</span>
+                                <span className="font-semibold">
+                                  {msg.content === "[button message]" ? "Button reply" : msg.content}
+                                </span>
+                              </div>
+                            )}
+
                             {/* Text content — show for text messages and as caption for media */}
-                            {msg.type !== "template" && !msg.content?.startsWith("[Template:") &&
+                            {msg.type !== "template" && msg.type !== "button" &&
+                             msg.content !== "[button message]" &&
+                             !msg.content?.startsWith("[Template:") &&
                              (msg.type === "text" || (msg.content && !["[image]","[video]","[audio]","[document]","[sticker]"].includes(msg.content))) && (
                               <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
                                 {msg.content}
