@@ -157,12 +157,15 @@ export async function POST(
     }
 
     // 4. Submit to Meta message_templates API
-    const metaRes = await metaApi.submitTemplate(submitToken, wabaId, {
-      name: template.name.toLowerCase().replace(/[^a-z0-9_]/g, '_'), // normalize name for Meta constraints
+    const metaPayload = {
+      name: template.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
       category: template.category || 'MARKETING',
       language: template.language || 'en_US',
       components: metaComponents
-    });
+    };
+    console.log('Meta submit payload:', JSON.stringify(metaPayload, null, 2));
+    console.log('Submitting to WABA:', wabaId);
+    const metaRes = await metaApi.submitTemplate(submitToken, wabaId, metaPayload);
 
     if (!metaRes?.id) {
       return NextResponse.json({ error: 'Failed to obtain template ID from Meta' }, { status: 500 });
@@ -187,8 +190,11 @@ export async function POST(
     return NextResponse.json({ success: true, metaTemplateId: metaRes.id });
 
   } catch (err: any) {
-    console.error('Submit template error:', err);
-    const errorMsg = err.response?.data?.error?.message || err.message || 'Internal server error';
-    return NextResponse.json({ error: errorMsg }, { status: 500 });
+    console.error('Submit template error:', JSON.stringify(err.response?.data || err.message, null, 2));
+    const metaError = err.response?.data?.error;
+    const errorMsg = metaError
+      ? `Meta error: ${metaError.message}${metaError.error_user_msg ? ` — ${metaError.error_user_msg}` : ''}${metaError.error_subcode ? ` (subcode: ${metaError.error_subcode})` : ''}`
+      : err.message || 'Internal server error';
+    return NextResponse.json({ error: errorMsg, metaError: metaError || null }, { status: 500 });
   }
 }
