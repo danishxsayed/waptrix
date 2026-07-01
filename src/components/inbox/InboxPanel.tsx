@@ -29,6 +29,8 @@ interface ChatMessage {
   media_url?: string;
   media_id?: string;
   media_mime?: string;
+  meta_message_id?: string;
+  replied_to_message_id?: string;
   status: string;
   created_at: string;
 }
@@ -180,6 +182,39 @@ function StatusIcon({ status }: { status: string }) {
   if (status === "failed") return <X className="w-3.5 h-3.5 text-red-400" />;
   if (status === "sending") return <Loader2 className="w-3 h-3 text-background/60 animate-spin" />;
   return <Clock className="w-3 h-3 text-text-muted" />;
+}
+
+// ─── Quoted message bubble ────────────────────────────────────────────────────
+
+function QuotedMessage({ msg, isOutbound }: { msg: ChatMessage; isOutbound: boolean }) {
+  let preview = msg.content || "";
+  // Friendly labels for special types
+  if (msg.type === "template" || preview.startsWith("[Template:")) {
+    const m = preview.match(/^\[Template:\s*(.+)\]$/);
+    preview = m ? `Template: ${m[1]}` : "Template message";
+  } else if (["image", "video", "audio", "document", "sticker"].includes(msg.type)) {
+    preview = `📎 ${msg.type.charAt(0).toUpperCase() + msg.type.slice(1)}`;
+  } else if (preview === "[button message]") {
+    preview = "Button reply";
+  }
+  if (preview.length > 80) preview = preview.slice(0, 80) + "…";
+
+  return (
+    <div className={`flex mb-1 ${isOutbound ? "justify-end" : "justify-start"}`}>
+      <div
+        className={`max-w-[85%] rounded-lg overflow-hidden border-l-4 ${
+          isOutbound
+            ? "border-jade/60 bg-jade/5 text-right"
+            : "border-text-muted/40 bg-surface/60"
+        } px-3 py-2`}
+      >
+        <p className={`text-[10px] font-bold mb-0.5 ${isOutbound ? "text-jade/80" : "text-text-muted"}`}>
+          {msg.direction === "outbound" ? "You" : "Contact"}
+        </p>
+        <p className="text-xs text-text-muted leading-snug line-clamp-2">{preview}</p>
+      </div>
+    </div>
+  );
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -824,10 +859,20 @@ export default function InboxPanel({
                     </div>
 
                     <div className="space-y-2">
-                      {group.messages.map((msg) => (
+                      {group.messages.map((msg) => {
+                        const isOutbound = msg.direction === "outbound";
+                        // Find the message being replied to (match by meta_message_id)
+                        const quotedMsg = msg.replied_to_message_id
+                          ? messages.find(m => m.meta_message_id === msg.replied_to_message_id)
+                          : null;
+                        return (
+                        <div key={msg.id}>
+                          {/* Quoted context bubble */}
+                          {quotedMsg && (
+                            <QuotedMessage msg={quotedMsg} isOutbound={isOutbound} />
+                          )}
                         <div
-                          key={msg.id}
-                          className={`flex ${msg.direction === "outbound" ? "justify-end" : "justify-start"}`}
+                          className={`flex ${isOutbound ? "justify-end" : "justify-start"}`}
                         >
                           <div
                             className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
@@ -946,7 +991,9 @@ export default function InboxPanel({
                             </div>
                           </div>
                         </div>
-                      ))}
+                        </div>
+                        );
+                      })}
                     </div>
                   </div>
                 ))

@@ -123,6 +123,7 @@ async function handleMessages(db: SupabaseClient, value: any) {
     let content = '';
     let mediaId: string | null = null;
     let mediaMime: string | null = null;
+    const repliedToId: string | null = msg.context?.id ?? null;
 
     if (type === 'text') {
       content = msg.text?.body ?? '';
@@ -213,6 +214,7 @@ async function handleMessages(db: SupabaseClient, value: any) {
         media_mime: mediaMime,
         status: 'delivered',
         created_at: msgTimestamp,
+        replied_to_message_id: repliedToId,
       });
 
     if (insertErr) {
