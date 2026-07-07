@@ -127,6 +127,15 @@ export async function POST(
       }
     }
 
+    // 2b. Read sampleValues from request body (provided by the TemplateBuilder sample modal)
+    let sampleValues: Record<string, string> = {};
+    try {
+      const reqBody = await req.json().catch(() => ({}));
+      if (reqBody?.sampleValues && typeof reqBody.sampleValues === 'object') {
+        sampleValues = reqBody.sampleValues as Record<string, string>;
+      }
+    } catch { /* no body is fine */ }
+
     // 3. Build Meta component payload format
     const metaComponents: any[] = [];
 
@@ -172,7 +181,15 @@ export async function POST(
     const bodyText = template.body || '';
     const bodyMatches = bodyText.match(/{{(\d+)}}/g);
     const bodyExample = bodyMatches && bodyMatches.length > 0
-      ? { body_text: [bodyMatches.map(() => 'Sample')] }
+      ? {
+          body_text: [
+            bodyMatches.map((m: string) => {
+              const num = m.replace(/[{}]/g, '');
+              const provided = sampleValues[num]?.trim();
+              return provided || `Sample ${num}`;
+            })
+          ]
+        }
       : undefined;
 
     metaComponents.push({

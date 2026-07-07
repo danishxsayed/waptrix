@@ -317,6 +317,10 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   const [isDragOver, setIsDragOver] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+
+  // ── Sample values modal — shown before Meta submission when body has {{N}} variables ──
+  const [showSampleModal, setShowSampleModal] = useState(false);
+  const [sampleValues, setSampleValues] = useState<Record<string, string>>({});
   const bodyRef = useRef<HTMLTextAreaElement>(null);
   const bodyOverlayRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -463,7 +467,29 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     }, 0);
   };
 
-  const handleSave = async (submitToMeta: boolean = false) => {
+  /** Extract ordered variable numbers from body text, e.g. ["1","2"] from "Hi {{1}}, appt on {{2}}" */
+  const extractBodyVars = (body: string): string[] => {
+    const matches = body.match(/{{(\d+)}}/g) || [];
+    const nums = [...new Set(matches.map(m => m.replace(/[{}]/g, "")))];
+    return nums.sort((a, b) => Number(a) - Number(b));
+  };
+
+  /** Called by "Submit to Meta" button — intercepts if variables need samples */
+  const handleSubmitClick = () => {
+    const vars = extractBodyVars(formData.body);
+    if (vars.length === 0) {
+      // No variables → submit directly
+      handleSave(true, {});
+    } else {
+      // Populate missing sample values with empty strings
+      const initial: Record<string, string> = {};
+      vars.forEach(v => { initial[v] = sampleValues[v] || ""; });
+      setSampleValues(initial);
+      setShowSampleModal(true);
+    }
+  };
+
+  const handleSave = async (submitToMeta: boolean = false, samples: Record<string, string> = {}) => {
     setError("");
     if (!formData.name.trim()) { setError("Template name is required."); return; }
     if (!formData.body.trim()) { setError("Body message is required."); return; }
@@ -484,7 +510,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
       savedFormRef.current = JSON.stringify(formData);
 
       if (submitToMeta) {
-        await axios.post(`/api/templates/${templateId}/submit`);
+        await axios.post(`/api/templates/${templateId}/submit`, { sampleValues: samples });
         showToast("Template submitted! Meta will review within 24h.");
         onSave();
         setTimeout(() => onClose(), 1800);
@@ -1079,7 +1105,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
                         Save as Draft
                       </button>
-                      <button onClick={() => handleSave(true)} disabled={isSubmitting} className="btn-primary flex items-center gap-2">
+                      <button onClick={handleSubmitClick} disabled={isSubmitting} className="btn-primary flex items-center gap-2">
                         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
                         Submit to Meta
                       </button>
@@ -1156,6 +1182,81 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
           }
         />
       )}
+
+      {/* ── Sample values modal — collect real examples for {{N}} variables before Meta submission ── */}
+      {showSampleModal && (() => {
+        const vars = extractBodyVars(formData.body);
+        const allFilled = vars.every(v => sampleValues[v]?.trim());
+        return (
+          <div className="absolute inset-0 z-[70] bg-background/70 backdrop-blur-sm flex items-center justify-center p-6">
+            <div className="bg-surface border border-border rounded-2xl w-full max-w-md shadow-2xl space-y-0 overflow-hidden">
+              {/* Header */}
+              <div className="px-6 pt-6 pb-4 border-b border-border">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-jade/10 rounded-xl flex items-center justify-center shrink-0 border border-jade/20">
+                    <svg className="w-5 h-5 text-jade" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm">Provide Sample Content</p>
+                    <p className="text-xs text-text-muted mt-0.5">Meta requires a real example for each variable so reviewers can evaluate your template. These are for review only — not sent to contacts.</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Body preview */}
+              <div className="px-6 py-4 bg-jade/5 border-b border-border">
+                <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1.5">Template body</p>
+                <p className="text-xs text-text-muted leading-relaxed italic">&ldquo;{formData.body}&rdquo;</p>
+              </div>
+
+              {/* Variable inputs */}
+              <div className="px-6 py-4 space-y-3 max-h-64 overflow-y-auto">
+                {vars.map((v) => (
+                  <div key={v} className="space-y-1.5">
+                    <label className="flex items-center gap-2 text-xs font-semibold">
+                      <span className="font-mono text-jade bg-jade/10 border border-jade/20 px-2 py-0.5 rounded text-[11px]">{`{{${v}}}`}</span>
+                      <span className="text-text-muted">Sample value</span>
+                      {!sampleValues[v]?.trim() && <span className="text-rose-400 text-[10px]">required</span>}
+                    </label>
+                    <input
+                      type="text"
+                      value={sampleValues[v] || ""}
+                      onChange={e => setSampleValues(prev => ({ ...prev, [v]: e.target.value }))}
+                      placeholder={`e.g. ${v === "1" ? "John Doe" : v === "2" ? "15 July 2026" : "Sample value"}`}
+                      className={`input-field w-full text-sm ${!sampleValues[v]?.trim() ? "border-rose-500/30 focus:border-rose-500/60" : ""}`}
+                      autoFocus={v === vars[0]}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              {/* Actions */}
+              <div className="px-6 py-4 border-t border-border flex gap-3">
+                <button
+                  onClick={() => setShowSampleModal(false)}
+                  className="btn-secondary flex-1"
+                  disabled={isSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setShowSampleModal(false);
+                    handleSave(true, sampleValues);
+                  }}
+                  disabled={!allFilled || isSubmitting}
+                  className="btn-primary flex-1 flex items-center justify-center gap-2 disabled:opacity-40"
+                >
+                  {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                  Confirm &amp; Submit
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Unsaved changes confirmation */}
       {showCloseConfirm && (
