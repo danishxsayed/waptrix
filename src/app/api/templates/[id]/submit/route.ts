@@ -136,6 +136,19 @@ export async function POST(
       }
     } catch { /* no body is fine */ }
 
+    // 2c. Validate variable positions (Meta rule: vars can't be first or last in body)
+    const bodyTrimmed = (template.body || '').trim();
+    if (/^\{\{\d+\}\}/.test(bodyTrimmed)) {
+      return NextResponse.json({
+        error: "Variables can't be at the start of the body. Add some text before {{1}} and resubmit."
+      }, { status: 400 });
+    }
+    if (/\{\{\d+\}\}$/.test(bodyTrimmed)) {
+      return NextResponse.json({
+        error: "Variables can't be at the end of the body. Add some text or punctuation after the last variable and resubmit."
+      }, { status: 400 });
+    }
+
     // 3. Build Meta component payload format
     const metaComponents: any[] = [];
 

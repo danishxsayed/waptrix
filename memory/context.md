@@ -63,6 +63,7 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Synchronizes vertical scroll coordinates between the transparent textarea and the highlighted mirror container in `TemplateBuilder.tsx`'s body editor to prevent syntax highlights from falling out of alignment.
   - Implemented interactive status filter tabs (All, Approved, Pending, Rejected, Draft) with badge counts on the dashboard templates list page (`src/app/(dashboard)/templates/page.tsx`), showing Meta rejection reasons inline for rejected templates.
   - Built a beautifully branded HTML email template in `src/lib/email/template.ts` (featuring Waptrix and Crawlers Technologies assets) integrated inside the review synchronization handler (`/api/templates/[id]/sync`) to email status updates immediately upon meta review changes.
+  - Implemented body variable position validation preventing variables from being at the very start or end of the body text. Enforced client-side (real-time warning banner and submission block in `TemplateBuilder.tsx`) and server-side (returns 400 Bad Request in `/api/templates/[id]/submit/route.ts`).
 - **Unified Media Library Management**:
   - Implemented `/media` and the `MediaLibrary.tsx` component to handle uploaded images, audio, video, and document attachments.
   - Displays dynamic file previews including custom video frame thumbnails and document extension badges (e.g. PDF, CSV).

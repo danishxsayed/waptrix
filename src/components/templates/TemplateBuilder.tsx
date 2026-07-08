@@ -474,8 +474,24 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     return nums.sort((a, b) => Number(a) - Number(b));
   };
 
+  /** Meta rule: variables cannot be at the very start or end of the body text */
+  const validateBodyVariablePosition = (body: string): string | null => {
+    const trimmed = body.trim();
+    if (/^\{\{\d+\}\}/.test(trimmed)) {
+      return "A variable can't be the first thing in the body. Add some text before it (e.g. \"Hi {{1}},\" instead of \"{{1}}\").";
+    }
+    if (/\{\{\d+\}\}$/.test(trimmed)) {
+      return "A variable can't be at the end of the body. Add some text after it (e.g. \"…is {{1}}!\" → add punctuation or a word after).";
+    }
+    return null;
+  };
+
   /** Called by "Submit to Meta" button — intercepts if variables need samples */
   const handleSubmitClick = () => {
+    // Validate variable positions first
+    const posError = validateBodyVariablePosition(formData.body);
+    if (posError) { setError(posError); return; }
+
     const vars = extractBodyVars(formData.body);
     if (vars.length === 0) {
       // No variables → submit directly
@@ -493,6 +509,10 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     setError("");
     if (!formData.name.trim()) { setError("Template name is required."); return; }
     if (!formData.body.trim()) { setError("Body message is required."); return; }
+    if (submitToMeta) {
+      const posErr = validateBodyVariablePosition(formData.body);
+      if (posErr) { setError(posErr); return; }
+    }
 
     setIsSubmitting(true);
     try {
@@ -1042,6 +1062,15 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                       </p>
                       <p className="text-[10px] text-text-muted">{formData.body.length} chars</p>
                     </div>
+                    {/* Inline variable position warning */}
+                    {validateBodyVariablePosition(formData.body) && (
+                      <div className="flex items-start gap-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+                        <svg className="w-3.5 h-3.5 text-amber-400 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                        <p className="text-[10px] text-amber-400 leading-relaxed">{validateBodyVariablePosition(formData.body)}</p>
+                      </div>
+                    )}
                   </div>
 
                   {/* Footer */}

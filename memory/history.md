@@ -1,5 +1,11 @@
 # Implementation History
 
+## [2026-07-08] - Template Variable Position Validation
+- **Meta Variable Position Rules**:
+  - Implemented client and server-side validation to enforce Meta's rule that variables (e.g., `{{1}}`) cannot be placed at the very start or the very end of the template body text.
+  - Added frontend check in `TemplateBuilder.tsx` that displays a warning banner dynamically and prevents template submission/save if variables violate position rules.
+  - Added backend route handler validation in `/api/templates/[id]/submit/route.ts` that rejects Meta submission requests with a `400 Bad Request` status if variables are positioned at the start or end of the body text.
+
 ## [2026-07-01] - Template Submission Improvements
 - **Template Submit Validator Refinement**:
   - Removed client-side base64 validation block from `TemplateBuilder.tsx` since the backend API automatically handles and strips data URLs before submitting format-only components to Meta.
