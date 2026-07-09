@@ -88,7 +88,16 @@ export async function GET() {
 
     if (!profileRes.ok) {
       const err = await profileRes.json();
-      return NextResponse.json({ error: err.error?.message || 'Failed to fetch profile' }, { status: profileRes.status });
+      const errMsg = err.error?.message || 'Failed to fetch profile';
+      // Surface token expiry with a recognisable code so the UI can prompt reconnect
+      const isTokenExpired =
+        err.error?.code === 190 ||
+        (errMsg.toLowerCase().includes('session') && errMsg.toLowerCase().includes('invalidat')) ||
+        errMsg.toLowerCase().includes('invalid oauth');
+      return NextResponse.json(
+        { error: isTokenExpired ? `Error validating access token: ${errMsg}` : errMsg, token_expired: isTokenExpired },
+        { status: profileRes.status }
+      );
     }
 
     const profileJson = await profileRes.json();

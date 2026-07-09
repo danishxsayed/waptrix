@@ -309,11 +309,24 @@ export default function SettingsPage() {
         ) : waProfileError ? (
           <div className="glass-card flex flex-col items-center justify-center py-12 space-y-3 text-center">
             <AlertCircle className="w-8 h-8 text-text-muted" />
-            <p className="text-sm text-text-muted">{waProfileError}</p>
-            {waProfileError.includes('No WhatsApp') && (
-              <a href="/connect" className="text-jade text-xs font-bold hover:underline flex items-center gap-1">
-                Connect WhatsApp <ExternalLink className="w-3 h-3" />
-              </a>
+            {(waProfileError.includes('session has been invalidated') || waProfileError.includes('Error validating access token') || waProfileError.includes('Invalid OAuth')) ? (
+              <>
+                <p className="text-sm text-text-muted max-w-sm">
+                  Your WhatsApp session has expired. Please reconnect your account to restore access.
+                </p>
+                <a href="/connect" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-jade/10 border border-jade/20 text-jade text-sm font-bold hover:bg-jade/20 transition-colors">
+                  Reconnect WhatsApp <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-text-muted">{waProfileError}</p>
+                {(waProfileError.includes('No WhatsApp') || waProfileError.includes('reconnect')) && (
+                  <a href="/connect" className="text-jade text-xs font-bold hover:underline flex items-center gap-1">
+                    Connect WhatsApp <ExternalLink className="w-3 h-3" />
+                  </a>
+                )}
+              </>
             )}
           </div>
         ) : waProfile ? (
