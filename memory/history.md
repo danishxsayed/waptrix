@@ -1,5 +1,12 @@
 # Implementation History
 
+## [2026-07-10] - Resort Photo Mapping (Dandeli Wild adventure)
+- **Automatic Photo Mapping**:
+  - Scanned and processed 25 resort photo folders (6 to 23 photos each) located in the `Dandeli Wild adventure` project's `public/resort photos/` directory.
+  - Programmatically updated `src/data/resorts.ts` to map each folder to the corresponding resort object case-insensitively.
+  - Set `heroImage` by matching keywords (`hero`, `main`, `about`) with alphabetical fallback, and mapped all other photos to `collageImages` with the hero image sorted first.
+  - Verified compilation and build success by running `npm run build` in the `Dandeli Wild adventure` project.
+
 ## [2026-07-08] - Template Variable Position Validation
 - **Meta Variable Position Rules**:
   - Implemented client and server-side validation to enforce Meta's rule that variables (e.g., `{{1}}`) cannot be placed at the very start or the very end of the template body text.

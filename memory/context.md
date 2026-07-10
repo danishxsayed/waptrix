@@ -77,3 +77,6 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Aligned `/api/media` route handler mapping variables safely to resolve metadata attributes, and excluded both `type` and `size` fields from insert queries since they are not present in this database schema (with size/type derived client-side instead).
   - Implemented a dismissible, inline warning banner in `MediaLibrary.tsx` to display upload failures (such as file size exceeding the 20MB limit or server exceptions) instead of browser `alert()` popups.
   - Cleaned up the `/media` page dashboard header by removing the redundant upload file modal trigger, centralizing uploads directly in the inline library container.
+
+## Related Projects
+- **Dandeli Wild adventure**: A React/Vite resort booking web application located on the Desktop (`/Users/danishsayed/Desktop/Dandeli Wild adventure`), which shares assets and photo mapping configurations with the same local workspace context.
