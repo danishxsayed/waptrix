@@ -3,6 +3,42 @@ export const dynamic = "force-dynamic";
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+    const serviceClient = createServiceClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
+
+    const { data: campaign, error } = await serviceClient
+      .from('campaigns')
+      .select('*, template:templates(*), segment:segments(*)')
+      .eq('id', id)
+      .eq('tenant_id', user.id)
+      .single();
+
+    if (error || !campaign) {
+      return NextResponse.json({ error: 'Campaign not found or unauthorized' }, { status: 404 });
+    }
+
+    return NextResponse.json(campaign);
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ id: string }> }

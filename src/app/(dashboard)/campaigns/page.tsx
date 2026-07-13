@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Plus,
   Send,
@@ -18,12 +19,14 @@ import {
   Info,
   Eye,
   PackageCheck,
-  Calendar
+  Calendar,
+  ChevronRight,
 } from "lucide-react";
 import axios from "axios";
 import CampaignWizard from "@/components/campaigns/CampaignWizard";
 
 export default function CampaignsPage() {
+  const router = useRouter();
   const [campaigns, setCampaigns] = useState<any[]>([]);
   const [isWizardOpen, setIsWizardOpen] = useState(false);
   const [initialSegmentId, setInitialSegmentId] = useState<string | undefined>(undefined);
@@ -177,7 +180,7 @@ export default function CampaignsPage() {
 
       <div className="grid grid-cols-1 gap-6">
         {campaigns.map((campaign) => (
-          <div key={campaign.id} className="glass-card flex flex-col md:flex-row gap-8 items-center">
+          <div key={campaign.id} className="glass-card flex flex-col md:flex-row gap-8 items-center group hover:border-jade/20 transition-colors cursor-pointer" onClick={() => router.push(`/campaigns/${campaign.id}`)}>
             <div className="flex-1 flex flex-col md:flex-row gap-6 items-center w-full">
               <div className="w-14 h-14 bg-surface border border-border rounded-2xl flex items-center justify-center shrink-0">
                 <Send className="w-6 h-6 text-jade" />
@@ -218,7 +221,7 @@ export default function CampaignsPage() {
               </div>
             </div>
 
-            <div className="flex items-center gap-4 border-l border-border/50 pl-8 h-12 relative">
+            <div className="flex items-center gap-4 border-l border-border/50 pl-8 h-12 relative" onClick={(e) => e.stopPropagation()}>
               <div className="text-center">
                 <p className="text-xs font-bold text-text-primary">{campaign.delivered_count}</p>
                 <p className="text-[10px] text-text-muted uppercase">Delivered</p>
@@ -227,18 +230,19 @@ export default function CampaignsPage() {
                 <p className="text-xs font-bold text-jade">{campaign.read_count}</p>
                 <p className="text-[10px] text-text-muted uppercase">Read</p>
               </div>
+              <ChevronRight className="w-4 h-4 text-text-muted group-hover:text-jade transition-colors ml-1" />
               <div className="relative shrink-0">
-                <button 
-                  onClick={() => setActiveMenuCampaignId(activeMenuCampaignId === campaign.id ? null : campaign.id)}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setActiveMenuCampaignId(activeMenuCampaignId === campaign.id ? null : campaign.id); }}
                   className="p-2 hover:bg-card rounded-xl transition-all flex items-center justify-center border border-transparent hover:border-border"
                 >
                   <MoreVertical className="w-4 h-4 text-text-muted hover:text-text-primary" />
                 </button>
                 {activeMenuCampaignId === campaign.id && (
                   <>
-                    <div 
-                      className="fixed inset-0 z-10" 
-                      onClick={() => setActiveMenuCampaignId(null)}
+                    <div
+                      className="fixed inset-0 z-10"
+                      onClick={(e) => { e.stopPropagation(); setActiveMenuCampaignId(null); }}
                     />
                     <div className="absolute right-0 bottom-full mb-2 w-48 rounded-xl bg-card border border-border p-1.5 shadow-xl z-20 space-y-0.5 backdrop-blur-md">
                       <button
