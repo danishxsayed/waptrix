@@ -4,7 +4,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import {
   MessageSquare, Send, Paperclip, Search, CheckCheck, Check,
-  Clock, FileText, Mic, X, Loader2, Download, Play, Plus, Phone, AlertCircle
+  Clock, FileText, Mic, X, Loader2, Download, Play, Plus, Phone, AlertCircle,
+  SlidersHorizontal, ChevronRight
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 
@@ -217,6 +218,331 @@ function QuotedBubble({ quoted, isOutbound }: { quoted: ChatMessage; isOutbound:
   );
 }
 
+// ─── Inbox Filter Types ───────────────────────────────────────────────────────
+interface InboxFilters {
+  chatStatus: 'all' | 'open' | 'closed';
+  readStatus: 'all' | 'read' | 'unread';
+  replyStatus: string[];
+  tags: string[];
+  noLabelAttached: boolean;
+  lastMsgFrom: string;
+  lastMsgTo: string;
+  showSpam: boolean;
+}
+const DEFAULT_FILTERS: InboxFilters = {
+  chatStatus: 'all', readStatus: 'all', replyStatus: [],
+  tags: [], noLabelAttached: false, lastMsgFrom: '', lastMsgTo: '', showSpam: false,
+};
+
+// ─── Filter Modal ─────────────────────────────────────────────────────────────
+function InboxFilterModal({
+  pending, setPending, availableTags, onClose, onApply, onReset,
+}: {
+  pending: InboxFilters;
+  setPending: (f: InboxFilters) => void;
+  availableTags: string[];
+  onClose: () => void;
+  onApply: () => void;
+  onReset: () => void;
+}) {
+  const [section, setSection] = useState('Chat Status');
+  const [tagSearch, setTagSearch] = useState('');
+  const [labelSearch, setLabelSearch] = useState('');
+
+  const FILTER_SECTIONS = [
+    'Labels', 'Tags', 'Chat Status', 'Assignee',
+    'Reply Status', 'Read/Unread', 'Response Window',
+    'Last Message Time', 'Spam Chats',
+  ];
+
+  const filteredTags = availableTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()));
+
+  const toggleTag = (tag: string) => {
+    const next = pending.tags.includes(tag)
+      ? pending.tags.filter(t => t !== tag)
+      : [...pending.tags, tag];
+    setPending({ ...pending, tags: next });
+  };
+
+  const toggleReplyStatus = (val: string) => {
+    const next = pending.replyStatus.includes(val)
+      ? pending.replyStatus.filter(v => v !== val)
+      : [...pending.replyStatus, val];
+    setPending({ ...pending, replyStatus: next });
+  };
+
+  const sectionHasValue = (s: string) => {
+    if (s === 'Chat Status') return pending.chatStatus !== 'all';
+    if (s === 'Read/Unread') return pending.readStatus !== 'all';
+    if (s === 'Tags') return pending.tags.length > 0;
+    if (s === 'Labels') return pending.noLabelAttached;
+    if (s === 'Reply Status') return pending.replyStatus.length > 0;
+    if (s === 'Last Message Time') return !!(pending.lastMsgFrom || pending.lastMsgTo);
+    if (s === 'Spam Chats') return pending.showSpam;
+    return false;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+          <h2 className="text-lg font-bold font-syne">Filters</h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full border border-border flex items-center justify-center hover:bg-surface transition-colors">
+            <X className="w-4 h-4 text-text-muted" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="flex flex-1 min-h-0">
+          {/* Sidebar */}
+          <div className="w-52 border-r border-border flex flex-col overflow-y-auto flex-shrink-0">
+            {FILTER_SECTIONS.map((s) => (
+              <button
+                key={s}
+                onClick={() => setSection(s)}
+                className={`flex items-center justify-between w-full px-4 py-3.5 text-sm text-left transition-colors border-b border-border/40 ${
+                  section === s
+                    ? 'bg-jade/10 text-jade font-semibold'
+                    : 'text-text-primary hover:bg-surface'
+                }`}
+              >
+                <span>{s}</span>
+                {sectionHasValue(s) && (
+                  <span className="w-2 h-2 bg-jade rounded-full flex-shrink-0" />
+                )}
+              </button>
+            ))}
+          </div>
+
+          {/* Panel */}
+          <div className="flex-1 overflow-y-auto p-5">
+            {/* Labels */}
+            {section === 'Labels' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">Labels</h3>
+                  <button onClick={() => setPending({ ...pending, noLabelAttached: false })} className="text-xs text-jade hover:underline">Clear</button>
+                </div>
+                <div className="flex items-center gap-2 bg-surface rounded-xl px-3 py-2 border border-border">
+                  <Search className="w-3.5 h-3.5 text-text-muted" />
+                  <input
+                    value={labelSearch}
+                    onChange={e => setLabelSearch(e.target.value)}
+                    placeholder="Search Labels"
+                    className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
+                  />
+                </div>
+                <label className="flex items-center gap-3 py-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={pending.noLabelAttached}
+                    onChange={e => setPending({ ...pending, noLabelAttached: e.target.checked })}
+                    className="w-4 h-4 accent-jade"
+                  />
+                  <span className="text-sm text-text-primary">No Label Attached</span>
+                </label>
+                <p className="text-xs text-text-muted pt-2">Labels are coming soon — connect your labelling system first.</p>
+              </div>
+            )}
+
+            {/* Tags */}
+            {section === 'Tags' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">Tags</h3>
+                  <button onClick={() => setPending({ ...pending, tags: [] })} className="text-xs text-jade hover:underline">Clear</button>
+                </div>
+                <div className="flex items-center gap-2 bg-surface rounded-xl px-3 py-2 border border-border">
+                  <Search className="w-3.5 h-3.5 text-text-muted" />
+                  <input
+                    value={tagSearch}
+                    onChange={e => setTagSearch(e.target.value)}
+                    placeholder="Search Tags"
+                    className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
+                  />
+                </div>
+                {filteredTags.length === 0 ? (
+                  <p className="text-xs text-text-muted py-3">No tags found.</p>
+                ) : (
+                  <div className="space-y-1 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                    {filteredTags.map(tag => (
+                      <label key={tag} className="flex items-center gap-3 py-2 cursor-pointer hover:bg-surface rounded-lg px-2 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={pending.tags.includes(tag)}
+                          onChange={() => toggleTag(tag)}
+                          className="w-4 h-4 accent-jade"
+                        />
+                        <span className="text-sm text-text-primary">{tag}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Chat Status */}
+            {section === 'Chat Status' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">Chat Status</h3>
+                  <button onClick={() => setPending({ ...pending, chatStatus: 'all' })} className="text-xs text-jade hover:underline">Reset</button>
+                </div>
+                {(['all', 'open', 'closed'] as const).map((val) => (
+                  <label key={val} className="flex items-center gap-3 py-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="chatStatus"
+                      checked={pending.chatStatus === val}
+                      onChange={() => setPending({ ...pending, chatStatus: val })}
+                      className="w-4 h-4 accent-jade"
+                    />
+                    <span className="text-sm text-text-primary capitalize">
+                      {val === 'all' ? 'All Chats' : val === 'open' ? 'Open Chats' : 'Closed Chats'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Assignee */}
+            {section === 'Assignee' && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm">Assignee</h3>
+                <p className="text-xs text-text-muted">Agent assignment is coming soon.</p>
+              </div>
+            )}
+
+            {/* Reply Status */}
+            {section === 'Reply Status' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">Reply Status</h3>
+                  <button onClick={() => setPending({ ...pending, replyStatus: [] })} className="text-xs text-jade hover:underline">Clear</button>
+                </div>
+                {[
+                  { val: 'unreplied', label: 'Unreplied' },
+                  { val: 'replied_manually', label: 'Replied Manually' },
+                  { val: 'replied_bot', label: 'Replied by Bot' },
+                ].map(({ val, label }) => (
+                  <label key={val} className="flex items-center gap-3 py-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={pending.replyStatus.includes(val)}
+                      onChange={() => toggleReplyStatus(val)}
+                      className="w-4 h-4 accent-jade"
+                    />
+                    <span className="text-sm text-text-primary">{label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Read/Unread */}
+            {section === 'Read/Unread' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">Read/Unread</h3>
+                  <button onClick={() => setPending({ ...pending, readStatus: 'all' })} className="text-xs text-jade hover:underline">Reset</button>
+                </div>
+                {(['all', 'read', 'unread'] as const).map((val) => (
+                  <label key={val} className="flex items-center gap-3 py-2 cursor-pointer">
+                    <input
+                      type="radio"
+                      name="readStatus"
+                      checked={pending.readStatus === val}
+                      onChange={() => setPending({ ...pending, readStatus: val })}
+                      className="w-4 h-4 accent-jade"
+                    />
+                    <span className="text-sm text-text-primary capitalize">
+                      {val === 'all' ? 'All' : val === 'read' ? 'Read' : 'Unread'}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            )}
+
+            {/* Response Window */}
+            {section === 'Response Window' && (
+              <div className="space-y-3">
+                <h3 className="font-semibold text-sm">Response Window</h3>
+                <p className="text-xs text-text-muted">Filter by the 24-hour reply window — coming soon.</p>
+              </div>
+            )}
+
+            {/* Last Message Time */}
+            {section === 'Last Message Time' && (
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">Last Message Time</h3>
+                  <button onClick={() => setPending({ ...pending, lastMsgFrom: '', lastMsgTo: '' })} className="text-xs text-jade hover:underline">Reset</button>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs text-text-muted mb-1.5 block">From</label>
+                    <input
+                      type="date"
+                      value={pending.lastMsgFrom}
+                      onChange={e => setPending({ ...pending, lastMsgFrom: e.target.value })}
+                      className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-jade"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-text-muted mb-1.5 block">To</label>
+                    <input
+                      type="date"
+                      value={pending.lastMsgTo}
+                      onChange={e => setPending({ ...pending, lastMsgTo: e.target.value })}
+                      className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-jade"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Spam Chats */}
+            {section === 'Spam Chats' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">Spam Chats</h3>
+                  <button onClick={() => setPending({ ...pending, showSpam: false })} className="text-xs text-jade hover:underline">Reset</button>
+                </div>
+                <label className="flex items-center gap-3 py-2 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="spam"
+                    checked={pending.showSpam}
+                    onChange={() => setPending({ ...pending, showSpam: true })}
+                    className="w-4 h-4 accent-jade"
+                  />
+                  <span className="text-sm text-text-primary">Show Spam Chats</span>
+                </label>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="flex items-center gap-3 px-6 py-4 border-t border-border">
+          <button
+            onClick={onReset}
+            className="flex-1 py-2.5 rounded-xl border border-border text-sm font-semibold text-text-primary hover:bg-surface transition-colors"
+          >
+            Reset All
+          </button>
+          <button
+            onClick={onApply}
+            className="flex-1 py-2.5 rounded-xl bg-jade text-background text-sm font-bold hover:bg-jade-hover transition-all shadow-[0_0_12px_rgba(16,185,129,0.2)]"
+          >
+            Apply Filter
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function InboxPanel({
@@ -244,6 +570,12 @@ export default function InboxPanel({
   const [sendError, setSendError] = useState<string>("");
   const [templateVarValues, setTemplateVarValues] = useState<string[]>([]);
   const [templateBtnValues, setTemplateBtnValues] = useState<string[]>([]);
+
+  // ── Filter state
+  const [showFilters, setShowFilters] = useState(false);
+  const [appliedFilters, setAppliedFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
+  const [pendingFilters, setPendingFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
+  const [availableTags, setAvailableTags] = useState<string[]>([]);
 
   // ── New Chat state
   const [showNewChat, setShowNewChat] = useState(false);
@@ -352,6 +684,10 @@ export default function InboxPanel({
   useEffect(() => {
     fetchConversations();
     fetchTemplates();
+    // Fetch tags (segments) for filter
+    fetch('/api/contacts/segments').then(r => r.json()).then(data => {
+      if (Array.isArray(data)) setAvailableTags(data.map((s: any) => s.name).filter(Boolean));
+    }).catch(() => {});
   }, [fetchConversations, fetchTemplates]);
 
   // ── Auto-select conversation when initialPhone is provided (from contacts page)
@@ -710,11 +1046,36 @@ export default function InboxPanel({
     }
   };
 
-  const filteredConversations = conversations.filter(
-    (c) =>
-      c.contact_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      c.contact_phone.includes(searchQuery)
-  );
+  const activeFilterCount = [
+    appliedFilters.chatStatus !== 'all',
+    appliedFilters.readStatus !== 'all',
+    appliedFilters.replyStatus.length > 0,
+    appliedFilters.tags.length > 0,
+    appliedFilters.noLabelAttached,
+    !!(appliedFilters.lastMsgFrom || appliedFilters.lastMsgTo),
+    appliedFilters.showSpam,
+  ].filter(Boolean).length;
+
+  const filteredConversations = conversations.filter((c) => {
+    // Search
+    const q = searchQuery.toLowerCase();
+    if (q && !c.contact_name.toLowerCase().includes(q) && !c.contact_phone.includes(q)) return false;
+    // Chat Status
+    if (appliedFilters.chatStatus !== 'all' && c.status !== appliedFilters.chatStatus) return false;
+    // Read/Unread
+    if (appliedFilters.readStatus === 'read' && (c.unread_count || 0) > 0) return false;
+    if (appliedFilters.readStatus === 'unread' && (c.unread_count || 0) === 0) return false;
+    // Last Message Time
+    if (appliedFilters.lastMsgFrom) {
+      if (new Date(c.last_message_at) < new Date(appliedFilters.lastMsgFrom)) return false;
+    }
+    if (appliedFilters.lastMsgTo) {
+      const to = new Date(appliedFilters.lastMsgTo);
+      to.setHours(23, 59, 59, 999);
+      if (new Date(c.last_message_at) > to) return false;
+    }
+    return true;
+  });
 
   const messageGroups = groupByDate(messages);
   const totalUnread = conversations.reduce((s, c) => s + (c.unread_count || 0), 0);
@@ -748,8 +1109,8 @@ export default function InboxPanel({
       <div className={`flex ${fullHeight ? "h-[calc(100vh-260px)]" : "h-[600px]"}`}>
         {/* ── Left: Conversation List ────────────────────────────── */}
         <div className="w-80 border-r border-border flex flex-col flex-shrink-0">
-          {/* Search */}
-          <div className="p-3 border-b border-border">
+          {/* Search + Filter */}
+          <div className="p-3 border-b border-border space-y-2">
             <div className="flex items-center gap-2 bg-surface rounded-xl px-3 py-2 border border-border">
               <Search className="w-4 h-4 text-text-muted flex-shrink-0" />
               <input
@@ -760,6 +1121,25 @@ export default function InboxPanel({
                 className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
               />
             </div>
+            <button
+              onClick={() => { setPendingFilters(appliedFilters); setShowFilters(true); }}
+              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors ${
+                activeFilterCount > 0
+                  ? 'bg-jade/10 border-jade/30 text-jade'
+                  : 'bg-surface border-border text-text-muted hover:text-text-primary hover:border-border'
+              }`}
+            >
+              <span className="flex items-center gap-1.5">
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="bg-jade text-background text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </span>
+              <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+            </button>
           </div>
 
           {/* List */}
@@ -1451,6 +1831,18 @@ export default function InboxPanel({
             </div>
           </div>
         </div>
+      )}
+
+      {/* ── Filter Modal */}
+      {showFilters && (
+        <InboxFilterModal
+          pending={pendingFilters}
+          setPending={setPendingFilters}
+          availableTags={availableTags}
+          onClose={() => setShowFilters(false)}
+          onApply={() => { setAppliedFilters(pendingFilters); setShowFilters(false); }}
+          onReset={() => { setPendingFilters(DEFAULT_FILTERS); setAppliedFilters(DEFAULT_FILTERS); setShowFilters(false); }}
+        />
       )}
     </div>
   );
