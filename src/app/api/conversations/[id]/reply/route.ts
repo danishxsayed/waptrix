@@ -42,14 +42,19 @@ export async function POST(
       .eq('tenant_id', user.id)
       .single();
 
-    if (!waConn?.access_token || !waConn?.phone_number_id) {
-      return NextResponse.json({ error: 'WhatsApp not connected' }, { status: 400 });
+    const phoneNumberId = waConn?.phone_number_id && waConn.phone_number_id !== 'pending'
+      ? waConn.phone_number_id : null;
+
+    if (!waConn?.access_token || !phoneNumberId) {
+      return NextResponse.json({
+        error: 'WhatsApp phone number not configured. Go to Settings → Connect and click "Sync Connection" to resolve.'
+      }, { status: 400 });
     }
 
     const body = await req.json();
     const { type = 'text', content, templateName, languageCode, components, mediaUrl, mediaMimeType } = body;
 
-    const baseUrl = `https://graph.facebook.com/v19.0/${waConn.phone_number_id}/messages`;
+    const baseUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
     // Use META_SYSTEM_TOKEN if available — it has send permissions on all WABAs connected to this app.
     // Falls back to the tenant's stored token.
     const sendToken = process.env.META_SYSTEM_TOKEN || waConn.access_token;
@@ -104,7 +109,7 @@ export async function POST(
           fd.append('file', blob, 'upload');
 
           const uploadRes = await fetch(
-            `https://graph.facebook.com/v19.0/${waConn.phone_number_id}/media`,
+            `https://graph.facebook.com/v19.0/${phoneNumberId}/media`,
             {
               method: 'POST',
               headers: { Authorization: `Bearer ${sendToken}` },

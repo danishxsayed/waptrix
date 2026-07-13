@@ -61,8 +61,13 @@ export async function POST(req: Request) {
       .eq('tenant_id', user.id)
       .single();
 
-    if (!waConn?.access_token || !waConn?.phone_number_id) {
-      return NextResponse.json({ error: 'WhatsApp not connected' }, { status: 400 });
+    const phoneNumberId = waConn?.phone_number_id && waConn.phone_number_id !== 'pending'
+      ? waConn.phone_number_id : null;
+
+    if (!waConn?.access_token || !phoneNumberId) {
+      return NextResponse.json({
+        error: 'WhatsApp phone number not configured. Go to Settings → Connect and click "Sync Connection" to resolve.'
+      }, { status: 400 });
     }
 
     const sendToken = process.env.META_SYSTEM_TOKEN || waConn.access_token;
@@ -82,7 +87,7 @@ export async function POST(req: Request) {
     };
 
     let sendRes = await fetch(
-      `https://graph.facebook.com/v19.0/${waConn.phone_number_id}/messages`,
+      `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
       {
         method: 'POST',
         headers: {
@@ -97,7 +102,7 @@ export async function POST(req: Request) {
     // Retry with tenant token if system token fails (#200 = permissions)
     if (sendData.error && process.env.META_SYSTEM_TOKEN && sendData.error.code === 200) {
       sendRes = await fetch(
-        `https://graph.facebook.com/v19.0/${waConn.phone_number_id}/messages`,
+        `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`,
         {
           method: 'POST',
           headers: {
