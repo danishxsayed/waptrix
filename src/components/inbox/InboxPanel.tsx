@@ -5,7 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import {
   MessageSquare, Send, Paperclip, Search, CheckCheck, Check,
   Clock, FileText, Mic, X, Loader2, Download, Play, Plus, Phone, AlertCircle,
-  SlidersHorizontal, ChevronRight
+  SlidersHorizontal, ChevronRight, ArrowUpDown, Trash2, CheckSquare, Square
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 
@@ -508,6 +508,17 @@ export default function InboxPanel({
   // phone (normalized, no +) → segment name — built from contacts+segments fetch
   const [phoneTagMap, setPhoneTagMap] = useState<Record<string, string>>({});
 
+  // ── Sort state
+  type SortMode = 'newest' | 'oldest' | 'shortest_window' | 'longest_window';
+  const [sortMode, setSortMode] = useState<SortMode>('newest');
+  const [showSortMenu, setShowSortMenu] = useState(false);
+  const sortRef = useRef<HTMLDivElement>(null);
+
+  // ── Bulk select state
+  const [bulkMode, setBulkMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleting, setBulkDeleting] = useState(false);
+
   // ── New Chat state
   const [showNewChat, setShowNewChat] = useState(false);
   const [newChatPhone, setNewChatPhone] = useState("");
@@ -529,6 +540,17 @@ export default function InboxPanel({
   // Keep refs in sync with latest props/state
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
   useEffect(() => { onUnreadChangeRef.current = onUnreadChange; }, [onUnreadChange]);
+
+  // Close sort dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
+        setShowSortMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   // ── Notification sound — warm C-E-G chime
   const playNotificationSound = useCallback(() => {
@@ -1039,6 +1061,58 @@ export default function InboxPanel({
     return true;
   });
 
+  // ── Apply sort to filtered list
+  const sortedConversations = [...filteredConversations].sort((a, b) => {
+    if (sortMode === 'newest') return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
+    if (sortMode === 'oldest') return new Date(a.last_message_at).getTime() - new Date(b.last_message_at).getTime();
+    // Response window: approximated by last_message_at when contact has unread (inbound) messages.
+    // Shortest window = unread chats with oldest last message (24hr window almost expired)
+    if (sortMode === 'shortest_window') {
+      const aHasWindow = (a.unread_count || 0) > 0;
+      const bHasWindow = (b.unread_count || 0) > 0;
+      if (aHasWindow && !bHasWindow) return -1;
+      if (!aHasWindow && bHasWindow) return 1;
+      return new Date(a.last_message_at).getTime() - new Date(b.last_message_at).getTime();
+    }
+    // Longest window = unread chats with newest last message (most time remaining in 24hr window)
+    if (sortMode === 'longest_window') {
+      const aHasWindow = (a.unread_count || 0) > 0;
+      const bHasWindow = (b.unread_count || 0) > 0;
+      if (aHasWindow && !bHasWindow) return -1;
+      if (!aHasWindow && bHasWindow) return 1;
+      return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
+    }
+    return 0;
+  });
+
+  // ── Bulk delete handler
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    setBulkDeleting(true);
+    try {
+      const res = await fetch('/api/conversations', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: Array.from(selectedIds) }),
+      });
+      if (res.ok) {
+        setConversations(prev => prev.filter(c => !selectedIds.has(c.id)));
+        if (activeConv && selectedIds.has(activeConv.id)) setActiveConv(null);
+        setSelectedIds(new Set());
+        setBulkMode(false);
+      }
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
+  const SORT_OPTIONS: { key: SortMode; label: string }[] = [
+    { key: 'newest', label: 'Newest Customer Message' },
+    { key: 'oldest', label: 'Oldest Customer Message' },
+    { key: 'shortest_window', label: 'Shortest Response Window' },
+    { key: 'longest_window', label: 'Longest Response Window' },
+  ];
+
   const messageGroups = groupByDate(messages);
   const totalUnread = conversations.reduce((s, c) => s + (c.unread_count || 0), 0);
 
@@ -1071,7 +1145,7 @@ export default function InboxPanel({
       <div className={`flex ${fullHeight ? "h-[calc(100vh-260px)]" : "h-[600px]"}`}>
         {/* ── Left: Conversation List ────────────────────────────── */}
         <div className="w-80 border-r border-border flex flex-col flex-shrink-0">
-          {/* Search + Filter */}
+          {/* Search + Filter + Sort + Bulk */}
           <div className="p-3 border-b border-border space-y-2">
             <div className="flex items-center gap-2 bg-surface rounded-xl px-3 py-2 border border-border">
               <Search className="w-4 h-4 text-text-muted flex-shrink-0" />
@@ -1083,25 +1157,104 @@ export default function InboxPanel({
                 className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
               />
             </div>
-            <button
-              onClick={() => { setPendingFilters(appliedFilters); setShowFilters(true); }}
-              className={`w-full flex items-center justify-between px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors ${
-                activeFilterCount > 0
-                  ? 'bg-jade/10 border-jade/30 text-jade'
-                  : 'bg-surface border-border text-text-muted hover:text-text-primary hover:border-border'
-              }`}
-            >
-              <span className="flex items-center gap-1.5">
-                <SlidersHorizontal className="w-3.5 h-3.5" />
-                Filters
-                {activeFilterCount > 0 && (
-                  <span className="bg-jade text-background text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
-                    {activeFilterCount}
-                  </span>
+            <div className="flex items-center gap-2">
+              {/* Filter button */}
+              <button
+                onClick={() => { setPendingFilters(appliedFilters); setShowFilters(true); }}
+                className={`flex-1 flex items-center justify-between px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors ${
+                  activeFilterCount > 0
+                    ? 'bg-jade/10 border-jade/30 text-jade'
+                    : 'bg-surface border-border text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <span className="flex items-center gap-1.5">
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  Filters
+                  {activeFilterCount > 0 && (
+                    <span className="bg-jade text-background text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
+                      {activeFilterCount}
+                    </span>
+                  )}
+                </span>
+                <ChevronRight className="w-3.5 h-3.5 opacity-40" />
+              </button>
+
+              {/* Sort button */}
+              <div className="relative" ref={sortRef}>
+                <button
+                  onClick={() => setShowSortMenu(v => !v)}
+                  title="Sort conversations"
+                  className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-colors ${
+                    sortMode !== 'newest'
+                      ? 'bg-jade/10 border-jade/30 text-jade'
+                      : 'bg-surface border-border text-text-muted hover:text-text-primary'
+                  }`}
+                >
+                  <ArrowUpDown className="w-3.5 h-3.5" />
+                </button>
+                {showSortMenu && (
+                  <div className="absolute right-0 top-10 z-40 w-56 bg-card border border-border rounded-xl shadow-2xl overflow-hidden">
+                    <p className="px-3 pt-2.5 pb-1 text-[10px] font-bold text-text-muted uppercase tracking-wider">Sort By</p>
+                    {SORT_OPTIONS.map(opt => (
+                      <button
+                        key={opt.key}
+                        onClick={() => { setSortMode(opt.key); setShowSortMenu(false); }}
+                        className={`w-full text-left px-3 py-2.5 text-xs transition-colors ${
+                          sortMode === opt.key
+                            ? 'bg-jade/10 text-jade font-semibold'
+                            : 'text-text-primary hover:bg-surface'
+                        }`}
+                      >
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
                 )}
-              </span>
-              <ChevronRight className="w-3.5 h-3.5 opacity-40" />
-            </button>
+              </div>
+
+              {/* Bulk select toggle */}
+              <button
+                onClick={() => { setBulkMode(v => !v); setSelectedIds(new Set()); }}
+                title={bulkMode ? 'Exit bulk select' : 'Bulk select'}
+                className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-colors ${
+                  bulkMode
+                    ? 'bg-jade/10 border-jade/30 text-jade'
+                    : 'bg-surface border-border text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <CheckSquare className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Bulk action bar */}
+            {bulkMode && (
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs text-text-muted">
+                  {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'Tap to select'}
+                </span>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => {
+                      const allIds = new Set(sortedConversations.map(c => c.id));
+                      setSelectedIds(selectedIds.size === sortedConversations.length ? new Set() : allIds);
+                    }}
+                    className="text-xs text-jade hover:underline"
+                  >
+                    {selectedIds.size === sortedConversations.length ? 'Deselect all' : 'Select all'}
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <button
+                      onClick={handleBulkDelete}
+                      disabled={bulkDeleting}
+                      className="flex items-center gap-1 px-2.5 py-1 bg-red-500/10 border border-red-500/20 text-red-400 text-xs font-semibold rounded-lg hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                    >
+                      {bulkDeleting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                      Delete
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* List */}
@@ -1110,7 +1263,7 @@ export default function InboxPanel({
               <div className="flex items-center justify-center h-40">
                 <Loader2 className="w-6 h-6 text-jade animate-spin" />
               </div>
-            ) : filteredConversations.length === 0 ? (
+            ) : sortedConversations.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-40 text-center px-6">
                 <MessageSquare className="w-10 h-10 text-text-muted opacity-30 mb-3" />
                 <p className="text-sm text-text-muted font-medium">No conversations yet</p>
@@ -1119,18 +1272,37 @@ export default function InboxPanel({
                 </p>
               </div>
             ) : (
-              filteredConversations.map((conv) => (
-                <button
+              sortedConversations.map((conv) => (
+                <div
                   key={conv.id}
-                  onClick={() => selectConversation(conv)}
-                  className={`w-full flex items-start gap-3 px-4 py-3.5 border-b border-border/50 hover:bg-card transition-colors text-left ${
-                    activeConv?.id === conv.id ? "bg-jade/5 border-l-2 border-l-jade" : ""
-                  }`}
+                  onClick={() => {
+                    if (bulkMode) {
+                      setSelectedIds(prev => {
+                        const next = new Set(prev);
+                        next.has(conv.id) ? next.delete(conv.id) : next.add(conv.id);
+                        return next;
+                      });
+                    } else {
+                      selectConversation(conv);
+                    }
+                  }}
+                  className={`w-full flex items-start gap-3 px-4 py-3.5 border-b border-border/50 hover:bg-card transition-colors cursor-pointer ${
+                    !bulkMode && activeConv?.id === conv.id ? "bg-jade/5 border-l-2 border-l-jade" : ""
+                  } ${bulkMode && selectedIds.has(conv.id) ? "bg-jade/5" : ""}`}
                 >
-                  {/* Avatar */}
-                  <div className="w-10 h-10 rounded-full bg-jade/20 text-jade font-bold text-sm flex items-center justify-center flex-shrink-0">
-                    {avatarInitials(conv.contact_name || conv.contact_phone)}
-                  </div>
+                  {/* Checkbox in bulk mode, Avatar otherwise */}
+                  {bulkMode ? (
+                    <div className="w-10 h-10 flex items-center justify-center flex-shrink-0">
+                      {selectedIds.has(conv.id)
+                        ? <CheckSquare className="w-5 h-5 text-jade" />
+                        : <Square className="w-5 h-5 text-text-muted" />
+                      }
+                    </div>
+                  ) : (
+                    <div className="w-10 h-10 rounded-full bg-jade/20 text-jade font-bold text-sm flex items-center justify-center flex-shrink-0">
+                      {avatarInitials(conv.contact_name || conv.contact_phone)}
+                    </div>
+                  )}
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
@@ -1152,7 +1324,7 @@ export default function InboxPanel({
                       )}
                     </div>
                   </div>
-                </button>
+                </div>
               ))
             )}
           </div>
