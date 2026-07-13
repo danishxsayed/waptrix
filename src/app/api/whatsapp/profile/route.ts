@@ -44,6 +44,9 @@ export async function GET() {
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
     }
 
+    // Prefer the permanent system token so user token expiry never breaks this
+    const token = process.env.META_SYSTEM_TOKEN || conn.access_token;
+
     // Resolve phone_number_id — treat 'pending' as missing
     let phoneNumberId: string | null =
       conn.phone_number_id && conn.phone_number_id !== PENDING
@@ -56,7 +59,7 @@ export async function GET() {
       if (wabaId) {
         try {
           const r = await fetch(
-            `https://graph.facebook.com/v19.0/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${conn.access_token}`
+            `https://graph.facebook.com/v19.0/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${token}`
           );
           const d = await r.json();
           const p = d?.data?.[0];
@@ -83,7 +86,7 @@ export async function GET() {
     // Fetch WhatsApp business profile
     const profileRes = await fetch(
       `https://graph.facebook.com/v19.0/${phoneNumberId}/whatsapp_business_profile?fields=about,description,profile_picture_url,vertical,email,websites`,
-      { headers: { Authorization: `Bearer ${conn.access_token}` } }
+      { headers: { Authorization: `Bearer ${token}` } }
     );
 
     if (!profileRes.ok) {
@@ -109,7 +112,7 @@ export async function GET() {
     if (!phoneName || !bizName) {
       try {
         const r = await fetch(
-          `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=display_phone_number,verified_name&access_token=${conn.access_token}`
+          `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=display_phone_number,verified_name&access_token=${token}`
         );
         const d = await r.json();
         phoneName = d.display_phone_number || phoneName;
@@ -164,6 +167,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
     }
 
+    const postToken = process.env.META_SYSTEM_TOKEN || conn.access_token;
+
     const payload: Record<string, any> = { messaging_product: 'whatsapp' };
     if (about !== undefined) payload.about = about;
     if (description !== undefined) payload.description = description;
@@ -176,7 +181,7 @@ export async function POST(request: Request) {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${conn.access_token}`,
+          Authorization: `Bearer ${postToken}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(payload),

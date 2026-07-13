@@ -38,7 +38,7 @@ export async function POST(req: Request) {
       }, { status: 400 })
     }
 
-    const token = conn.access_token
+    const token = process.env.META_SYSTEM_TOKEN || conn.access_token
 
     // If we already have a real phone_number_id (not 'pending'), use it directly
     if (conn.phone_number_id && conn.phone_number_id !== 'pending') {

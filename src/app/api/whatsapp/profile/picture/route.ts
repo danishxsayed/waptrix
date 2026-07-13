@@ -34,6 +34,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
     }
 
+    // Prefer permanent system token to avoid user token expiry issues
+    const token = process.env.META_SYSTEM_TOKEN || conn.access_token;
+
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
 
@@ -55,7 +58,7 @@ export async function POST(request: Request) {
       `https://graph.facebook.com/v19.0/${appId}/uploads` +
       `?file_length=${file.size}` +
       `&file_type=${encodeURIComponent(file.type)}` +
-      `&access_token=${conn.access_token}`,
+      `&access_token=${token}`,
       { method: 'POST' }
     );
 
@@ -76,7 +79,7 @@ export async function POST(request: Request) {
       {
         method: 'POST',
         headers: {
-          Authorization: `OAuth ${conn.access_token}`,
+          Authorization: `OAuth ${token}`,
           'file_offset': '0',
           'Content-Type': file.type,
         },
@@ -105,7 +108,7 @@ export async function POST(request: Request) {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${conn.access_token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({

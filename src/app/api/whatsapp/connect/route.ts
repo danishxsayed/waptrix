@@ -50,7 +50,7 @@ export async function POST(req: Request) {
       }, { status: 400 })
     }
 
-    const token = conn.access_token
+    const token = process.env.META_SYSTEM_TOKEN || conn.access_token
 
     // Fetch phone number display details directly using the phoneNumberId from FINISH event.
     // This is the correct approach — no WABA enumeration needed.

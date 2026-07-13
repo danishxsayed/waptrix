@@ -57,7 +57,8 @@ export async function POST(
     }
 
     // 3. Retrieve status from Meta API
-    const statusData = await metaApi.getTemplateStatus(conn.access_token, template.meta_template_id);
+    const syncToken = process.env.META_SYSTEM_TOKEN || conn.access_token;
+    const statusData = await metaApi.getTemplateStatus(syncToken, template.meta_template_id);
 
     const metaStatus = statusData?.status || 'PENDING';
     const rejectionReason = statusData?.rejected_reason || null;
