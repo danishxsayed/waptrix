@@ -5,7 +5,7 @@ import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { waitUntil } from '@vercel/functions';
-import { executeCampaignSend } from '@/lib/campaign-sender';
+import { enqueueCampaignBatches } from '@/lib/campaign-queue';
 
 function serviceClient() {
   return createClient(
@@ -48,8 +48,8 @@ async function processDueCampaigns(tenantId: string) {
       .single();
 
     if (claimed) {
-      executeCampaignSend(campaign.id).catch((err) =>
-        console.error(`Scheduled campaign ${campaign.id} failed:`, err.message)
+      enqueueCampaignBatches(campaign.id).catch((err) =>
+        console.error(`Scheduled campaign ${campaign.id} failed to enqueue:`, err.message)
       );
     }
   }
@@ -125,10 +125,11 @@ export async function POST(req: Request) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     if (isImmediate) {
-      // Fire-and-forget via Vercel waitUntil — response returns instantly
+      // Enqueue batches via QStash — each batch runs in its own Vercel function
+      // No timeout risk, auto-retry on failure
       waitUntil(
-        executeCampaignSend(campaign.id).catch((err) =>
-          console.error(`Background send failed for campaign ${campaign.id}:`, err.message)
+        enqueueCampaignBatches(campaign.id).catch((err) =>
+          console.error(`Failed to enqueue campaign ${campaign.id}:`, err.message)
         )
       );
     }
