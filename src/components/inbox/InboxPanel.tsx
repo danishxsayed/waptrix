@@ -222,16 +222,14 @@ function QuotedBubble({ quoted, isOutbound }: { quoted: ChatMessage; isOutbound:
 interface InboxFilters {
   chatStatus: 'all' | 'open' | 'closed';
   readStatus: 'all' | 'read' | 'unread';
-  replyStatus: string[];
+  replyStatus: 'all' | 'unreplied' | 'replied';
   tags: string[];
-  noLabelAttached: boolean;
   lastMsgFrom: string;
   lastMsgTo: string;
-  showSpam: boolean;
 }
 const DEFAULT_FILTERS: InboxFilters = {
-  chatStatus: 'all', readStatus: 'all', replyStatus: [],
-  tags: [], noLabelAttached: false, lastMsgFrom: '', lastMsgTo: '', showSpam: false,
+  chatStatus: 'all', readStatus: 'all', replyStatus: 'all',
+  tags: [], lastMsgFrom: '', lastMsgTo: '',
 };
 
 // ─── Filter Modal ─────────────────────────────────────────────────────────────
@@ -247,13 +245,9 @@ function InboxFilterModal({
 }) {
   const [section, setSection] = useState('Chat Status');
   const [tagSearch, setTagSearch] = useState('');
-  const [labelSearch, setLabelSearch] = useState('');
 
-  const FILTER_SECTIONS = [
-    'Labels', 'Tags', 'Chat Status', 'Assignee',
-    'Reply Status', 'Read/Unread', 'Response Window',
-    'Last Message Time', 'Spam Chats',
-  ];
+  // Sections with working logic only — no stubs
+  const FILTER_SECTIONS = ['Tags', 'Chat Status', 'Reply Status', 'Read/Unread', 'Last Message Time'];
 
   const filteredTags = availableTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()));
 
@@ -264,27 +258,18 @@ function InboxFilterModal({
     setPending({ ...pending, tags: next });
   };
 
-  const toggleReplyStatus = (val: string) => {
-    const next = pending.replyStatus.includes(val)
-      ? pending.replyStatus.filter(v => v !== val)
-      : [...pending.replyStatus, val];
-    setPending({ ...pending, replyStatus: next });
-  };
-
   const sectionHasValue = (s: string) => {
     if (s === 'Chat Status') return pending.chatStatus !== 'all';
     if (s === 'Read/Unread') return pending.readStatus !== 'all';
     if (s === 'Tags') return pending.tags.length > 0;
-    if (s === 'Labels') return pending.noLabelAttached;
-    if (s === 'Reply Status') return pending.replyStatus.length > 0;
+    if (s === 'Reply Status') return pending.replyStatus !== 'all';
     if (s === 'Last Message Time') return !!(pending.lastMsgFrom || pending.lastMsgTo);
-    if (s === 'Spam Chats') return pending.showSpam;
     return false;
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="bg-card border border-border rounded-2xl shadow-2xl w-[700px] max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-card border border-border rounded-2xl shadow-2xl w-[680px] max-h-[85vh] flex flex-col overflow-hidden">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-border">
           <h2 className="text-lg font-bold font-syne">Filters</h2>
@@ -296,7 +281,7 @@ function InboxFilterModal({
         {/* Body */}
         <div className="flex flex-1 min-h-0">
           {/* Sidebar */}
-          <div className="w-52 border-r border-border flex flex-col overflow-y-auto flex-shrink-0">
+          <div className="w-48 border-r border-border flex flex-col overflow-y-auto flex-shrink-0">
             {FILTER_SECTIONS.map((s) => (
               <button
                 key={s}
@@ -317,36 +302,8 @@ function InboxFilterModal({
 
           {/* Panel */}
           <div className="flex-1 overflow-y-auto p-5">
-            {/* Labels */}
-            {section === 'Labels' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-sm">Labels</h3>
-                  <button onClick={() => setPending({ ...pending, noLabelAttached: false })} className="text-xs text-jade hover:underline">Clear</button>
-                </div>
-                <div className="flex items-center gap-2 bg-surface rounded-xl px-3 py-2 border border-border">
-                  <Search className="w-3.5 h-3.5 text-text-muted" />
-                  <input
-                    value={labelSearch}
-                    onChange={e => setLabelSearch(e.target.value)}
-                    placeholder="Search Labels"
-                    className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
-                  />
-                </div>
-                <label className="flex items-center gap-3 py-2 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={pending.noLabelAttached}
-                    onChange={e => setPending({ ...pending, noLabelAttached: e.target.checked })}
-                    className="w-4 h-4 accent-jade"
-                  />
-                  <span className="text-sm text-text-primary">No Label Attached</span>
-                </label>
-                <p className="text-xs text-text-muted pt-2">Labels are coming soon — connect your labelling system first.</p>
-              </div>
-            )}
 
-            {/* Tags */}
+            {/* Tags — filters by contact segment */}
             {section === 'Tags' && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
@@ -363,11 +320,11 @@ function InboxFilterModal({
                   />
                 </div>
                 {filteredTags.length === 0 ? (
-                  <p className="text-xs text-text-muted py-3">No tags found.</p>
+                  <p className="text-xs text-text-muted py-3">No tags found. Add contacts with segments to use this filter.</p>
                 ) : (
-                  <div className="space-y-1 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                  <div className="space-y-0.5 max-h-64 overflow-y-auto custom-scrollbar pr-1">
                     {filteredTags.map(tag => (
-                      <label key={tag} className="flex items-center gap-3 py-2 cursor-pointer hover:bg-surface rounded-lg px-2 transition-colors">
+                      <label key={tag} className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-surface rounded-lg px-2 transition-colors">
                         <input
                           type="checkbox"
                           checked={pending.tags.includes(tag)}
@@ -384,53 +341,22 @@ function InboxFilterModal({
 
             {/* Chat Status */}
             {section === 'Chat Status' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
+              <div className="space-y-1">
+                <div className="flex items-center justify-between mb-3">
                   <h3 className="font-semibold text-sm">Chat Status</h3>
                   <button onClick={() => setPending({ ...pending, chatStatus: 'all' })} className="text-xs text-jade hover:underline">Reset</button>
                 </div>
-                {(['all', 'open', 'closed'] as const).map((val) => (
-                  <label key={val} className="flex items-center gap-3 py-2 cursor-pointer">
+                {([
+                  { val: 'all', label: 'All Chats' },
+                  { val: 'open', label: 'Open Chats' },
+                  { val: 'closed', label: 'Closed Chats' },
+                ] as const).map(({ val, label }) => (
+                  <label key={val} className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-surface rounded-lg px-2 transition-colors">
                     <input
                       type="radio"
                       name="chatStatus"
                       checked={pending.chatStatus === val}
                       onChange={() => setPending({ ...pending, chatStatus: val })}
-                      className="w-4 h-4 accent-jade"
-                    />
-                    <span className="text-sm text-text-primary capitalize">
-                      {val === 'all' ? 'All Chats' : val === 'open' ? 'Open Chats' : 'Closed Chats'}
-                    </span>
-                  </label>
-                ))}
-              </div>
-            )}
-
-            {/* Assignee */}
-            {section === 'Assignee' && (
-              <div className="space-y-3">
-                <h3 className="font-semibold text-sm">Assignee</h3>
-                <p className="text-xs text-text-muted">Agent assignment is coming soon.</p>
-              </div>
-            )}
-
-            {/* Reply Status */}
-            {section === 'Reply Status' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-sm">Reply Status</h3>
-                  <button onClick={() => setPending({ ...pending, replyStatus: [] })} className="text-xs text-jade hover:underline">Clear</button>
-                </div>
-                {[
-                  { val: 'unreplied', label: 'Unreplied' },
-                  { val: 'replied_manually', label: 'Replied Manually' },
-                  { val: 'replied_bot', label: 'Replied by Bot' },
-                ].map(({ val, label }) => (
-                  <label key={val} className="flex items-center gap-3 py-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={pending.replyStatus.includes(val)}
-                      onChange={() => toggleReplyStatus(val)}
                       className="w-4 h-4 accent-jade"
                     />
                     <span className="text-sm text-text-primary">{label}</span>
@@ -439,15 +365,48 @@ function InboxFilterModal({
               </div>
             )}
 
+            {/* Reply Status — "Unreplied" = has unread inbound messages; "Replied" = no unread */}
+            {section === 'Reply Status' && (
+              <div className="space-y-1">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-sm">Reply Status</h3>
+                  <button onClick={() => setPending({ ...pending, replyStatus: 'all' })} className="text-xs text-jade hover:underline">Reset</button>
+                </div>
+                {([
+                  { val: 'all', label: 'All' },
+                  { val: 'unreplied', label: 'Unreplied' },
+                  { val: 'replied', label: 'Replied' },
+                ] as const).map(({ val, label }) => (
+                  <label key={val} className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-surface rounded-lg px-2 transition-colors">
+                    <input
+                      type="radio"
+                      name="replyStatus"
+                      checked={pending.replyStatus === val}
+                      onChange={() => setPending({ ...pending, replyStatus: val })}
+                      className="w-4 h-4 accent-jade"
+                    />
+                    <span className="text-sm text-text-primary">{label}</span>
+                  </label>
+                ))}
+                <p className="text-[11px] text-text-muted px-2 pt-2">
+                  Unreplied = conversations with unread messages from the contact.
+                </p>
+              </div>
+            )}
+
             {/* Read/Unread */}
             {section === 'Read/Unread' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-sm">Read/Unread</h3>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-sm">Read / Unread</h3>
                   <button onClick={() => setPending({ ...pending, readStatus: 'all' })} className="text-xs text-jade hover:underline">Reset</button>
                 </div>
-                {(['all', 'read', 'unread'] as const).map((val) => (
-                  <label key={val} className="flex items-center gap-3 py-2 cursor-pointer">
+                {([
+                  { val: 'all', label: 'All' },
+                  { val: 'read', label: 'Read' },
+                  { val: 'unread', label: 'Unread' },
+                ] as const).map(({ val, label }) => (
+                  <label key={val} className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-surface rounded-lg px-2 transition-colors">
                     <input
                       type="radio"
                       name="readStatus"
@@ -455,19 +414,9 @@ function InboxFilterModal({
                       onChange={() => setPending({ ...pending, readStatus: val })}
                       className="w-4 h-4 accent-jade"
                     />
-                    <span className="text-sm text-text-primary capitalize">
-                      {val === 'all' ? 'All' : val === 'read' ? 'Read' : 'Unread'}
-                    </span>
+                    <span className="text-sm text-text-primary">{label}</span>
                   </label>
                 ))}
-              </div>
-            )}
-
-            {/* Response Window */}
-            {section === 'Response Window' && (
-              <div className="space-y-3">
-                <h3 className="font-semibold text-sm">Response Window</h3>
-                <p className="text-xs text-text-muted">Filter by the 24-hour reply window — coming soon.</p>
               </div>
             )}
 
@@ -498,26 +447,6 @@ function InboxFilterModal({
                     />
                   </div>
                 </div>
-              </div>
-            )}
-
-            {/* Spam Chats */}
-            {section === 'Spam Chats' && (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold text-sm">Spam Chats</h3>
-                  <button onClick={() => setPending({ ...pending, showSpam: false })} className="text-xs text-jade hover:underline">Reset</button>
-                </div>
-                <label className="flex items-center gap-3 py-2 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="spam"
-                    checked={pending.showSpam}
-                    onChange={() => setPending({ ...pending, showSpam: true })}
-                    className="w-4 h-4 accent-jade"
-                  />
-                  <span className="text-sm text-text-primary">Show Spam Chats</span>
-                </label>
               </div>
             )}
           </div>
@@ -576,6 +505,8 @@ export default function InboxPanel({
   const [appliedFilters, setAppliedFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
   const [pendingFilters, setPendingFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
+  // phone (normalized, no +) → segment name — built from contacts+segments fetch
+  const [phoneTagMap, setPhoneTagMap] = useState<Record<string, string>>({});
 
   // ── New Chat state
   const [showNewChat, setShowNewChat] = useState(false);
@@ -684,10 +615,28 @@ export default function InboxPanel({
   useEffect(() => {
     fetchConversations();
     fetchTemplates();
-    // Fetch tags (segments) for filter
-    fetch('/api/contacts/segments').then(r => r.json()).then(data => {
-      if (Array.isArray(data)) setAvailableTags(data.map((s: any) => s.name).filter(Boolean));
-    }).catch(() => {});
+    // Fetch segments + contacts to build phone→segmentName map for Tags filter
+    Promise.all([
+      fetch('/api/contacts/segments').then(r => r.json()).catch(() => []),
+      fetch('/api/contacts').then(r => r.json()).catch(() => []),
+    ]).then(([segments, contacts]) => {
+      if (Array.isArray(segments)) {
+        setAvailableTags(segments.map((s: any) => s.name).filter(Boolean));
+        if (Array.isArray(contacts)) {
+          const segMap: Record<string, string> = {};
+          segments.forEach((s: any) => { segMap[s.id] = s.name; });
+          const pMap: Record<string, string> = {};
+          contacts.forEach((c: any) => {
+            if (c.phone && c.segment_id && segMap[c.segment_id]) {
+              // normalise: strip leading +/spaces
+              const norm = (c.phone as string).replace(/^\+/, '').replace(/\s/g, '');
+              pMap[norm] = segMap[c.segment_id];
+            }
+          });
+          setPhoneTagMap(pMap);
+        }
+      }
+    });
   }, [fetchConversations, fetchTemplates]);
 
   // ── Auto-select conversation when initialPhone is provided (from contacts page)
@@ -1049,23 +998,35 @@ export default function InboxPanel({
   const activeFilterCount = [
     appliedFilters.chatStatus !== 'all',
     appliedFilters.readStatus !== 'all',
-    appliedFilters.replyStatus.length > 0,
+    appliedFilters.replyStatus !== 'all',
     appliedFilters.tags.length > 0,
-    appliedFilters.noLabelAttached,
     !!(appliedFilters.lastMsgFrom || appliedFilters.lastMsgTo),
-    appliedFilters.showSpam,
   ].filter(Boolean).length;
 
   const filteredConversations = conversations.filter((c) => {
     // Search
     const q = searchQuery.toLowerCase();
     if (q && !c.contact_name.toLowerCase().includes(q) && !c.contact_phone.includes(q)) return false;
-    // Chat Status
+
+    // Chat Status — matches `status` column ('open' | 'closed')
     if (appliedFilters.chatStatus !== 'all' && c.status !== appliedFilters.chatStatus) return false;
-    // Read/Unread
+
+    // Read/Unread — unread_count > 0 means the contact sent messages we haven't read yet
     if (appliedFilters.readStatus === 'read' && (c.unread_count || 0) > 0) return false;
     if (appliedFilters.readStatus === 'unread' && (c.unread_count || 0) === 0) return false;
-    // Last Message Time
+
+    // Reply Status — "Unreplied" = has unread messages from contact; "Replied" = none
+    if (appliedFilters.replyStatus === 'unreplied' && (c.unread_count || 0) === 0) return false;
+    if (appliedFilters.replyStatus === 'replied' && (c.unread_count || 0) > 0) return false;
+
+    // Tags — match contact by phone number to their segment name
+    if (appliedFilters.tags.length > 0) {
+      const norm = c.contact_phone.replace(/^\+/, '').replace(/\s/g, '');
+      const contactTag = phoneTagMap[norm];
+      if (!contactTag || !appliedFilters.tags.includes(contactTag)) return false;
+    }
+
+    // Last Message Time — date range on last_message_at
     if (appliedFilters.lastMsgFrom) {
       if (new Date(c.last_message_at) < new Date(appliedFilters.lastMsgFrom)) return false;
     }
@@ -1074,6 +1035,7 @@ export default function InboxPanel({
       to.setHours(23, 59, 59, 999);
       if (new Date(c.last_message_at) > to) return false;
     }
+
     return true;
   });
 
