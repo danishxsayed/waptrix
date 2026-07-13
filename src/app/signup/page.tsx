@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Mail, Lock, ArrowRight, User, Building, ShieldCheck } from "lucide-react";
+import { Mail, Lock, ArrowRight, User, Building, ShieldCheck, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from '@/lib/supabase/client';
 
@@ -13,6 +13,7 @@ export default function SignupPage() {
     email: "", 
     password: "" 
   });
+  const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
@@ -116,14 +117,22 @@ export default function SignupPage() {
               <label className="text-xs font-bold text-text-muted uppercase tracking-widest">New Password</label>
               <div className="relative group">
                 <Lock className="w-4 h-4 text-text-muted absolute left-4 top-1/2 -translate-y-1/2 group-focus-within:text-jade transition-colors" />
-                <input 
-                  type="password" 
+                <input
+                  type={showPassword ? "text" : "password"}
                   required
                   value={formData.password}
                   onChange={e => setFormData({...formData, password: e.target.value})}
-                  placeholder="Minimum 8 characters" 
-                  className="w-full bg-surface border border-border rounded-2xl py-3.5 pl-11 pr-4 text-sm focus:outline-none focus:ring-2 focus:ring-jade/50 transition-all" 
+                  placeholder="Minimum 8 characters"
+                  className="w-full bg-surface border border-border rounded-2xl py-3.5 pl-11 pr-11 text-sm focus:outline-none focus:ring-2 focus:ring-jade/50 transition-all"
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(v => !v)}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-jade transition-colors"
+                  tabIndex={-1}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
               </div>
             </div>
 
