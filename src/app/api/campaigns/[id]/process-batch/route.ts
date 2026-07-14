@@ -42,12 +42,23 @@ function normalizePhone(phone: string): string {
 function buildComponents(templateBody: string, variableMapping: Record<string, string>, contact: any): any[] {
   const varMatches = templateBody.match(/\{\{(\d+)\}\}/g) || [];
   if (varMatches.length === 0) return [];
+
   const parameters = varMatches.map((v) => {
     const num = v.replace('{{', '').replace('}}', '');
     const fieldName = variableMapping[num] || '';
-    const value = contact[fieldName] || fieldName || `{{${num}}}`;
-    return { type: 'text', text: String(value) };
+
+    // Resolve value from contact field — never send literal {{N}} to Meta
+    let value: string = '';
+    if (fieldName && contact[fieldName] != null && String(contact[fieldName]).trim() !== '') {
+      value = String(contact[fieldName]);
+    } else {
+      // Fallback: use contact name → phone → a safe placeholder
+      value = contact.name || contact.phone || 'Customer';
+    }
+
+    return { type: 'text', text: value };
   });
+
   return [{ type: 'body', parameters }];
 }
 
