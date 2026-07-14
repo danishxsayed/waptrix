@@ -38,7 +38,8 @@ export async function middleware(request: NextRequest) {
       !request.nextUrl.pathname.startsWith('/forgot-password') &&
       !request.nextUrl.pathname.startsWith('/reset-password') &&
       !request.nextUrl.pathname.startsWith('/api/auth/') &&
-      !request.nextUrl.pathname.startsWith('/api/webhooks/')) {
+      !request.nextUrl.pathname.startsWith('/api/webhooks/') &&
+      !request.nextUrl.pathname.includes('/process-batch')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)

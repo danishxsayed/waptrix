@@ -79,41 +79,48 @@ export async function enqueueCampaignBatches(campaignId: string): Promise<void> 
   }
   const totalBatches = batches.length;
 
-  // 4. Mark campaign as queued + set total_contacts
-  await db.from('campaigns').update({
-    status:         'sending',
-    total_contacts: contacts.length,
-  }).eq('id', campaignId);
-
-  // 5. Enqueue each batch to QStash
+  // 4. Enqueue each batch to QStash BEFORE marking as 'sending'
+  //    If enqueuing fails, campaign stays 'queued' (retryable) not stuck as 'sending'
   const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN! });
   const appUrl  = getAppUrl();
   const batchUrl = `${appUrl}/api/campaigns/${campaignId}/process-batch`;
+
+  console.log(`Campaign ${campaignId}: enqueueing ${batches.length} batches to ${batchUrl}`);
 
   const publishPromises = batches.map((batch, index) =>
     qstash.publishJSON({
       url: batchUrl,
       body: {
         campaignId,
-        batchIndex:   index,
+        batchIndex:    index,
         totalBatches,
         totalContacts: contacts.length,
-        contacts:     batch,
+        contacts:      batch,
       },
-      // Retry up to 3 times with exponential backoff
       retries: 3,
-      // Delay batches slightly to respect Meta rate limits (50 msgs per batch)
-      // 50 messages / 75 msg-per-sec = ~0.67s → add 1s delay between batches
       delay: index > 0 ? `${index}s` : undefined,
     })
   );
 
   const results = await Promise.allSettled(publishPromises);
-  const failed  = results.filter(r => r.status === 'rejected');
+  const failedEnqueues = results.filter(r => r.status === 'rejected');
 
-  if (failed.length > 0) {
-    console.error(`enqueueCampaignBatches: ${failed.length}/${totalBatches} batches failed to enqueue`);
+  if (failedEnqueues.length === results.length) {
+    // All enqueues failed — reset campaign back to queued so user can retry
+    console.error(`enqueueCampaignBatches: ALL ${totalBatches} batches failed to enqueue. Resetting campaign to queued.`);
+    await db.from('campaigns').update({ status: 'queued' }).eq('id', campaignId);
+    return;
   }
+
+  if (failedEnqueues.length > 0) {
+    console.error(`enqueueCampaignBatches: ${failedEnqueues.length}/${totalBatches} batches failed to enqueue`);
+  }
+
+  // 5. Only mark as 'sending' after successful enqueue
+  await db.from('campaigns').update({
+    status:         'sending',
+    total_contacts: contacts.length,
+  }).eq('id', campaignId);
 
   console.log(`Campaign ${campaignId}: enqueued ${totalBatches} batches (${contacts.length} contacts total)`);
 }
