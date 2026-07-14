@@ -149,7 +149,6 @@ export async function POST(
   const logInserts: any[]  = [];
   const msgInserts: any[]  = [];
   const convUpdates: { id: string; name: string }[] = [];
-  const convCreates: any[] = [];
 
   for (const contact of contacts) {
     const normalizedPhone = normalizePhone(contact.phone);
@@ -195,23 +194,47 @@ export async function POST(
         .or(`contact_phone.eq.${normalizedPhone},contact_phone.eq.+${normalizedPhone}`)
         .maybeSingle();
 
-      let conversationId: string;
       if (existingConv) {
-        conversationId = existingConv.id;
-        convUpdates.push({ id: conversationId, name: contact.name || normalizedPhone });
-      } else {
-        // Will create after loop
-        convCreates.push({
+        // Existing conversation — update + queue chat_message
+        convUpdates.push({ id: existingConv.id, name: contact.name || normalizedPhone });
+        msgInserts.push({
           tenant_id:       campaign.tenant_id,
-          contact_phone:   normalizedPhone,
-          contact_name:    contact.name || normalizedPhone,
-          last_message:    messageContent,
-          last_message_at: now,
-          unread_count:    0,
-          status:          'open',
+          conversation_id: existingConv.id,
+          direction:       'outbound',
+          meta_message_id: metaMsgId,
+          type:            'template',
+          content:         messageContent,
+          status:          'sent',
+          created_at:      now,
         });
-        // Placeholder — we'll fill in after inserting
-        conversationId = `__new__${normalizedPhone}`;
+      } else {
+        // New conversation — create it now so we have the ID for chat_messages
+        const { data: newConv } = await db
+          .from('conversations')
+          .insert({
+            tenant_id:       campaign.tenant_id,
+            contact_phone:   normalizedPhone,
+            contact_name:    contact.name || normalizedPhone,
+            last_message:    messageContent,
+            last_message_at: now,
+            unread_count:    0,
+            status:          'open',
+          })
+          .select('id')
+          .single();
+
+        if (newConv?.id) {
+          msgInserts.push({
+            tenant_id:       campaign.tenant_id,
+            conversation_id: newConv.id,
+            direction:       'outbound',
+            meta_message_id: metaMsgId,
+            type:            'template',
+            content:         messageContent,
+            status:          'sent',
+            created_at:      now,
+          });
+        }
       }
 
       logInserts.push({
@@ -223,19 +246,6 @@ export async function POST(
         meta_msg_id: metaMsgId,
         sent_at:     now,
       });
-
-      if (!conversationId.startsWith('__new__')) {
-        msgInserts.push({
-          tenant_id:       campaign.tenant_id,
-          conversation_id: conversationId,
-          direction:       'outbound',
-          meta_message_id: metaMsgId,
-          type:            'template',
-          content:         messageContent,
-          status:          'sent',
-          created_at:      now,
-        });
-      }
 
       batchSent++;
     } catch (err: any) {
@@ -257,11 +267,6 @@ export async function POST(
   }
 
   // ── 5. Bulk DB writes ────────────────────────────────────────
-  // Create new conversations
-  if (convCreates.length > 0) {
-    await db.from('conversations').insert(convCreates);
-  }
-
   // Update existing conversations
   const messageContent = `[Template: ${template.name}]`;
   for (const upd of convUpdates) {
