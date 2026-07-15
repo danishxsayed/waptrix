@@ -1,5 +1,23 @@
 # Implementation History
 
+## [2026-07-14] - Upstash Redis + QStash Batch Campaign Queue & Inbox Filtering
+- **Upstash Redis + QStash Campaign Queue**:
+  - Integrated Upstash Redis and QStash to support batch campaign processing. Immediate/scheduled campaigns now queue contact batches into Redis/QStash rather than executing all dispatches in a single request.
+  - Implemented `/api/campaigns/[id]/process-batch` route handler to execute batch message dispatches. Excluded this route from authentication middleware in `src/middleware.ts` to allow QStash callback triggers to bypass redirects.
+  - Handled database updates for message logging, creating/linking new conversation records correctly for batched message recipients, and added a safe variable fallback to prevent Meta API error `132012`.
+  - Added new performance optimization indexes in `supabase-indexes.sql`.
+- **Campaign Detail Analytics Page**:
+  - Developed a detailed campaign stats page at `src/app/(dashboard)/campaigns/[id]/page.tsx` showing delivery statistics (sent, delivered, read, failed), visual progress bars, and a searchable logs table.
+  - Added backend route handler for specific campaign queries (`GET /api/campaigns/[id]/route.ts`).
+- **Inbox Search, Filtering, and Bulk Management**:
+  - Added a comprehensive inbox filtering modal and dropdown supporting filtering by chat status, read/unread state, tags, last message time, reply status (e.g. Needs Reply), spam, and custom labels.
+  - Implemented conversational sorting options (Last Message, Name, Unread First) and bulk action controls to select and delete conversations in batch, backed by a custom `DELETE` method in `/api/conversations/route.ts`.
+- **System Credentials & Error Guarding**:
+  - Unified Meta graph interactions across profile, media, sync, and template endpoints to use the permanent `META_SYSTEM_TOKEN` instead of short-lived user tokens, preventing access token expiration issues.
+  - Guarded send routes (`/api/conversations/[id]/reply` and `/api/conversations/start`) against invalid or pending `phone_number_id` values, ensuring clear error reporting rather than server crashes.
+- **Login, Signup, and Reset Password Security**:
+  - Integrated interactive eye toggle controls to show/hide passwords on authentication screens (Login, Signup, Reset Password).
+
 ## [2026-07-10] - Resort Photo Mapping (Dandeli Wild adventure)
 - **Automatic Photo Mapping**:
   - Scanned and processed 25 resort photo folders (6 to 23 photos each) located in the `Dandeli Wild adventure` project's `public/resort photos/` directory.

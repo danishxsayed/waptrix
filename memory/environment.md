@@ -17,7 +17,12 @@ This file documents the environment variables required for the project. **Do not
 - `NEXT_PUBLIC_META_VERIFY_TOKEN`: The token used to verify webhooks in the Meta Dashboard.
 - `META_APP_SECRET`: (Secret) Your Meta App Secret for secure server-to-server calls.
 - `META_VERIFY_TOKEN`: (Internal) Server-side verify token.
+- `META_SYSTEM_TOKEN`: (Secret) Permanent System User access token used across all WhatsApp API calls to avoid user token expiry.
+
+## Upstash Redis & QStash (Batch Queue)
+- `UPSTASH_REDIS_REST_URL`: (Secret) REST URL for the Upstash Redis database.
+- `UPSTASH_REDIS_REST_TOKEN`: (Secret) REST Token for the Upstash Redis database.
+- `QSTASH_TOKEN`: (Secret) Token for publishing background batch messages to QStash.
 
 ## Legacy / Future
-- `REDIS_URL`: (Unused) Reserved for caching/rate limiting.
 - `JWT_SECRET`: (Unused) Reserved for custom JWT logic.
