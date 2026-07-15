@@ -1,5 +1,10 @@
 # Implementation History
 
+## [2026-07-15] - Campaign Batch Queue Performance Optimization
+- **Parallel Batch Processing**:
+  - Refactored the campaign QStash batch queue runner at `src/app/api/campaigns/[id]/process-batch/route.ts` to process contacts within each batch in parallel using chunking (concurrency of 20) and `Promise.allSettled`.
+  - Parallelized database writes (updating conversations, inserting message logs, and inserting chat messages) instead of executing them sequentially, significantly accelerating bulk message throughput.
+
 ## [2026-07-14] - Upstash Redis + QStash Batch Campaign Queue & Inbox Filtering
 - **Upstash Redis + QStash Campaign Queue**:
   - Integrated Upstash Redis and QStash to support batch campaign processing. Immediate/scheduled campaigns now queue contact batches into Redis/QStash rather than executing all dispatches in a single request.

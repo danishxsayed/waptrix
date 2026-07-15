@@ -142,91 +142,69 @@ export async function POST(
   const variableMapping = campaign.variable_mapping || {};
   const now             = new Date().toISOString();
   const templateName    = template.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+  const messageContent  = `[Template: ${template.name}]`;
 
-  // ── 4. Process each contact in the batch ────────────────────
-  let batchSent   = 0;
+  // ── 4. Idempotency — batch check for already-sent contacts ──
+  // Single DB call instead of one per contact (much faster at scale)
+  const contactIds = contacts.map((c: any) => c.id);
+  const { data: existingLogs } = await db
+    .from('message_logs')
+    .select('contact_id')
+    .eq('campaign_id', campaignId)
+    .in('contact_id', contactIds);
+
+  const alreadySentIds = new Set((existingLogs || []).map((l: any) => l.contact_id));
+  const pendingContacts = contacts.filter((c: any) => !alreadySentIds.has(c.id));
+  const skippedCount = contacts.length - pendingContacts.length;
+
+  // ── 5. Send all pending contacts in parallel (CONCURRENCY = 20) ──
+  // 20x faster than sequential — each slot does: rate-limit → Meta API → conv upsert
+  const CONCURRENCY = 20;
+  let batchSent   = skippedCount; // already-sent contacts count as sent (idempotency)
   let batchFailed = 0;
   const logInserts: any[]  = [];
   const msgInserts: any[]  = [];
   const convUpdates: { id: string; name: string }[] = [];
 
-  for (const contact of contacts) {
-    const normalizedPhone = normalizePhone(contact.phone);
+  // Process contacts in parallel chunks
+  for (let i = 0; i < pendingContacts.length; i += CONCURRENCY) {
+    const chunk = pendingContacts.slice(i, i + CONCURRENCY);
 
-    try {
-      // Idempotency: skip if already sent (handles QStash retries safely)
-      const { data: existingLog } = await db
-        .from('message_logs')
-        .select('id')
-        .eq('campaign_id', campaignId)
-        .eq('contact_id', contact.id)
-        .maybeSingle();
+    const results = await Promise.allSettled(
+      chunk.map(async (contact: any) => {
+        const normalizedPhone = normalizePhone(contact.phone);
 
-      if (existingLog) {
-        batchSent++;
-        continue;
-      }
+        // Rate limit: respect Meta's ~80 msg/sec cap
+        await checkMetaRateLimit(waConnection.phone_number_id);
 
-      // Rate limit: respect Meta's ~80 msg/sec cap
-      await checkMetaRateLimit(waConnection.phone_number_id);
+        const runtimeComponents = buildComponents(template.body || '', variableMapping, contact);
 
-      const runtimeComponents = buildComponents(template.body || '', variableMapping, contact);
+        const response = await metaApi.sendTemplateMessage(
+          sendToken,
+          waConnection.phone_number_id,
+          {
+            to:           normalizedPhone,
+            templateName,
+            languageCode: template.language,
+            components:   runtimeComponents,
+          }
+        );
 
-      const response = await metaApi.sendTemplateMessage(
-        sendToken,
-        waConnection.phone_number_id,
-        {
-          to:           normalizedPhone,
-          templateName,
-          languageCode: template.language,
-          components:   runtimeComponents,
-        }
-      );
+        const metaMsgId = response?.messages?.[0]?.id ?? null;
 
-      const metaMsgId      = response?.messages?.[0]?.id ?? null;
-      const messageContent = `[Template: ${template.name}]`;
-
-      // Upsert conversation
-      const { data: existingConv } = await db
-        .from('conversations')
-        .select('id')
-        .eq('tenant_id', campaign.tenant_id)
-        .or(`contact_phone.eq.${normalizedPhone},contact_phone.eq.+${normalizedPhone}`)
-        .maybeSingle();
-
-      if (existingConv) {
-        // Existing conversation — update + queue chat_message
-        convUpdates.push({ id: existingConv.id, name: contact.name || normalizedPhone });
-        msgInserts.push({
-          tenant_id:       campaign.tenant_id,
-          conversation_id: existingConv.id,
-          direction:       'outbound',
-          meta_message_id: metaMsgId,
-          type:            'template',
-          content:         messageContent,
-          status:          'sent',
-          created_at:      now,
-        });
-      } else {
-        // New conversation — create it now so we have the ID for chat_messages
-        const { data: newConv } = await db
+        // Upsert conversation
+        const { data: existingConv } = await db
           .from('conversations')
-          .insert({
-            tenant_id:       campaign.tenant_id,
-            contact_phone:   normalizedPhone,
-            contact_name:    contact.name || normalizedPhone,
-            last_message:    messageContent,
-            last_message_at: now,
-            unread_count:    0,
-            status:          'open',
-          })
           .select('id')
-          .single();
+          .eq('tenant_id', campaign.tenant_id)
+          .or(`contact_phone.eq.${normalizedPhone},contact_phone.eq.+${normalizedPhone}`)
+          .maybeSingle();
 
-        if (newConv?.id) {
+        if (existingConv) {
+          convUpdates.push({ id: existingConv.id, name: contact.name || normalizedPhone });
           msgInserts.push({
             tenant_id:       campaign.tenant_id,
-            conversation_id: newConv.id,
+            conversation_id: existingConv.id,
             direction:       'outbound',
             meta_message_id: metaMsgId,
             type:            'template',
@@ -234,66 +212,100 @@ export async function POST(
             status:          'sent',
             created_at:      now,
           });
+        } else {
+          const { data: newConv } = await db
+            .from('conversations')
+            .insert({
+              tenant_id:       campaign.tenant_id,
+              contact_phone:   normalizedPhone,
+              contact_name:    contact.name || normalizedPhone,
+              last_message:    messageContent,
+              last_message_at: now,
+              unread_count:    0,
+              status:          'open',
+            })
+            .select('id')
+            .single();
+
+          if (newConv?.id) {
+            msgInserts.push({
+              tenant_id:       campaign.tenant_id,
+              conversation_id: newConv.id,
+              direction:       'outbound',
+              meta_message_id: metaMsgId,
+              type:            'template',
+              content:         messageContent,
+              status:          'sent',
+              created_at:      now,
+            });
+          }
         }
+
+        return { contact, metaMsgId, status: 'sent' as const };
+      })
+    );
+
+    // Collect results from this chunk
+    for (let j = 0; j < results.length; j++) {
+      const contact = chunk[j];
+      const result  = results[j];
+
+      if (result.status === 'fulfilled') {
+        logInserts.push({
+          campaign_id: campaignId,
+          tenant_id:   campaign.tenant_id,
+          contact_id:  contact.id,
+          phone:       contact.phone,
+          status:      'sent',
+          meta_msg_id: result.value.metaMsgId,
+          sent_at:     now,
+        });
+        batchSent++;
+      } else {
+        const err     = result.reason;
+        const metaErr = err?.response?.data?.error;
+        const errorMsg = metaErr
+          ? `[${metaErr.code || ''}] ${metaErr.message || err.message}`
+          : (err?.message || String(err));
+
+        logInserts.push({
+          campaign_id: campaignId,
+          tenant_id:   campaign.tenant_id,
+          contact_id:  contact.id,
+          phone:       contact.phone,
+          status:      'failed',
+          error:       errorMsg,
+        });
+        batchFailed++;
       }
-
-      logInserts.push({
-        campaign_id: campaignId,
-        tenant_id:   campaign.tenant_id,
-        contact_id:  contact.id,
-        phone:       contact.phone,
-        status:      'sent',
-        meta_msg_id: metaMsgId,
-        sent_at:     now,
-      });
-
-      batchSent++;
-    } catch (err: any) {
-      const metaErr  = err.response?.data?.error;
-      const errorMsg = metaErr
-        ? `[${metaErr.code || ''}] ${metaErr.message || err.message}`
-        : (err.message || String(err));
-
-      logInserts.push({
-        campaign_id: campaignId,
-        tenant_id:   campaign.tenant_id,
-        contact_id:  contact.id,
-        phone:       contact.phone,
-        status:      'failed',
-        error:       errorMsg,
-      });
-      batchFailed++;
     }
   }
 
-  // ── 5. Bulk DB writes ────────────────────────────────────────
-  // Update existing conversations
-  const messageContent = `[Template: ${template.name}]`;
-  for (const upd of convUpdates) {
-    await db.from('conversations').update({
-      contact_name:    upd.name,
-      last_message:    messageContent,
-      last_message_at: now,
-    }).eq('id', upd.id);
-  }
+  // ── 6. Bulk DB writes ────────────────────────────────────────
+  // Update existing conversations in parallel
+  await Promise.all(
+    convUpdates.map((upd) =>
+      db.from('conversations').update({
+        contact_name:    upd.name,
+        last_message:    messageContent,
+        last_message_at: now,
+      }).eq('id', upd.id)
+    )
+  );
 
-  // Bulk insert message_logs
-  if (logInserts.length > 0) {
-    await db.from('message_logs').insert(logInserts);
-  }
+  // Bulk insert message_logs + chat_messages in parallel
+  await Promise.all([
+    logInserts.length > 0 ? db.from('message_logs').insert(logInserts) : Promise.resolve(),
+    msgInserts.length > 0 ? db.from('chat_messages').insert(msgInserts) : Promise.resolve(),
+  ]);
 
-  // Bulk insert chat_messages
-  if (msgInserts.length > 0) {
-    await db.from('chat_messages').insert(msgInserts);
-  }
-
-  // ── 6. Atomic campaign counters in Redis ─────────────────────
+  // ── 7. Atomic campaign counters in Redis ─────────────────────
   const [totalSent, totalFailed] = await Promise.all([
     incrCampaignSent(campaignId, batchSent),
     incrCampaignFailed(campaignId, batchFailed),
   ]);
 
-  // ── 7. If last batch → finalise campaign in Supabase ─────────
+  // ── 8. If last batch → finalise campaign in Supabase ─────────
   const isLastBatch = batchIndex === totalBatches - 1;
 
   if (isLastBatch) {
