@@ -1,5 +1,16 @@
 # Implementation History
 
+## [2026-07-17] - Meta Category Syncing, Webhook Notifications, and Campaign Header Parameters
+- **Campaign Batch Media Header Support**:
+  - Refactored `buildComponents` in campaign batch dispatcher (`src/app/api/campaigns/[id]/process-batch/route.ts`) to dynamically parse, build, and attach template header parameters for media assets (IMAGE, VIDEO, DOCUMENT) based on `template.header_type` and `template.header_text`.
+- **Meta Category Change Detection & Alerts**:
+  - Implemented logic in template sync route (`src/app/api/templates/[id]/sync/route.ts`) and Meta webhooks handler (`src/app/api/webhooks/meta/route.ts`) to detect when Meta reclassifies a template's category.
+  - Added PostgreSQL update integration for category changes, firing in-app template notifications (`template_category_change` type) and emails through Resend API.
+  - Created a new email template in `src/lib/email/template.ts` for template category changes, notifying tenants of potential messaging charge adjustments (e.g. MARKETING template conversions).
+  - Extended Meta API `getTemplateStatus` query in `src/lib/meta.ts` to request the template's `category` field from Meta Graph API.
+- **Direct Webhook Status Emailing**:
+  - Added dedicated email helper `sendWebhookEmail` in `/api/webhooks/meta` to retrieve customer emails from Supabase Auth and send styled status updates (APPROVED, REJECTED, CATEGORY_CHANGED) directly using Resend credentials, matching manual sync route behaviors.
+
 ## [2026-07-15] - Campaign Batch Queue Performance Optimization
 - **Parallel Batch Processing**:
   - Refactored the campaign QStash batch queue runner at `src/app/api/campaigns/[id]/process-batch/route.ts` to process contacts within each batch in parallel using chunking (concurrency of 20) and `Promise.allSettled`.

@@ -1,4 +1,101 @@
 /**
+ * Email for when Meta changes a template's category (e.g. Utility → Marketing).
+ */
+export const getCategoryChangeEmail = (
+  templateName: string,
+  previousCategory: string,
+  newCategory: string,
+  dashboardUrl: string
+) => {
+  const fmt = (c: string) => c.charAt(0) + c.slice(1).toLowerCase();
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Template Category Changed</title>
+</head>
+<body style="margin:0;padding:0;background-color:#080A0F;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#080A0F;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#0E1117;border:1px solid #273042;border-radius:24px;overflow:hidden;">
+          <tr>
+            <td style="padding:36px 40px 28px;background:linear-gradient(135deg,#0E1117 0%,#161B26 100%);text-align:center;border-bottom:1px solid #1E293B;">
+              <div style="display:inline-flex;align-items:center;gap:12px;justify-content:center;">
+                <div style="background-color:#10B981;color:#080A0F;padding:10px 16px;border-radius:12px;font-weight:900;font-size:20px;letter-spacing:-0.5px;box-shadow:0 0 20px rgba(16,185,129,0.35);">W</div>
+                <span style="color:#10B981;font-size:22px;font-weight:800;letter-spacing:-0.5px;">Waptrix</span>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px 0;">
+              <div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.25);border-radius:16px;padding:24px;text-align:center;">
+                <div style="font-size:40px;margin-bottom:10px;">🔄</div>
+                <h1 style="margin:0 0 8px;font-size:26px;font-weight:800;color:#E2E8F0;">Template Category Changed</h1>
+                <p style="margin:0;font-size:15px;color:#8896AB;line-height:1.65;">
+                  Meta has reviewed your template <strong style="color:#E2E8F0;">${templateName}</strong> and changed its category.
+                </p>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="width:48%;background:#161B26;border:1px solid #273042;border-radius:12px;padding:16px 20px;text-align:center;vertical-align:top;">
+                    <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#4A5568;text-transform:uppercase;letter-spacing:1px;">Previous Category</p>
+                    <p style="margin:0;font-size:18px;font-weight:800;color:#CBD5E1;">${fmt(previousCategory)}</p>
+                  </td>
+                  <td style="width:4%;text-align:center;vertical-align:middle;font-size:20px;color:#F59E0B;">→</td>
+                  <td style="width:48%;background:#161B26;border:1px solid rgba(245,158,11,0.35);border-radius:12px;padding:16px 20px;text-align:center;vertical-align:top;">
+                    <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#F59E0B;text-transform:uppercase;letter-spacing:1px;">New Category</p>
+                    <p style="margin:0;font-size:18px;font-weight:800;color:#FCD34D;">${fmt(newCategory)}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:20px 40px 0;">
+              <div style="background:rgba(244,63,94,0.07);border:1px solid rgba(244,63,94,0.2);border-radius:12px;padding:16px 20px;">
+                <p style="margin:0 0 6px;font-size:11px;font-weight:700;color:#F43F5E;text-transform:uppercase;letter-spacing:1px;">⚠️ Important</p>
+                <p style="margin:0;font-size:14px;color:#CBD5E1;line-height:1.6;">
+                  The new category <strong>${fmt(newCategory)}</strong> may affect messaging charges and limits.
+                  ${newCategory === 'MARKETING' ? 'Marketing templates have a per-conversation fee. Please review your campaign costs.' : ''}
+                  Please review your template and update your strategy accordingly.
+                </p>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px 40px;text-align:center;">
+              <a href="${dashboardUrl}" style="display:inline-block;background-color:#F59E0B;color:#080A0F;padding:14px 36px;border-radius:12px;font-weight:800;font-size:15px;text-decoration:none;letter-spacing:-0.2px;">
+                Review Template &rarr;
+              </a>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:0 40px;">
+              <div style="height:1px;background:#1E293B;"></div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:28px 40px;text-align:center;background-color:#080A0F;">
+              <p style="margin:0 0 4px;font-size:13px;color:#10B981;font-weight:700;">Waptrix</p>
+              <p style="margin:0 0 4px;font-size:11px;color:#4A5568;">The WhatsApp Marketing Platform</p>
+              <p style="margin:0;font-size:11px;color:#2D3748;">Powered by <strong style="color:#4A5568;">Crawlers Technologies</strong></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+};
+
+/**
  * Beautiful branded email for template status notifications (APPROVED / REJECTED).
  * Features Crawlers Technologies branding alongside Waptrix.
  */

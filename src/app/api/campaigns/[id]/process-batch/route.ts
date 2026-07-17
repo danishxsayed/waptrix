@@ -39,27 +39,48 @@ function normalizePhone(phone: string): string {
   return phone.replace(/^\+/, '');
 }
 
-function buildComponents(templateBody: string, variableMapping: Record<string, string>, contact: any): any[] {
-  const varMatches = templateBody.match(/\{\{(\d+)\}\}/g) || [];
-  if (varMatches.length === 0) return [];
+function buildComponents(template: any, variableMapping: Record<string, string>, contact: any): any[] {
+  const components: any[] = [];
 
-  const parameters = varMatches.map((v) => {
-    const num = v.replace('{{', '').replace('}}', '');
-    const fieldName = variableMapping[num] || '';
-
-    // Resolve value from contact field — never send literal {{N}} to Meta
-    let value: string = '';
-    if (fieldName && contact[fieldName] != null && String(contact[fieldName]).trim() !== '') {
-      value = String(contact[fieldName]);
-    } else {
-      // Fallback: use contact name → phone → a safe placeholder
-      value = contact.name || contact.phone || 'Customer';
+  // Header component — required for IMAGE / VIDEO / DOCUMENT templates
+  if (template.header_type && template.header_text) {
+    const headerType = template.header_type.toLowerCase(); // 'image' | 'video' | 'document'
+    if (['image', 'video', 'document'].includes(headerType)) {
+      components.push({
+        type: 'header',
+        parameters: [
+          {
+            type: headerType,
+            [headerType]: { link: template.header_text },
+          },
+        ],
+      });
     }
+  }
 
-    return { type: 'text', text: value };
-  });
+  // Body component — only when the template body has {{N}} variables
+  const varMatches = (template.body || '').match(/\{\{(\d+)\}\}/g) || [];
+  if (varMatches.length > 0) {
+    const parameters = varMatches.map((v: string) => {
+      const num = v.replace('{{', '').replace('}}', '');
+      const fieldName = variableMapping[num] || '';
 
-  return [{ type: 'body', parameters }];
+      // Resolve value from contact field — never send literal {{N}} to Meta
+      let value: string = '';
+      if (fieldName && contact[fieldName] != null && String(contact[fieldName]).trim() !== '') {
+        value = String(contact[fieldName]);
+      } else {
+        // Fallback: use contact name → phone → a safe placeholder
+        value = contact.name || contact.phone || 'Customer';
+      }
+
+      return { type: 'text', text: value };
+    });
+
+    components.push({ type: 'body', parameters });
+  }
+
+  return components;
 }
 
 export async function POST(
@@ -177,7 +198,7 @@ export async function POST(
         // Rate limit: respect Meta's ~80 msg/sec cap
         await checkMetaRateLimit(waConnection.phone_number_id);
 
-        const runtimeComponents = buildComponents(template.body || '', variableMapping, contact);
+        const runtimeComponents = buildComponents(template, variableMapping, contact);
 
         const response = await metaApi.sendTemplateMessage(
           sendToken,

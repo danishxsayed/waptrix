@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
+import { getCategoryChangeEmail, getTemplateStatusEmail } from '@/lib/email/template';
 
 // ──────────────────────────────────────────────────────────
 // Verify Meta webhook signature
@@ -229,11 +230,34 @@ async function handleMessages(db: SupabaseClient, value: any) {
 // Payload: { message_template_id, message_template_name, event, reason? }
 // event: APPROVED | REJECTED | PENDING_DELETION | FLAGGED | PAUSED | REINSTATED | DISABLED
 // ──────────────────────────────────────────────────────────
+async function sendWebhookEmail(tenantId: string, db: SupabaseClient, html: string, subject: string) {
+  try {
+    const apiKey = process.env.RESEND_API_KEY;
+    if (!apiKey) return;
+
+    // Get user email from Supabase Auth
+    const { data: userData } = await db.auth.admin.getUserById(tenantId);
+    const userEmail = userData?.user?.email;
+    if (!userEmail) return;
+
+    await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
+      body: JSON.stringify({ from: 'Waptrix <no-reply@waptrix.in>', to: userEmail, subject, html }),
+    });
+  } catch (err) {
+    console.error('Webhook email send failed:', err);
+  }
+}
+
 async function handleTemplateStatusUpdate(db: SupabaseClient, value: any, wabaId: string) {
   const metaTemplateId = String(value.message_template_id ?? '');
   const templateName: string = value.message_template_name ?? '';
   const event: string = value.event ?? '';
   const reason: string = value.reason ?? '';
+  // Category change fields — present when Meta reclassifies the template
+  const newCategory: string | null    = value.new_category ?? null;
+  const previousCategory: string | null = value.previous_category ?? null;
 
   if (!metaTemplateId || !event) return;
 
@@ -252,13 +276,15 @@ async function handleTemplateStatusUpdate(db: SupabaseClient, value: any, wabaId
 
   const updateData: Record<string, any> = { meta_status: newStatus };
   if (reason) updateData.rejection_reason = reason;
+  // If Meta changed the category, update it in our DB immediately
+  if (newCategory) updateData.category = newCategory;
 
-  // Update template row and return id + tenant_id for notification
+  // Update template row and return id + tenant_id + previous category for comparison
   const { data: updatedTemplate, error } = await db
     .from('templates')
     .update(updateData)
     .eq('meta_template_id', metaTemplateId)
-    .select('id, tenant_id, name')
+    .select('id, tenant_id, name, category')
     .single();
 
   if (error) {
@@ -266,12 +292,42 @@ async function handleTemplateStatusUpdate(db: SupabaseClient, value: any, wabaId
     return;
   }
 
-  console.log(`Template ${metaTemplateId} → ${newStatus}${reason ? ` (${reason})` : ''}`);
+  console.log(`Template ${metaTemplateId} → ${newStatus}${reason ? ` (${reason})` : ''}${newCategory ? ` | category: ${previousCategory} → ${newCategory}` : ''}`);
 
-  // ── Create a notification for the tenant ──────────────────
   const tenantId = updatedTemplate?.tenant_id;
   const displayName = updatedTemplate?.name || templateName || metaTemplateId;
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://app.waptrix.in';
+  const dashboardUrl = `${appUrl}/templates`;
 
+  // ── Category change notification + email ──────────────────
+  if (newCategory && previousCategory && newCategory !== previousCategory && tenantId) {
+    const fmt = (c: string) => c.charAt(0) + c.slice(1).toLowerCase();
+
+    // In-app notification
+    await db.from('notifications').insert({
+      tenant_id: tenantId,
+      type: 'template_category_change',
+      title: '🔄 Template Category Changed by Meta',
+      body: `Meta changed "${displayName}" from ${fmt(previousCategory)} to ${fmt(newCategory)}. This may affect messaging charges.`,
+      meta: {
+        template_id: updatedTemplate?.id ?? null,
+        meta_template_id: metaTemplateId,
+        template_name: displayName,
+        previous_category: previousCategory,
+        new_category: newCategory,
+        status: newStatus,
+      },
+    }).then(({ error: e }) => { if (e) console.error('Category notif failed:', e.message); });
+
+    // Email
+    const html = getCategoryChangeEmail(displayName, previousCategory, newCategory, dashboardUrl);
+    await sendWebhookEmail(
+      tenantId, db, html,
+      `⚠️ Template "${displayName}" Category Changed: ${fmt(previousCategory)} → ${fmt(newCategory)}`
+    );
+  }
+
+  // ── Status notification + email (APPROVED / REJECTED) ─────
   const notifMap: Record<string, { title: string; body: string }> = {
     APPROVED: {
       title: '✅ Template Approved',
@@ -305,7 +361,7 @@ async function handleTemplateStatusUpdate(db: SupabaseClient, value: any, wabaId
   };
 
   if (tenantId) {
-    const { error: notifErr } = await db.from('notifications').insert({
+    await db.from('notifications').insert({
       tenant_id: tenantId,
       type: 'template_status',
       title: notif.title,
@@ -317,8 +373,23 @@ async function handleTemplateStatusUpdate(db: SupabaseClient, value: any, wabaId
         status: newStatus,
         reason: reason || null,
       },
-    });
-    if (notifErr) console.error('Notification insert failed:', notifErr.message);
+    }).then(({ error: e }) => { if (e) console.error('Status notif failed:', e.message); });
+
+    // Send email for APPROVED / REJECTED status
+    if (newStatus === 'APPROVED' || newStatus === 'REJECTED') {
+      const html = getTemplateStatusEmail(
+        displayName,
+        newStatus as 'APPROVED' | 'REJECTED',
+        reason || null,
+        dashboardUrl
+      );
+      await sendWebhookEmail(
+        tenantId, db, html,
+        newStatus === 'APPROVED'
+          ? `✅ Template "${displayName}" Approved by Meta`
+          : `❌ Template "${displayName}" Rejected by Meta`
+      );
+    }
   }
 }
 

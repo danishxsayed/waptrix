@@ -99,7 +99,7 @@ export const metaApi = {
    */
   async getTemplateStatus(accessToken: string, templateId: string) {
     const response = await axios.get(`${GRAPH_URL}/${templateId}`, {
-      params: { fields: 'id,name,status,rejected_reason' },
+      params: { fields: 'id,name,status,category,rejected_reason' },
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     return response.data;
