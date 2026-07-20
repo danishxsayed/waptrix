@@ -1,6 +1,11 @@
 # Implementation History
 
-## [2026-07-17] - Meta Category Syncing, Webhook Notifications, and Campaign Header Parameters
+## [2026-07-20] - Inline Template Syncing from Meta
+- **Template Sync Action in Dashboard**:
+  - Added an explicit "Sync from Meta" action option inside the template options menu on `src/app/(dashboard)/templates/page.tsx`.
+  - Displays a spinning loading indicator (`RotateCw`) on the template card action button while synchronization is in progress (`syncingId`).
+  - Calls `axios.post('/api/templates/${template.id}/sync')` and immediately updates local template state with the fresh `meta_status` and category changes from Meta, displaying rich toast notifications on status/category updates.
+
 - **Campaign Batch Media Header Support**:
   - Refactored `buildComponents` in campaign batch dispatcher (`src/app/api/campaigns/[id]/process-batch/route.ts`) to dynamically parse, build, and attach template header parameters for media assets (IMAGE, VIDEO, DOCUMENT) based on `template.header_type` and `template.header_text`.
 - **Meta Category Change Detection & Alerts**:

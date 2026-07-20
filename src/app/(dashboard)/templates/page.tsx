@@ -12,7 +12,8 @@ import {
   MoreVertical,
   ChevronRight,
   RefreshCw,
-  Trash2
+  Trash2,
+  RotateCw,
 } from "lucide-react";
 import axios from "axios";
 import TemplateBuilder from "@/components/templates/TemplateBuilder";
@@ -29,6 +30,7 @@ export default function TemplatesPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [fetchError, setFetchError] = useState("");
   const [deleteError, setDeleteError] = useState<{ id: string; msg: string } | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
@@ -73,6 +75,40 @@ export default function TemplatesPage() {
   const handleEdit = (template: any) => {
     setEditingTemplate(template);
     setIsBuilderOpen(true);
+  };
+
+  const handleSync = async (template: any) => {
+    if (!template.meta_template_id) {
+      showToast("Template hasn't been submitted to Meta yet.", "error");
+      return;
+    }
+    setSyncingId(template.id);
+    setActiveMenu(null);
+    try {
+      const res = await axios.post(`/api/templates/${template.id}/sync`);
+      const { metaStatus, categoryChanged } = res.data;
+
+      // Update local state immediately
+      setTemplates(prev => prev.map(t =>
+        t.id === template.id
+          ? {
+              ...t,
+              meta_status: metaStatus,
+              ...(categoryChanged ? { category: categoryChanged.to } : {}),
+            }
+          : t
+      ));
+
+      if (categoryChanged) {
+        showToast(`Category updated: ${categoryChanged.from} → ${categoryChanged.to}`);
+      } else {
+        showToast(`Synced — status: ${metaStatus}`);
+      }
+    } catch (err: any) {
+      showToast(err.response?.data?.error || "Sync failed.", "error");
+    } finally {
+      setSyncingId(null);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -256,11 +292,23 @@ export default function TemplatesPage() {
                   <button
                     onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === template.id ? null : template.id); }}
                     className="p-1.5 text-text-muted hover:text-text-primary rounded-lg hover:bg-surface"
+                    disabled={syncingId === template.id}
                   >
-                    <MoreVertical className="w-4 h-4" />
+                    {syncingId === template.id
+                      ? <RotateCw className="w-4 h-4 animate-spin text-jade" />
+                      : <MoreVertical className="w-4 h-4" />
+                    }
                   </button>
                   {activeMenu === template.id && (
-                    <div className="absolute right-0 mt-2 w-40 bg-card border border-border rounded-xl shadow-xl z-10 py-1 overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="absolute right-0 mt-2 w-44 bg-card border border-border rounded-xl shadow-xl z-10 py-1 overflow-hidden animate-in fade-in zoom-in duration-200">
+                      <button
+                        onClick={(e) => { e.stopPropagation(); handleSync(template); }}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-jade hover:bg-jade/10 transition-colors"
+                      >
+                        <RotateCw className="w-3.5 h-3.5" />
+                        Sync from Meta
+                      </button>
+                      <div className="h-px bg-border mx-2" />
                       <button
                         onClick={(e) => { e.stopPropagation(); handleDelete(template.id); setActiveMenu(null); }}
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors"
