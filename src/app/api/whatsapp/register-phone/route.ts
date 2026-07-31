@@ -40,30 +40,53 @@ export async function POST(req: Request) {
       await db.from('wa_connections').update({ registration_pin: body.pin }).eq('tenant_id', user.id);
     }
 
-    // Call Meta registration API
-    const res = await fetch(
-      `https://graph.facebook.com/v19.0/${conn.phone_number_id}/register`,
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${conn.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ messaging_product: 'whatsapp', pin }),
-      }
-    );
+    // Try system token first, then user token — system token has admin access to WABAs
+    const tokensToTry = Array.from(new Set([
+      process.env.META_SYSTEM_TOKEN,
+      conn.access_token,
+    ].filter(Boolean))) as string[];
 
-    const data = await res.json();
-    console.log('Phone registration response:', JSON.stringify(data));
+    let lastErrMsg = 'Registration failed';
+    let lastErrCode: number | undefined;
 
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: data.error?.message || 'Registration failed', code: data.error?.code },
-        { status: res.status }
+    for (const regToken of tokensToTry) {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${conn.phone_number_id}/register`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${regToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messaging_product: 'whatsapp', pin }),
+        }
       );
+
+      const data = await res.json();
+      console.log('Phone registration response:', JSON.stringify(data));
+
+      if (res.ok) {
+        return NextResponse.json({ success: true });
+      }
+
+      lastErrCode = data.error?.code;
+      const rawMsg: string = data.error?.message || 'Registration failed';
+
+      // Translate cryptic Meta errors into actionable messages
+      if (rawMsg.includes('does not exist') || rawMsg.includes('missing permissions') || rawMsg.includes('Unsupported post')) {
+        lastErrMsg = 'This phone number ID is invalid or your app does not have permission to register it. ' +
+          'Please disconnect and reconnect via "Connect WhatsApp Business" to refresh your credentials.';
+      } else if (rawMsg.toLowerCase().includes('already registered') || lastErrCode === 2388053) {
+        lastErrMsg = 'This number is already registered — no action needed. Try refreshing the page.';
+      } else if (rawMsg.toLowerCase().includes('migrate') || lastErrCode === 2388052) {
+        lastErrMsg = 'This phone number is currently on personal WhatsApp or another provider. ' +
+          'You must first migrate it in WhatsApp Manager: go to Meta Business Settings → WhatsApp Manager → Migrate Number.';
+      } else {
+        lastErrMsg = rawMsg;
+      }
+
+      // Only retry on permission errors, not on structural errors
+      if (lastErrCode !== 190 && lastErrCode !== 200 && lastErrCode !== 10) break;
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ error: lastErrMsg, code: lastErrCode }, { status: 400 });
   } catch (err: any) {
     console.error('register-phone error:', err);
     return NextResponse.json({ error: err.message }, { status: 500 });

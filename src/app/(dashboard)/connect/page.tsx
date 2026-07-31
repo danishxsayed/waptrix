@@ -13,6 +13,7 @@ export default function ConnectPage() {
   const [isSaving, setIsSaving] = useState(false);
 
   // Phone registration state
+  const [showTroubleshoot, setShowTroubleshoot] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const [registerPin, setRegisterPin] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
@@ -94,13 +95,33 @@ export default function ConnectPage() {
   }
 
   async function handleManualConnect() {
-    if (!phoneNumberId.trim()) return;
+    const trimmedId = phoneNumberId.trim();
+    if (!trimmedId) return;
+
+    // Validate ID format — must be numeric and typically 15–17 digits
+    if (!/^\d{10,20}$/.test(trimmedId)) {
+      setErrorMsg('Phone Number ID should be a numeric ID (15–17 digits) — not your actual phone number.');
+      return;
+    }
+
     setIsSaving(true);
+    setErrorMsg('');
     try {
+      // Pre-validate the ID against Meta API before saving
+      const validateRes = await fetch(
+        `/api/whatsapp/validate-phone-id?phoneNumberId=${trimmedId}`
+      );
+      if (!validateRes.ok) {
+        const vd = await validateRes.json();
+        setErrorMsg(vd.error || 'Invalid Phone Number ID. Make sure you copied the ID from WhatsApp Manager → Phone Numbers, not the WABA ID.');
+        setIsSaving(false);
+        return;
+      }
+
       const res = await fetch('/api/whatsapp/oauth-connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: pendingCode, wabaId: 'from-phone-id', phoneNumberId: phoneNumberId.trim() }),
+        body: JSON.stringify({ code: pendingCode, wabaId: 'from-phone-id', phoneNumberId: trimmedId }),
       });
       const data = await res.json();
       if (data.error) {
@@ -135,6 +156,7 @@ export default function ConnectPage() {
       setStatus('idle');
       setConnectionInfo(null);
       setShowRegister(false);
+      setShowTroubleshoot(false);
       setRegisterSuccess(false);
     } catch (err: any) {
       setStatus('error');
@@ -238,31 +260,45 @@ export default function ConnectPage() {
                 </div>
               </div>
               <div className="flex items-center justify-between pt-2 flex-wrap gap-2">
-                <div className="flex items-center gap-4 flex-wrap">
-                  <button
-                    onClick={() => { setShowRegister(!showRegister); setRegisterError(''); }}
-                    className="text-xs font-bold text-jade hover:text-jade/80 hover:underline transition-all flex items-center gap-1.5"
-                  >
-                    <KeyRound className="w-3.5 h-3.5" />
-                    {registerSuccess ? 'Phone Registered ✓' : 'Register Phone Number (fix Pending status)'}
-                  </button>
-                  <button
-                    onClick={() => handleSubscribeWebhook()}
-                    disabled={isSubscribing}
-                    className="text-xs font-bold text-blue-400 hover:text-blue-300 hover:underline transition-all flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    {isSubscribing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                    {isSubscribing ? 'Subscribing...' : 'Subscribe Webhook (fix inbox)'}
-                  </button>
-                </div>
                 <button onClick={handleDisconnect} className="text-xs font-bold text-red-500 hover:text-red-400 hover:underline transition-all">
                   Disconnect Account
                 </button>
+                {/* Troubleshooting tools — collapsed by default */}
+                <button
+                  onClick={() => { setShowTroubleshoot(t => !t); setShowRegister(false); }}
+                  className="text-[10px] text-text-muted hover:text-text-primary transition-all flex items-center gap-1 underline underline-offset-2"
+                >
+                  Having issues? Troubleshoot
+                </button>
               </div>
-              {subscribeMsg && (
-                <p className={`text-xs mt-1 ${subscribeMsg.startsWith('Error') ? 'text-red-400' : 'text-jade'}`}>
-                  {subscribeMsg}
-                </p>
+
+              {/* Troubleshooting panel */}
+              {showTroubleshoot && (
+                <div className="mt-2 p-4 bg-surface border border-border/50 rounded-xl space-y-2">
+                  <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Troubleshooting</p>
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      onClick={() => { setShowRegister(r => !r); setRegisterError(''); }}
+                      className="text-xs font-bold text-jade hover:text-jade/80 hover:underline transition-all flex items-center gap-1.5"
+                    >
+                      <KeyRound className="w-3.5 h-3.5" />
+                      {registerSuccess ? 'Phone Registered ✓' : 'Register Phone (fix Pending status)'}
+                    </button>
+                    <button
+                      onClick={() => handleSubscribeWebhook()}
+                      disabled={isSubscribing}
+                      className="text-xs font-bold text-blue-400 hover:text-blue-300 hover:underline transition-all flex items-center gap-1.5 disabled:opacity-50"
+                    >
+                      {isSubscribing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                      {isSubscribing ? 'Subscribing...' : 'Re-subscribe Webhook (fix inbox)'}
+                    </button>
+                  </div>
+                  {subscribeMsg && (
+                    <p className={`text-xs mt-1 ${subscribeMsg.startsWith('Error') ? 'text-red-400' : 'text-jade'}`}>
+                      {subscribeMsg}
+                    </p>
+                  )}
+                </div>
               )}
 
             {showWabaInput && (
