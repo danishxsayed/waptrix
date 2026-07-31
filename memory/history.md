@@ -7,7 +7,7 @@
 - **Unregistered Phone Number Handling & Settings UI Alert**:
   - Enhanced `/api/whatsapp/profile` API to check for unregistered WhatsApp Cloud API phone numbers (Meta Graph API error 100 or nonexisting field for `whatsapp_business_profile`) and return a 400 Bad Request containing `{ needs_registration: true }`.
   - Updated the settings dashboard page (`src/app/(dashboard)/settings/page.tsx`) to catch the `needs_registration` flag and display a dedicated warning message.
-  - Added an inline, single-click "Register Phone Number Now" button to the Settings error state to automatically trigger registration and refresh the profile without leaving the Settings tab.
+  - Added an inline, single-click "Register Phone Number Now" button to the Settings error state to automatically trigger registration. Implemented active profile polling (every 10s for up to 2 mins) post-registration to display a clean loading state and automatically load the profile once Meta activates the number, without requiring any manual page refreshes.
 - **Automatic WhatsApp Phone Registration & Robust Error Translations**:
   - Added automatic registration logic in `/api/whatsapp/oauth-connect`. When a connection is first established, the system automatically generates a secure random 6-digit registration PIN, performs a POST to Meta's `/register` endpoint to register the phone number with Cloud API, and stores the PIN in a new database column `registration_pin` on the `wa_connections` table.
   - Added a schema migration file `supabase/add_registration_pin.sql` to add the `registration_pin` column.

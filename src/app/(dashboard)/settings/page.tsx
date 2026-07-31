@@ -57,6 +57,7 @@ export default function SettingsPage() {
   const [waProfileNeedsRegistration, setWaProfileNeedsRegistration] = useState(false);
   const [isRegistering, setIsRegistering] = useState(false);
   const [registerMsg, setRegisterMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [registrationDone, setRegistrationDone] = useState(false);
   const [waAbout, setWaAbout] = useState("");
   const [waIsSaving, setWaIsSaving] = useState(false);
   const [waMessage, setWaMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -199,11 +200,26 @@ export default function SettingsPage() {
     try {
       const res = await axios.post('/api/whatsapp/register-phone', {});
       if (res.data.success) {
-        setRegisterMsg({ type: 'success', text: 'Phone registered! Loading your WhatsApp profile...' });
-        setTimeout(() => fetchWaProfile(), 2000);
+        setRegistrationDone(true);
+        setRegisterMsg({ type: 'success', text: 'Phone registered with Meta! WhatsApp profile will load in ~60 seconds as Meta activates your number.' });
+        // Poll until profile loads — Meta takes 30–90s to activate
+        let attempts = 0;
+        const poll = setInterval(async () => {
+          attempts++;
+          try {
+            const profileRes = await axios.get('/api/whatsapp/profile');
+            setWaProfile(profileRes.data);
+            setWaAbout(profileRes.data.about || '');
+            setWaProfileError(null);
+            setWaProfileNeedsRegistration(false);
+            clearInterval(poll);
+          } catch {
+            if (attempts >= 12) clearInterval(poll); // stop after ~2 mins
+          }
+        }, 10000); // retry every 10s
       }
     } catch (err: any) {
-      const msg = err.response?.data?.error || 'Registration failed';
+      const msg = err.response?.data?.error || 'Registration failed. Please try disconnecting and reconnecting your WhatsApp account.';
       setRegisterMsg({ type: 'error', text: msg });
     } finally {
       setIsRegistering(false);
@@ -336,29 +352,38 @@ export default function SettingsPage() {
             <AlertCircle className="w-8 h-8 text-text-muted" />
             {waProfileNeedsRegistration ? (
               <>
-                <p className="text-sm font-bold text-text-primary">Phone Number Not Registered</p>
-                <p className="text-sm text-text-muted max-w-sm">
-                  Your WhatsApp number was connected but hasn&apos;t been registered with the Cloud API yet.
-                  Click below to complete setup automatically.
-                </p>
-                {registerMsg ? (
-                  <div className={`text-sm font-medium px-4 py-2 rounded-lg ${
-                    registerMsg.type === 'success'
-                      ? 'bg-jade/10 text-jade border border-jade/20'
-                      : 'bg-red-500/10 text-red-500 border border-red-500/20'
-                  }`}>
-                    {registerMsg.text}
-                  </div>
+                {registrationDone ? (
+                  <>
+                    <CheckCircle className="w-8 h-8 text-jade" />
+                    <p className="text-sm font-bold text-jade">Registration Sent!</p>
+                    <p className="text-sm text-text-muted max-w-sm text-center">
+                      Meta is activating your number. This takes 30–90 seconds.
+                      This page will update automatically — please wait.
+                    </p>
+                    <Loader2 className="w-5 h-5 text-jade animate-spin" />
+                  </>
                 ) : (
-                  <button
-                    onClick={handleAutoRegister}
-                    disabled={isRegistering}
-                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-jade text-background text-sm font-bold hover:bg-jade/90 transition-colors disabled:opacity-50"
-                  >
-                    {isRegistering
-                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Registering...</>
-                      : 'Register Phone Number Now'}
-                  </button>
+                  <>
+                    <p className="text-sm font-bold text-text-primary">Phone Number Not Registered</p>
+                    <p className="text-sm text-text-muted max-w-sm">
+                      Your WhatsApp number was connected but hasn&apos;t been registered with the Cloud API yet.
+                      Click below to complete setup automatically.
+                    </p>
+                    {registerMsg?.type === 'error' && (
+                      <div className="text-sm font-medium px-4 py-2 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 max-w-sm text-center">
+                        {registerMsg.text}
+                      </div>
+                    )}
+                    <button
+                      onClick={handleAutoRegister}
+                      disabled={isRegistering}
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-jade text-background text-sm font-bold hover:bg-jade/90 transition-colors disabled:opacity-50"
+                    >
+                      {isRegistering
+                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Registering...</>
+                        : 'Register Phone Number Now'}
+                    </button>
+                  </>
                 )}
               </>
             ) : (waProfileError.includes('session has been invalidated') || waProfileError.includes('Error validating access token') || waProfileError.includes('Invalid OAuth')) ? (
