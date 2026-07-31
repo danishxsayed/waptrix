@@ -55,6 +55,8 @@ export default function SettingsPage() {
   const [waProfileLoading, setWaProfileLoading] = useState(true);
   const [waProfileError, setWaProfileError] = useState<string | null>(null);
   const [waProfileNeedsRegistration, setWaProfileNeedsRegistration] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [registerMsg, setRegisterMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [waAbout, setWaAbout] = useState("");
   const [waIsSaving, setWaIsSaving] = useState(false);
   const [waMessage, setWaMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -191,6 +193,23 @@ export default function SettingsPage() {
     }
   };
 
+  async function handleAutoRegister() {
+    setIsRegistering(true);
+    setRegisterMsg(null);
+    try {
+      const res = await axios.post('/api/whatsapp/register-phone', {});
+      if (res.data.success) {
+        setRegisterMsg({ type: 'success', text: 'Phone registered! Loading your WhatsApp profile...' });
+        setTimeout(() => fetchWaProfile(), 2000);
+      }
+    } catch (err: any) {
+      const msg = err.response?.data?.error || 'Registration failed';
+      setRegisterMsg({ type: 'error', text: msg });
+    } finally {
+      setIsRegistering(false);
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -320,11 +339,27 @@ export default function SettingsPage() {
                 <p className="text-sm font-bold text-text-primary">Phone Number Not Registered</p>
                 <p className="text-sm text-text-muted max-w-sm">
                   Your WhatsApp number was connected but hasn&apos;t been registered with the Cloud API yet.
-                  This is required before you can send or receive messages.
+                  Click below to complete setup automatically.
                 </p>
-                <a href="/connect" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-jade/10 border border-jade/20 text-jade text-sm font-bold hover:bg-jade/20 transition-colors">
-                  Go to Connect → Register Phone <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                {registerMsg ? (
+                  <div className={`text-sm font-medium px-4 py-2 rounded-lg ${
+                    registerMsg.type === 'success'
+                      ? 'bg-jade/10 text-jade border border-jade/20'
+                      : 'bg-red-500/10 text-red-500 border border-red-500/20'
+                  }`}>
+                    {registerMsg.text}
+                  </div>
+                ) : (
+                  <button
+                    onClick={handleAutoRegister}
+                    disabled={isRegistering}
+                    className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-jade text-background text-sm font-bold hover:bg-jade/90 transition-colors disabled:opacity-50"
+                  >
+                    {isRegistering
+                      ? <><Loader2 className="w-4 h-4 animate-spin" /> Registering...</>
+                      : 'Register Phone Number Now'}
+                  </button>
+                )}
               </>
             ) : (waProfileError.includes('session has been invalidated') || waProfileError.includes('Error validating access token') || waProfileError.includes('Invalid OAuth')) ? (
               <>

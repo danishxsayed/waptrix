@@ -29,15 +29,15 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
     }
 
-    // Use provided PIN, or fall back to the auto-generated one stored during oauth-connect
-    const pin = body.pin || conn.registration_pin;
+    // Use provided PIN → stored PIN → auto-generate one (no user input required)
+    let pin: string = body.pin || conn.registration_pin || '';
     if (!pin || !/^\d{6}$/.test(pin)) {
-      return NextResponse.json({ error: 'A 6-digit PIN is required' }, { status: 400 });
+      pin = String(Math.floor(100000 + Math.random() * 900000));
     }
 
-    // If a new PIN is provided, save it
-    if (body.pin && body.pin !== conn.registration_pin) {
-      await db.from('wa_connections').update({ registration_pin: body.pin }).eq('tenant_id', user.id);
+    // Persist the PIN so future re-registrations are also automatic
+    if (pin !== conn.registration_pin) {
+      await db.from('wa_connections').update({ registration_pin: pin }).eq('tenant_id', user.id);
     }
 
     // Try system token first, then user token — system token has admin access to WABAs

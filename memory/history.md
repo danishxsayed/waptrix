@@ -6,11 +6,12 @@
   - Added this fallback logic to WABA self-healing in `/api/whatsapp/connection`, profile retrieval in `/api/whatsapp/profile`, and webhook subscribed-apps registration in `/api/whatsapp/subscribe-webhook` and `/api/whatsapp/oauth-connect`.
 - **Unregistered Phone Number Handling & Settings UI Alert**:
   - Enhanced `/api/whatsapp/profile` API to check for unregistered WhatsApp Cloud API phone numbers (Meta Graph API error 100 or nonexisting field for `whatsapp_business_profile`) and return a 400 Bad Request containing `{ needs_registration: true }`.
-  - Updated the settings dashboard page (`src/app/(dashboard)/settings/page.tsx`) to catch the `needs_registration` flag and display a dedicated warning message and button guiding the user to go to the Connect page and register their phone number.
+  - Updated the settings dashboard page (`src/app/(dashboard)/settings/page.tsx`) to catch the `needs_registration` flag and display a dedicated warning message.
+  - Added an inline, single-click "Register Phone Number Now" button to the Settings error state to automatically trigger registration and refresh the profile without leaving the Settings tab.
 - **Automatic WhatsApp Phone Registration & Robust Error Translations**:
   - Added automatic registration logic in `/api/whatsapp/oauth-connect`. When a connection is first established, the system automatically generates a secure random 6-digit registration PIN, performs a POST to Meta's `/register` endpoint to register the phone number with Cloud API, and stores the PIN in a new database column `registration_pin` on the `wa_connections` table.
   - Added a schema migration file `supabase/add_registration_pin.sql` to add the `registration_pin` column.
-  - Refactored `/api/whatsapp/register-phone` to fall back to the stored auto-generated `registration_pin` if no explicit PIN is passed, making the registration automatic and seamless.
+  - Refactored `/api/whatsapp/register-phone` to fall back to the stored auto-generated `registration_pin` or generate a random 6-digit PIN on the fly if neither is provided, ensuring zero user input is required to complete phone registration.
   - Upgraded `/api/whatsapp/register-phone` to attempt registration using the system token first (admin privileges) before falling back to the user token, and translated cryptic Meta registration errors into actionable instructions (e.g. migration, duplicate registration, or app permissions).
 - **Phone Number ID Validation & Troubleshooting UI**:
   - Implemented a new validation endpoint `/api/whatsapp/validate-phone-id` that verifies a manual Phone Number ID against Meta Graph API using the system token to ensure it exists and is a phone number, preventing common copy-paste errors of WABA IDs.
