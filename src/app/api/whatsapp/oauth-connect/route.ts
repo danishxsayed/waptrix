@@ -267,16 +267,59 @@ export async function POST(req: Request) {
     // Uses META_SYSTEM_TOKEN (platform-level) if available — otherwise falls back
     // to the user's token (works when coming from a fresh Embedded Signup).
     if (wabaId && wabaId !== 'manual') {
+      const subscriptionTokensToTry = Array.from(new Set([
+        process.env.META_SYSTEM_TOKEN,
+        longLivedToken,
+      ].filter(Boolean))) as string[];
+
+      for (const subToken of subscriptionTokensToTry) {
+        try {
+          const subRes = await fetch(
+            `https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`,
+            { method: 'POST', headers: { Authorization: `Bearer ${subToken}` } }
+          );
+          const subData = await subRes.json();
+          console.log('WABA webhook subscription:', JSON.stringify(subData));
+          if (subRes.ok) break;
+          const subErrCode = subData.error?.code;
+          if (subErrCode !== 190 && subErrCode !== 200 && subErrCode !== 10) break;
+        } catch (e) {
+          console.warn('WABA webhook subscription failed (non-fatal):', e);
+        }
+      }
+    }
+
+    // Auto-register the phone number with Cloud API so the user doesn't have to do it manually.
+    // WATI/Interakt handle this silently — we do the same.
+    // We generate a random 6-digit PIN and store it so re-registration is also automatic.
+    if (phoneNumberId && phoneNumberId !== 'pending') {
       try {
-        const subscriptionToken = process.env.META_SYSTEM_TOKEN || longLivedToken;
-        const subRes = await fetch(
-          `https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`,
-          { method: 'POST', headers: { Authorization: `Bearer ${subscriptionToken}` } }
+        // Generate a random 6-digit PIN and store it
+        const autoPin = String(Math.floor(100000 + Math.random() * 900000));
+
+        const regRes = await fetch(
+          `https://graph.facebook.com/v19.0/${phoneNumberId}/register`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${longLivedToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ messaging_product: 'whatsapp', pin: autoPin }),
+          }
         );
-        const subData = await subRes.json();
-        console.log('WABA webhook subscription:', JSON.stringify(subData));
+        const regData = await regRes.json();
+        console.log('Auto phone registration:', JSON.stringify(regData));
+
+        if (regRes.ok) {
+          // Persist the PIN so we can re-register automatically if needed
+          await db.from('wa_connections')
+            .update({ registration_pin: autoPin })
+            .eq('tenant_id', user.id);
+          console.log('Phone auto-registered successfully');
+        } else {
+          // Non-fatal: log and continue. User can manually register from Connect page as fallback.
+          console.warn('Auto phone registration failed (non-fatal):', regData.error?.message);
+        }
       } catch (e) {
-        console.warn('WABA webhook subscription failed (non-fatal):', e);
+        console.warn('Auto phone registration error (non-fatal):', e);
       }
     }
 

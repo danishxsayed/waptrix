@@ -1,12 +1,16 @@
 # Implementation History
 
-## [2026-07-31] - Token Fallback Retry & Unregistered Phone Number Handling
+## [2026-07-31] - Token Fallback Retry, Unregistered Phone Handling, & Auto-Registration
 - **Token Fallback & Self-Heal Retry Logic**:
   - Implemented access token fallback routing across core WhatsApp endpoints. If the global `META_SYSTEM_TOKEN` fails with permission, OAuth, or authentication errors (such as error codes 190, 200, 10, or 803), the API routes fall back and retry using the individual tenant/connection's `access_token`.
-  - Added this fallback logic to WABA self-healing in `/api/whatsapp/connection`, profile retrieval in `/api/whatsapp/profile`, and webhook subscribed-apps registration in `/api/whatsapp/subscribe-webhook`.
+  - Added this fallback logic to WABA self-healing in `/api/whatsapp/connection`, profile retrieval in `/api/whatsapp/profile`, and webhook subscribed-apps registration in `/api/whatsapp/subscribe-webhook` and `/api/whatsapp/oauth-connect`.
 - **Unregistered Phone Number Handling & Settings UI Alert**:
   - Enhanced `/api/whatsapp/profile` API to check for unregistered WhatsApp Cloud API phone numbers (Meta Graph API error 100 or nonexisting field for `whatsapp_business_profile`) and return a 400 Bad Request containing `{ needs_registration: true }`.
   - Updated the settings dashboard page (`src/app/(dashboard)/settings/page.tsx`) to catch the `needs_registration` flag and display a dedicated warning message and button guiding the user to go to the Connect page and register their phone number.
+- **Automatic WhatsApp Phone Registration**:
+  - Added automatic registration logic in `/api/whatsapp/oauth-connect`. When a connection is first established, the system automatically generates a secure random 6-digit registration PIN, performs a POST to Meta's `/register` endpoint to register the phone number with Cloud API, and stores the PIN in a new database column `registration_pin` on the `wa_connections` table.
+  - Added a schema migration file `supabase/add_registration_pin.sql` to add the `registration_pin` column.
+  - Refactored `/api/whatsapp/register-phone` to fall back to the stored auto-generated `registration_pin` if no explicit PIN is passed, making the registration automatic and seamless.
 
 ## [2026-07-20] - Inline Template Syncing from Meta
 - **Template Sync Action in Dashboard**:

@@ -16,21 +16,28 @@ export async function POST(req: Request) {
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { pin } = await req.json();
-    if (!pin || !/^\d{6}$/.test(pin)) {
-      return NextResponse.json({ error: 'A 6-digit PIN is required' }, { status: 400 });
-    }
-
+    const body = await req.json().catch(() => ({}));
     const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
     const { data: conn } = await db
       .from('wa_connections')
-      .select('access_token, phone_number_id')
+      .select('access_token, phone_number_id, registration_pin')
       .eq('tenant_id', user.id)
       .single();
 
     if (!conn?.access_token || !conn?.phone_number_id || conn.phone_number_id === 'pending') {
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
+    }
+
+    // Use provided PIN, or fall back to the auto-generated one stored during oauth-connect
+    const pin = body.pin || conn.registration_pin;
+    if (!pin || !/^\d{6}$/.test(pin)) {
+      return NextResponse.json({ error: 'A 6-digit PIN is required' }, { status: 400 });
+    }
+
+    // If a new PIN is provided, save it
+    if (body.pin && body.pin !== conn.registration_pin) {
+      await db.from('wa_connections').update({ registration_pin: body.pin }).eq('tenant_id', user.id);
     }
 
     // Call Meta registration API
@@ -42,10 +49,7 @@ export async function POST(req: Request) {
           Authorization: `Bearer ${conn.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          messaging_product: 'whatsapp',
-          pin,
-        }),
+        body: JSON.stringify({ messaging_product: 'whatsapp', pin }),
       }
     );
 
