@@ -1,5 +1,13 @@
 # Implementation History
 
+## [2026-07-31] - Token Fallback Retry & Unregistered Phone Number Handling
+- **Token Fallback & Self-Heal Retry Logic**:
+  - Implemented access token fallback routing across core WhatsApp endpoints. If the global `META_SYSTEM_TOKEN` fails with permission, OAuth, or authentication errors (such as error codes 190, 200, 10, or 803), the API routes fall back and retry using the individual tenant/connection's `access_token`.
+  - Added this fallback logic to WABA self-healing in `/api/whatsapp/connection`, profile retrieval in `/api/whatsapp/profile`, and webhook subscribed-apps registration in `/api/whatsapp/subscribe-webhook`.
+- **Unregistered Phone Number Handling & Settings UI Alert**:
+  - Enhanced `/api/whatsapp/profile` API to check for unregistered WhatsApp Cloud API phone numbers (Meta Graph API error 100 or nonexisting field for `whatsapp_business_profile`) and return a 400 Bad Request containing `{ needs_registration: true }`.
+  - Updated the settings dashboard page (`src/app/(dashboard)/settings/page.tsx`) to catch the `needs_registration` flag and display a dedicated warning message and button guiding the user to go to the Connect page and register their phone number.
+
 ## [2026-07-20] - Inline Template Syncing from Meta
 - **Template Sync Action in Dashboard**:
   - Added an explicit "Sync from Meta" action option inside the template options menu on `src/app/(dashboard)/templates/page.tsx`.

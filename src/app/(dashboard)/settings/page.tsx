@@ -54,6 +54,7 @@ export default function SettingsPage() {
   const [waProfile, setWaProfile] = useState<WhatsAppProfile | null>(null);
   const [waProfileLoading, setWaProfileLoading] = useState(true);
   const [waProfileError, setWaProfileError] = useState<string | null>(null);
+  const [waProfileNeedsRegistration, setWaProfileNeedsRegistration] = useState(false);
   const [waAbout, setWaAbout] = useState("");
   const [waIsSaving, setWaIsSaving] = useState(false);
   const [waMessage, setWaMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -103,12 +104,17 @@ export default function SettingsPage() {
   async function fetchWaProfile() {
     setWaProfileLoading(true);
     setWaProfileError(null);
+    setWaProfileNeedsRegistration(false);
     try {
       const res = await axios.get('/api/whatsapp/profile');
       setWaProfile(res.data);
       setWaAbout(res.data.about || '');
     } catch (err: any) {
-      setWaProfileError(err.response?.data?.error || 'Failed to load WhatsApp profile');
+      const resData = err.response?.data;
+      if (resData?.needs_registration) {
+        setWaProfileNeedsRegistration(true);
+      }
+      setWaProfileError(resData?.error || 'Failed to load WhatsApp profile');
     } finally {
       setWaProfileLoading(false);
     }
@@ -309,7 +315,18 @@ export default function SettingsPage() {
         ) : waProfileError ? (
           <div className="glass-card flex flex-col items-center justify-center py-12 space-y-3 text-center">
             <AlertCircle className="w-8 h-8 text-text-muted" />
-            {(waProfileError.includes('session has been invalidated') || waProfileError.includes('Error validating access token') || waProfileError.includes('Invalid OAuth')) ? (
+            {waProfileNeedsRegistration ? (
+              <>
+                <p className="text-sm font-bold text-text-primary">Phone Number Not Registered</p>
+                <p className="text-sm text-text-muted max-w-sm">
+                  Your WhatsApp number was connected but hasn&apos;t been registered with the Cloud API yet.
+                  This is required before you can send or receive messages.
+                </p>
+                <a href="/connect" className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-jade/10 border border-jade/20 text-jade text-sm font-bold hover:bg-jade/20 transition-colors">
+                  Go to Connect → Register Phone <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </>
+            ) : (waProfileError.includes('session has been invalidated') || waProfileError.includes('Error validating access token') || waProfileError.includes('Invalid OAuth')) ? (
               <>
                 <p className="text-sm text-text-muted max-w-sm">
                   Your WhatsApp session has expired. Please reconnect your account to restore access.

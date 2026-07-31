@@ -92,29 +92,34 @@ export async function POST(req: Request) {
       console.log(`Saved manual waba_id: ${manualWabaId}`);
     }
 
-    // Use platform System User token if available (works for all WABAs connected to this app).
-    // Falls back to tenant's token (works for fresh Embedded Signup connections).
-    const subscriptionToken = process.env.META_SYSTEM_TOKEN || conn.access_token;
+    // Try system token first (works when system user has been added to the WABA).
+    // Fall back to the user's own token (always works for their own WABA from Embedded Signup).
+    const tokensToTry = Array.from(new Set([
+      process.env.META_SYSTEM_TOKEN,
+      conn.access_token,
+    ].filter(Boolean))) as string[];
 
-    const res = await fetch(
-      `https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${subscriptionToken}` },
-      }
-    );
-
-    const data = await res.json();
-    console.log('WABA webhook subscription:', JSON.stringify(data));
-
-    if (!res.ok) {
-      return NextResponse.json(
-        { error: data.error?.message || 'Subscription failed' },
-        { status: res.status }
+    let lastError = 'Subscription failed';
+    for (const subscriptionToken of tokensToTry) {
+      const res = await fetch(
+        `https://graph.facebook.com/v19.0/${wabaId}/subscribed_apps`,
+        { method: 'POST', headers: { Authorization: `Bearer ${subscriptionToken}` } }
       );
+      const data = await res.json();
+      console.log('WABA webhook subscription attempt:', JSON.stringify(data).substring(0, 200));
+
+      if (res.ok) {
+        return NextResponse.json({ success: true });
+      }
+
+      lastError = data.error?.message || 'Subscription failed';
+      // Only retry on permission/auth errors, not on 4xx client errors
+      const errCode = data.error?.code;
+      const isPermissionError = errCode === 200 || errCode === 190 || errCode === 10 || errCode === 803;
+      if (!isPermissionError) break; // Don't retry on non-permission errors
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ error: lastError }, { status: 400 });
   } catch (err: any) {
     console.error('subscribe-webhook error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });

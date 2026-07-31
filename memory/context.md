@@ -42,11 +42,13 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Renders outbound WhatsApp template messages visually inside the message log thread using a custom `TemplateBubble` component in `InboxPanel.tsx` (displaying template media headers, body message paragraphs, footers, and interactive action buttons natively instead of a raw `[Template: name]` string). Displays incoming quick reply button taps with a distinct "Quick Reply" badge and raw button text instead of generic text boxes.
   - Implemented advanced sorting options (Last Message, Name, Unread First) and conversational filters modal to sort and filter conversation lists dynamically by chat status (Open, Closed, Snoozed), read/unread, tags, last message time, reply status, spam, and labels.
   - Added support for bulk selections and batch conversation deletions in the inbox pane, communicating with the server via `DELETE /api/conversations`.
-- **WhatsApp Business Profile Management**:
-  - Integrated a dedicated settings pane on the `/settings` route to display active connection status, synced official business names, phone numbers, and last sync times.
+- **WhatsApp Business Profile Management & Access Token Fallbacks**:
+  - Integrated a dedicated settings pane on the `/settings` route to display active connection status, synced official business details, and last sync times.
   - Created `/api/whatsapp/profile` (GET to retrieve business details, and POST to update status/bio fields) interacting directly with Meta Graph API.
+  - Added access token fallback/retry mechanisms in WABA self-healing (/api/whatsapp/connection), profile retrieval (/api/whatsapp/profile), and webhook subscription (/api/whatsapp/subscribe-webhook) endpoints, falling back to retry with the user's direct connection token if the system token encounters permission or OAuth issues (codes 10, 190, 200, 803).
+  - Implemented error detection for unregistered WhatsApp numbers (Graph API error 100 / nonexisting field) returning a `{ needs_registration: true }` payload which triggers a dedicated UI warning alert and register redirection action in the settings page.
   - Created `/api/whatsapp/profile/picture` (POST to upload JPEG/PNG avatar assets up to 5MB, register the resulting media handle with Meta, and set it as the WhatsApp Business Profile picture).
-  - Unified all Meta API Graph routes to use the permanent `META_SYSTEM_TOKEN` instead of short-lived user tokens, preventing access token expiration issues.
+  - Unified all Meta API Graph routes to default to the permanent `META_SYSTEM_TOKEN` with fallback retry options using individual user tokens to prevent access token validation issues.
 - **Landing Page & Error Resilience**:
   - Implemented a fully responsive, SEO-optimized landing page at `public/index.html` styling the site to match the dark glassmorphic design token system.
   - Implemented frontend error boundaries across all dashboard pages (Analytics, Campaigns, Contacts, Templates, and Home dashboard) with user-friendly retry buttons, toast alerts, and launch boundaries.

@@ -44,7 +44,13 @@ export async function GET() {
       return NextResponse.json({ error: 'No WhatsApp connection found' }, { status: 404 });
     }
 
-    // Prefer the permanent system token so user token expiry never breaks this
+    // Try system token first (permanent), fall back to user's own token
+    const tokensToTry = Array.from(new Set([
+      process.env.META_SYSTEM_TOKEN,
+      conn.access_token,
+    ].filter(Boolean))) as string[];
+
+    // Use system token for API calls — fallback to user token handled per-request below
     const token = process.env.META_SYSTEM_TOKEN || conn.access_token;
 
     // Resolve phone_number_id — treat 'pending' as missing
@@ -53,26 +59,29 @@ export async function GET() {
         ? conn.phone_number_id
         : null;
 
-    // Self-heal: fetch phone_number_id from WABA if missing
+    // Self-heal: fetch phone_number_id from WABA if missing — try both tokens
     if (!phoneNumberId) {
       const wabaId = conn.waba_id && conn.waba_id !== PENDING ? conn.waba_id : null;
       if (wabaId) {
-        try {
-          const r = await fetch(
-            `https://graph.facebook.com/v19.0/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${token}`
-          );
-          const d = await r.json();
-          const p = d?.data?.[0];
-          if (p?.id) {
-            phoneNumberId = p.id;
-            await db.from('wa_connections').update({
-              phone_number_id: p.id,
-              phone_number: p.display_phone_number || conn.phone_number || '',
-              business_name: p.verified_name || conn.business_name || '',
-            }).eq('tenant_id', user.id);
+        for (const t of tokensToTry) {
+          try {
+            const r = await fetch(
+              `https://graph.facebook.com/v19.0/${wabaId}/phone_numbers?fields=id,display_phone_number,verified_name&access_token=${t}`
+            );
+            const d = await r.json();
+            const p = d?.data?.[0];
+            if (p?.id) {
+              phoneNumberId = p.id;
+              await db.from('wa_connections').update({
+                phone_number_id: p.id,
+                phone_number: p.display_phone_number || conn.phone_number || '',
+                business_name: p.verified_name || conn.business_name || '',
+              }).eq('tenant_id', user.id);
+              break;
+            }
+          } catch (e) {
+            console.error('WABA self-heal failed:', e);
           }
-        } catch (e) {
-          console.error('WABA self-heal failed:', e);
         }
       }
     }
@@ -83,20 +92,49 @@ export async function GET() {
       }, { status: 404 });
     }
 
-    // Fetch WhatsApp business profile
-    const profileRes = await fetch(
+    // Fetch WhatsApp business profile — try both tokens
+    let profileRes = await fetch(
       `https://graph.facebook.com/v19.0/${phoneNumberId}/whatsapp_business_profile?fields=about,description,profile_picture_url,vertical,email,websites`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
 
+    // If system token fails with auth/permission error, retry with user token
+    if (!profileRes.ok && process.env.META_SYSTEM_TOKEN && conn.access_token !== process.env.META_SYSTEM_TOKEN) {
+      const errPeek = await profileRes.clone().json().catch(() => ({}));
+      const errCode = errPeek?.error?.code;
+      if (errCode === 190 || errCode === 200 || errCode === 10) {
+        profileRes = await fetch(
+          `https://graph.facebook.com/v19.0/${phoneNumberId}/whatsapp_business_profile?fields=about,description,profile_picture_url,vertical,email,websites`,
+          { headers: { Authorization: `Bearer ${conn.access_token}` } }
+        );
+      }
+    }
+
     if (!profileRes.ok) {
       const err = await profileRes.json();
       const errMsg = err.error?.message || 'Failed to fetch profile';
+      const errCode = err.error?.code;
+
       // Surface token expiry with a recognisable code so the UI can prompt reconnect
       const isTokenExpired =
-        err.error?.code === 190 ||
+        errCode === 190 ||
         (errMsg.toLowerCase().includes('session') && errMsg.toLowerCase().includes('invalidat')) ||
         errMsg.toLowerCase().includes('invalid oauth');
+
+      // Error #100 "nonexisting field (whatsapp_business_profile)" means the phone number
+      // is not yet registered with WhatsApp Cloud API — guide the user to register it.
+      const isPhoneNotRegistered =
+        errCode === 100 ||
+        errMsg.toLowerCase().includes('whatsapp_business_profile') ||
+        errMsg.toLowerCase().includes('nonexisting field');
+
+      if (isPhoneNotRegistered) {
+        return NextResponse.json({
+          error: 'Your phone number is not yet registered with WhatsApp Cloud API.',
+          needs_registration: true,
+        }, { status: 400 });
+      }
+
       return NextResponse.json(
         { error: isTokenExpired ? `Error validating access token: ${errMsg}` : errMsg, token_expired: isTokenExpired },
         { status: profileRes.status }
@@ -106,24 +144,29 @@ export async function GET() {
     const profileJson = await profileRes.json();
     const data = profileJson.data?.[0] || profileJson;
 
-    // Fetch fresh phone/business name if still empty
+    // Fetch fresh phone/business name if still empty — try both tokens
     let phoneName = conn.phone_number || '';
     let bizName = conn.business_name || '';
     if (!phoneName || !bizName) {
-      try {
-        const r = await fetch(
-          `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=display_phone_number,verified_name&access_token=${token}`
-        );
-        const d = await r.json();
-        phoneName = d.display_phone_number || phoneName;
-        bizName = d.verified_name || bizName;
-        if (phoneName || bizName) {
-          await db.from('wa_connections').update({
-            phone_number: phoneName,
-            business_name: bizName,
-          }).eq('tenant_id', user.id);
-        }
-      } catch (_) {}
+      for (const t of tokensToTry) {
+        try {
+          const r = await fetch(
+            `https://graph.facebook.com/v19.0/${phoneNumberId}?fields=display_phone_number,verified_name&access_token=${t}`
+          );
+          const d = await r.json();
+          if (d.display_phone_number || d.verified_name) {
+            phoneName = d.display_phone_number || phoneName;
+            bizName = d.verified_name || bizName;
+            if (phoneName || bizName) {
+              await db.from('wa_connections').update({
+                phone_number: phoneName,
+                business_name: bizName,
+              }).eq('tenant_id', user.id);
+            }
+            break;
+          }
+        } catch (_) {}
+      }
     }
 
     return NextResponse.json({

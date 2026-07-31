@@ -48,22 +48,31 @@ export async function GET() {
 
     // Backfill missing display fields from Meta API on the fly
     if ((!phoneNumber || !businessName) && data.phone_number_id && data.phone_number_id !== 'pending') {
-      try {
-        const token = process.env.META_SYSTEM_TOKEN || data.access_token
-        const r = await fetch(
-          `https://graph.facebook.com/v19.0/${data.phone_number_id}?fields=display_phone_number,verified_name&access_token=${token}`
-        )
-        const d = await r.json()
-        if (d.display_phone_number || d.verified_name) {
-          if (!phoneNumber) phoneNumber = d.display_phone_number || ''
-          if (!businessName) businessName = d.verified_name || ''
-          // Persist so next load is instant
-          await serviceClient
-            .from('wa_connections')
-            .update({ phone_number: phoneNumber, business_name: businessName })
-            .eq('tenant_id', user.id)
-        }
-      } catch (_) {}
+      // Try system token first, fall back to user's own token if system token lacks access
+      const tokensToTry = Array.from(new Set([
+        process.env.META_SYSTEM_TOKEN,
+        data.access_token,
+      ].filter(Boolean))) as string[];
+
+      for (const token of tokensToTry) {
+        try {
+          const r = await fetch(
+            `https://graph.facebook.com/v19.0/${data.phone_number_id}?fields=display_phone_number,verified_name&access_token=${token}`
+          )
+          const d = await r.json()
+          if (d.display_phone_number || d.verified_name) {
+            if (!phoneNumber) phoneNumber = d.display_phone_number || ''
+            if (!businessName) businessName = d.verified_name || ''
+            // Persist so next load is instant
+            await serviceClient
+              .from('wa_connections')
+              .update({ phone_number: phoneNumber, business_name: businessName })
+              .eq('tenant_id', user.id)
+            break // success — no need to try next token
+          }
+          // If no data returned (e.g. system token lacks access to this WABA), loop continues to try next token
+        } catch (_) {}
+      }
     }
 
     return NextResponse.json({
