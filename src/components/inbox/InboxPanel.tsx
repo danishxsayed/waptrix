@@ -536,14 +536,13 @@ export default function InboxPanel({
   const activeConvRef = useRef<Conversation | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const onUnreadChangeRef = useRef(onUnreadChange);
-  const selectConversationRef = useRef<typeof selectConversation | null>(null);
+  const selectConversationRef = useRef<((conv: Conversation) => Promise<void>) | null>(null);
   // ── Stable client: MUST NOT be re-created on every render or realtime breaks
   const supabase = useMemo(() => createClient(), []);
 
   // Keep refs in sync with latest props/state
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
   useEffect(() => { onUnreadChangeRef.current = onUnreadChange; }, [onUnreadChange]);
-  useEffect(() => { selectConversationRef.current = selectConversation; }, [selectConversation]);
 
   // Close sort dropdown on outside click
   useEffect(() => {
@@ -763,6 +762,8 @@ export default function InboxPanel({
     },
     [fetchMessages, conversations, onUnreadChange]
   );
+  // Keep ref always pointing to the latest version (safe to do inline after declaration)
+  selectConversationRef.current = selectConversation;
 
   // ── Scroll to bottom on new messages
   useEffect(() => {

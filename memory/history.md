@@ -14,7 +14,7 @@
   - Implemented `/api/conversations/ensure` API route: Finds or creates an empty conversation record in the database for a given phone and contact name without sending any outbound messages.
   - Refactored the WhatsApp redirect action on the Contacts page to pass both contact phone and contact name parameters: `/inbox?phone=...&name=...`.
   - Updated the Inbox dashboard (`InboxPanel.tsx`) to catch initial phone and name parameters and, if no existing conversation is found locally on load, silently ensure the conversation thread is created in the database and automatically open it.
-  - Made the auto-selection effect stable in `InboxPanel.tsx` by using a ref wrapper `selectConversationRef` to avoid infinite re-render loops when props or callbacks update.
+  - Made the auto-selection effect stable in `InboxPanel.tsx` by using a ref wrapper `selectConversationRef` updated inline (rather than in `useEffect` post-render) to avoid infinite loops and guarantee fresh references during initial layout cycles.
 
 ## [2026-07-31] - Token Fallback Retry, Unregistered Phone Handling, & Auto-Registration
 - **Token Fallback & Self-Heal Retry Logic**:
