@@ -58,6 +58,12 @@ export default function SettingsPage() {
   const [isRegistering, setIsRegistering] = useState(false);
   const [registerMsg, setRegisterMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [registrationDone, setRegistrationDone] = useState(false);
+  // Migration flow (for numbers on personal WhatsApp)
+  const [showMigration, setShowMigration] = useState(false);
+  const [migrationStep, setMigrationStep] = useState<'request' | 'verify'>('request');
+  const [otpCode, setOtpCode] = useState('');
+  const [isMigrating, setIsMigrating] = useState(false);
+  const [migrationMsg, setMigrationMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [waAbout, setWaAbout] = useState("");
   const [waIsSaving, setWaIsSaving] = useState(false);
   const [waMessage, setWaMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
@@ -193,6 +199,54 @@ export default function SettingsPage() {
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
+
+  async function handleRequestOtp() {
+    setIsMigrating(true);
+    setMigrationMsg(null);
+    try {
+      await axios.post('/api/whatsapp/request-verification-code', { codeMethod: 'SMS' });
+      setMigrationStep('verify');
+      setMigrationMsg({ type: 'success', text: 'Code sent! Check your SMS (or WhatsApp if still active).' });
+    } catch (err: any) {
+      setMigrationMsg({ type: 'error', text: err.response?.data?.error || 'Failed to send code' });
+    } finally {
+      setIsMigrating(false);
+    }
+  }
+
+  async function handleVerifyOtp() {
+    if (!/^\d{6}$/.test(otpCode)) {
+      setMigrationMsg({ type: 'error', text: 'Enter the 6-digit code you received' });
+      return;
+    }
+    setIsMigrating(true);
+    setMigrationMsg(null);
+    try {
+      await axios.post('/api/whatsapp/verify-code', { code: otpCode });
+      setRegistrationDone(true);
+      setShowMigration(false);
+      setMigrationMsg(null);
+      // Poll for profile to load
+      let attempts = 0;
+      const poll = setInterval(async () => {
+        attempts++;
+        try {
+          const profileRes = await axios.get('/api/whatsapp/profile');
+          setWaProfile(profileRes.data);
+          setWaAbout(profileRes.data.about || '');
+          setWaProfileError(null);
+          setWaProfileNeedsRegistration(false);
+          clearInterval(poll);
+        } catch {
+          if (attempts >= 12) clearInterval(poll);
+        }
+      }, 10000);
+    } catch (err: any) {
+      setMigrationMsg({ type: 'error', text: err.response?.data?.error || 'Verification failed. Check the code and try again.' });
+    } finally {
+      setIsMigrating(false);
+    }
+  }
 
   async function handleAutoRegister() {
     setIsRegistering(true);
@@ -369,20 +423,87 @@ export default function SettingsPage() {
                       Your WhatsApp number was connected but hasn&apos;t been registered with the Cloud API yet.
                       Click below to complete setup automatically.
                     </p>
-                    {registerMsg?.type === 'error' && (
-                      <div className="text-sm font-medium px-4 py-2 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 max-w-sm text-center">
-                        {registerMsg.text}
+                    {/* Migration flow */}
+                    {showMigration ? (
+                      <div className="w-full max-w-sm space-y-3">
+                        <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl text-xs text-text-muted text-left">
+                          <p className="font-bold text-amber-500 mb-1">Your number is on personal WhatsApp</p>
+                          <p>Meta will send a 6-digit code to verify you own this number. This will deactivate personal WhatsApp on the number and activate it for business use.</p>
+                        </div>
+                        {migrationStep === 'request' ? (
+                          <button
+                            onClick={handleRequestOtp}
+                            disabled={isMigrating}
+                            className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-jade text-background text-sm font-bold hover:bg-jade/90 transition-colors disabled:opacity-50"
+                          >
+                            {isMigrating ? <><Loader2 className="w-4 h-4 animate-spin" /> Sending...</> : 'Send Verification Code (SMS)'}
+                          </button>
+                        ) : (
+                          <div className="space-y-2">
+                            <input
+                              type="text"
+                              value={otpCode}
+                              onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                              placeholder="Enter 6-digit code"
+                              className="input-field w-full text-center text-lg font-mono tracking-widest"
+                              maxLength={6}
+                            />
+                            <button
+                              onClick={handleVerifyOtp}
+                              disabled={isMigrating || otpCode.length !== 6}
+                              className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-jade text-background text-sm font-bold hover:bg-jade/90 transition-colors disabled:opacity-50"
+                            >
+                              {isMigrating ? <><Loader2 className="w-4 h-4 animate-spin" /> Verifying...</> : 'Verify & Activate'}
+                            </button>
+                            <button onClick={() => setMigrationStep('request')} className="w-full text-xs text-text-muted hover:underline">
+                              Resend code
+                            </button>
+                          </div>
+                        )}
+                        {migrationMsg && (
+                          <p className={`text-xs text-center ${migrationMsg.type === 'error' ? 'text-red-500' : 'text-jade'}`}>
+                            {migrationMsg.text}
+                          </p>
+                        )}
+                        <button onClick={() => { setShowMigration(false); setMigrationStep('request'); setOtpCode(''); }} className="w-full text-xs text-text-muted hover:underline">
+                          Cancel
+                        </button>
                       </div>
+                    ) : (
+                      <>
+                        {registerMsg?.type === 'error' ? (
+                          <div className="space-y-3 w-full max-w-sm text-center">
+                            <div className="text-xs px-4 py-3 rounded-lg bg-red-500/10 text-red-500 border border-red-500/20 leading-relaxed">
+                              {registerMsg.text}
+                            </div>
+                            {registerMsg.text.includes('personal WhatsApp') && (
+                              <button
+                                onClick={() => { setShowMigration(true); setRegisterMsg(null); }}
+                                className="w-full inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-jade text-background text-sm font-bold hover:bg-jade/90 transition-colors"
+                              >
+                                Start Migration (OTP)
+                              </button>
+                            )}
+                            <a
+                              href="/connect"
+                              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-jade/10 border border-jade/20 text-jade text-sm font-bold hover:bg-jade/20 transition-colors"
+                            >
+                              Go to Connect → Reconnect
+                            </a>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={handleAutoRegister}
+                            disabled={isRegistering}
+                            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-jade text-background text-sm font-bold hover:bg-jade/90 transition-colors disabled:opacity-50"
+                          >
+                            {isRegistering
+                              ? <><Loader2 className="w-4 h-4 animate-spin" /> Registering...</>
+                              : 'Register Phone Number Now'}
+                          </button>
+                        )}
+                      </>
                     )}
-                    <button
-                      onClick={handleAutoRegister}
-                      disabled={isRegistering}
-                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-jade text-background text-sm font-bold hover:bg-jade/90 transition-colors disabled:opacity-50"
-                    >
-                      {isRegistering
-                        ? <><Loader2 className="w-4 h-4 animate-spin" /> Registering...</>
-                        : 'Register Phone Number Now'}
-                    </button>
                   </>
                 )}
               </>

@@ -1,5 +1,14 @@
 # Implementation History
 
+## [2026-08-01] - Personal WhatsApp Phone Migration Flow
+- **WhatsApp Migration API Endpoints**:
+  - Implemented `/api/whatsapp/request-verification-code`: Calls Meta's `/request_code` endpoint to trigger an SMS verification code to the phone number. Attempts this with the system token first before falling back to the user's connection token.
+  - Implemented `/api/whatsapp/verify-code`: Calls Meta's `/verify_code` endpoint to verify the 6-digit OTP code, which deactivates the personal WhatsApp instance. On verification success, it automatically calls Meta's `/register` endpoint using the system or connection token to register the number with Cloud API, and persists the registration PIN.
+- **Migration & Verification UI in Settings**:
+  - Added SMS verification/migration wizard to the Settings page (`src/app/(dashboard)/settings/page.tsx`).
+  - When the registration API fails because the number is currently active on personal WhatsApp, the Settings panel displays a dedicated "Start Migration (OTP)" action button.
+  - The migration interface supports triggering code generation and submitting the 6-digit code with dynamic verification loaders, error logging, and post-migration profile polling.
+
 ## [2026-07-31] - Token Fallback Retry, Unregistered Phone Handling, & Auto-Registration
 - **Token Fallback & Self-Heal Retry Logic**:
   - Implemented access token fallback routing across core WhatsApp endpoints. If the global `META_SYSTEM_TOKEN` fails with permission, OAuth, or authentication errors (such as error codes 190, 200, 10, or 803), the API routes fall back and retry using the individual tenant/connection's `access_token`.
