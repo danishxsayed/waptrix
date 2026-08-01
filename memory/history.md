@@ -8,6 +8,8 @@
   - Added SMS verification/migration wizard to the Settings page (`src/app/(dashboard)/settings/page.tsx`).
   - When the registration API fails because the number is currently active on personal WhatsApp, the Settings panel displays a dedicated "Start Migration (OTP)" action button.
   - The migration interface supports triggering code generation and submitting the 6-digit code with dynamic verification loaders, error logging, and post-migration profile polling.
+- **Analytics Chart Mock Data Removal**:
+  - Removed default mock dataset from the analytics endpoint `/api/analytics` when total sent count and chart data were empty, ensuring the dashboard now accurately reflects actual user engagement metrics from day one.
 
 ## [2026-07-31] - Token Fallback Retry, Unregistered Phone Handling, & Auto-Registration
 - **Token Fallback & Self-Heal Retry Logic**:

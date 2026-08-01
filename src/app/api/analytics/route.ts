@@ -108,19 +108,7 @@ export async function GET() {
       });
     }
 
-    // If chartData is entirely 0, let's provide a beautiful default mock dataset for visual wow-factor
-    // but only if the user hasn't sent any messages yet (so the dashboard is beautiful on day 1).
-    const isChartEmpty = chartData.every(d => d.sent === 0);
-    const finalizedChartData = isChartEmpty && totalSent === 0 ? [
-      { date: 'Apr 04', sent: 200 },
-      { date: 'Apr 06', sent: 700 },
-      { date: 'Apr 08', sent: 500 },
-      { date: 'Apr 10', sent: 1100 },
-      { date: 'Apr 12', sent: 900 },
-      { date: 'Apr 14', sent: 1400 },
-      { date: 'Apr 16', sent: 1200 },
-      { date: 'Apr 18', sent: 1700 },
-    ] : chartData;
+    const finalizedChartData = chartData;
 
     return NextResponse.json({
       stats: {
