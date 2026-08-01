@@ -536,12 +536,14 @@ export default function InboxPanel({
   const activeConvRef = useRef<Conversation | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
   const onUnreadChangeRef = useRef(onUnreadChange);
+  const selectConversationRef = useRef<typeof selectConversation | null>(null);
   // ── Stable client: MUST NOT be re-created on every render or realtime breaks
   const supabase = useMemo(() => createClient(), []);
 
   // Keep refs in sync with latest props/state
   useEffect(() => { activeConvRef.current = activeConv; }, [activeConv]);
   useEffect(() => { onUnreadChangeRef.current = onUnreadChange; }, [onUnreadChange]);
+  useEffect(() => { selectConversationRef.current = selectConversation; }, [selectConversation]);
 
   // Close sort dropdown on outside click
   useEffect(() => {
@@ -672,7 +674,7 @@ export default function InboxPanel({
     const clean = initialPhone.replace(/\D/g, "");
     const match = conversations.find((c) => c.contact_phone.replace(/\D/g, "") === clean);
     if (match) {
-      selectConversation(match);
+      selectConversationRef.current?.(match);
     } else {
       // No existing conversation — find or create one silently, then open it
       fetch('/api/conversations/ensure', {
@@ -685,15 +687,15 @@ export default function InboxPanel({
           if (data.conversation) {
             const conv: Conversation = data.conversation;
             setConversations(prev =>
-              prev.find(c => c.id === conv.id) ? prev : [conv, ...prev]
+              prev.find((c: Conversation) => c.id === conv.id) ? prev : [conv, ...prev]
             );
-            selectConversation(conv);
+            selectConversationRef.current?.(conv);
           }
         })
         .catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPhone, initialName, conversations, loadingConvs, selectConversation]);
+  }, [initialPhone, initialName, conversations, loadingConvs]);
 
   // ── Polling fallback — guarantees updates even if Supabase Realtime is down
   useEffect(() => {
