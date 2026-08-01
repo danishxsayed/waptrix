@@ -478,10 +478,12 @@ export default function InboxPanel({
   onUnreadChange,
   fullHeight = false,
   initialPhone,
+  initialName,
 }: {
   onUnreadChange?: (count: number) => void;
   fullHeight?: boolean;
   initialPhone?: string;
+  initialName?: string;
 }) {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [activeConv, setActiveConv] = useState<Conversation | null>(null);
@@ -664,15 +666,34 @@ export default function InboxPanel({
   // ── Auto-select conversation when initialPhone is provided (from contacts page)
   const didAutoSelect = useRef(false);
   useEffect(() => {
-    if (!initialPhone || didAutoSelect.current || conversations.length === 0) return;
+    if (!initialPhone || didAutoSelect.current || loadingConvs) return;
+    didAutoSelect.current = true;
+
     const clean = initialPhone.replace(/\D/g, "");
     const match = conversations.find((c) => c.contact_phone.replace(/\D/g, "") === clean);
     if (match) {
-      didAutoSelect.current = true;
       selectConversation(match);
+    } else {
+      // No existing conversation — find or create one silently, then open it
+      fetch('/api/conversations/ensure', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: initialPhone, name: initialName }),
+      })
+        .then(r => r.json())
+        .then(data => {
+          if (data.conversation) {
+            const conv: Conversation = data.conversation;
+            setConversations(prev =>
+              prev.find(c => c.id === conv.id) ? prev : [conv, ...prev]
+            );
+            selectConversation(conv);
+          }
+        })
+        .catch(() => {});
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialPhone, conversations]);
+  }, [initialPhone, initialName, conversations, loadingConvs, selectConversation]);
 
   // ── Polling fallback — guarantees updates even if Supabase Realtime is down
   useEffect(() => {

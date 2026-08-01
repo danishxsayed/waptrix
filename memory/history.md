@@ -10,6 +10,10 @@
   - The migration interface supports triggering code generation and submitting the 6-digit code with dynamic verification loaders, error logging, and post-migration profile polling.
 - **Analytics Chart Mock Data Removal**:
   - Removed default mock dataset from the analytics endpoint `/api/analytics` when total sent count and chart data were empty, ensuring the dashboard now accurately reflects actual user engagement metrics from day one.
+- **Ensure Conversation Endpoint & Contacts Redirect UX**:
+  - Implemented `/api/conversations/ensure` API route: Finds or creates an empty conversation record in the database for a given phone and contact name without sending any outbound messages.
+  - Refactored the WhatsApp redirect action on the Contacts page to pass both contact phone and contact name parameters: `/inbox?phone=...&name=...`.
+  - Updated the Inbox dashboard (`InboxPanel.tsx`) to catch initial phone and name parameters and, if no existing conversation is found locally on load, silently ensure the conversation thread is created in the database and automatically open it.
 
 ## [2026-07-31] - Token Fallback Retry, Unregistered Phone Handling, & Auto-Registration
 - **Token Fallback & Self-Heal Retry Logic**:

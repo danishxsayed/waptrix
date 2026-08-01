@@ -9,6 +9,7 @@ function InboxPageInner() {
   const [, setUnread] = useState(0);
   const searchParams = useSearchParams();
   const initialPhone = searchParams.get("phone") ?? undefined;
+  const initialName = searchParams.get("name") ?? undefined;
 
   return (
     <div className="space-y-6">
@@ -18,7 +19,7 @@ function InboxPageInner() {
           View and reply to customer messages in real-time
         </p>
       </div>
-      <InboxPanel onUnreadChange={setUnread} fullHeight initialPhone={initialPhone} />
+      <InboxPanel onUnreadChange={setUnread} fullHeight initialPhone={initialPhone} initialName={initialName} />
     </div>
   );
 }

@@ -2480,7 +2480,7 @@ export default function ContactsPage() {
                                 </a>
                               )}
                               <button
-                                onClick={() => router.push(`/inbox?phone=${encodeURIComponent(contact.phone || "")}`)}
+                                onClick={() => router.push(`/inbox?phone=${encodeURIComponent(contact.phone || "")}&name=${encodeURIComponent(contact.name || "")}`)}
                                 className="w-8 h-8 rounded-lg bg-surface border border-border/40 hover:border-[#25D366]/40 flex items-center justify-center text-text-muted hover:text-[#25D366] hover:bg-[#25D366]/5 hover:scale-105 active:scale-95 transition-all shadow-sm"
                                 title="Open WhatsApp conversation in Inbox"
                               >
