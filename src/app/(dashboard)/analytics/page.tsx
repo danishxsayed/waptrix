@@ -26,37 +26,6 @@ import {
   Loader2
 } from "lucide-react";
 
-// Static fallbacks for visual wow-factor on day 1
-const mockStats = [
-  { name: "Total Sent", value: "0", icon: Send, color: "jade", trend: "+0%" },
-  { name: "Delivered", value: "0", icon: CheckCircle2, color: "info", trend: "100%" },
-  { name: "Read Rate", value: "0%", icon: Eye, color: "warning", trend: "+0%" },
-  { name: "Failed", value: "0", icon: AlertCircle, color: "danger", trend: "0%" },
-];
-
-const mockDailyData = [
-  { day: 'Mon', sent: 1200, read: 800 },
-  { day: 'Tue', sent: 1900, read: 1200 },
-  { day: 'Wed', sent: 1500, read: 900 },
-  { day: 'Thu', sent: 2200, read: 1500 },
-  { day: 'Fri', sent: 2700, read: 1800 },
-  { day: 'Sat', sent: 1800, read: 1100 },
-  { day: 'Sun', sent: 1300, read: 750 },
-];
-
-const mockStatusData = [
-  { name: 'Read', value: 62.4, color: '#10B981' },
-  { name: 'Delivered', value: 33.2, color: '#0EA5E9' },
-  { name: 'Failed', value: 1.6, color: '#F43F5E' },
-  { name: 'Sent', value: 2.8, color: '#F59E0B' },
-];
-
-const mockCampaignPerformance = [
-  { name: "Summer Launch", date: "Apr 18, 2026", sent: 5000, readRate: "72%" },
-  { name: "Flash Sale #4", date: "Apr 16, 2026", sent: 12000, readRate: "58%" },
-  { name: "Order Updates", date: "Apr 14, 2026", sent: 850, readRate: "91%" },
-  { name: "Restock Notification", date: "Apr 12, 2026", sent: 3200, readRate: "65%" },
-];
 
 const colorMap: Record<string, { bg: string; border: string; text: string }> = {
   jade: { bg: "bg-jade/10", border: "border-jade/20", text: "text-jade" },
@@ -145,26 +114,26 @@ export default function AnalyticsPage() {
     { name: 'Delivered', value: Math.max(0, Number((((totalDelivered - totalRead) / totalSent) * 100).toFixed(1))), color: '#0EA5E9' },
     { name: 'Failed', value: failedRate, color: '#F43F5E' },
     { name: 'Sent', value: Math.max(0, Number((((totalSent - totalDelivered - totalFailed) / totalSent) * 100).toFixed(1))), color: '#F59E0B' },
-  ] : mockStatusData;
+  ] : [];
 
   const chartData = data?.chartData || [];
-  const displayChartData = chartData.length > 0 ? chartData.map((d: any) => ({
+  const displayChartData = chartData.map((d: any) => ({
     day: d.date,
     sent: d.sent,
-    read: Math.round(d.sent * (readRate / 100)) // estimate read volume based on global rate for visual richness
-  })) : mockDailyData;
+    read: Math.round(d.sent * (readRate / 100)),
+  }));
 
-  const displayCampaigns = campaigns.length > 0 ? campaigns.slice(0, 5).map((c: any) => {
+  const displayCampaigns = campaigns.slice(0, 5).map((c: any) => {
     const sent = c.sent_count || 0;
     const read = c.read_count || 0;
     const rate = sent > 0 ? Math.round((read / sent) * 100) : 0;
     return {
       name: c.name,
       date: new Date(c.created_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
-      sent: sent,
-      readRate: `${rate}%`
+      sent,
+      readRate: `${rate}%`,
     };
-  }) : mockCampaignPerformance;
+  });
 
   return (
     <div className="space-y-8 pb-12">
@@ -226,88 +195,75 @@ export default function AnalyticsPage() {
         <div className="lg:col-span-2 glass-card">
           <div className="flex justify-between items-center mb-8">
             <h3 className="text-lg font-bold font-syne">Daily Performance</h3>
-            <div className="flex gap-4">
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-jade"></span>
-                <span className="text-[10px] font-bold text-text-muted uppercase">Sent</span>
+            {totalSent > 0 && (
+              <div className="flex gap-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-jade"></span>
+                  <span className="text-[10px] font-bold text-text-muted uppercase">Sent</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full bg-info"></span>
+                  <span className="text-[10px] font-bold text-text-muted uppercase">Read (est.)</span>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-info"></span>
-                <span className="text-[10px] font-bold text-text-muted uppercase">Read (est.)</span>
-              </div>
+            )}
+          </div>
+          {totalSent === 0 ? (
+            <div className="h-80 flex flex-col items-center justify-center text-center gap-3">
+              <Send className="w-10 h-10 text-text-muted opacity-20" />
+              <p className="text-sm font-semibold text-text-muted">No messages sent yet</p>
+              <p className="text-xs text-text-muted opacity-60">Send your first campaign to see daily performance here.</p>
             </div>
-          </div>
-          <div className="h-80 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={displayChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#273042" vertical={false} />
-                <XAxis 
-                  dataKey="day" 
-                  stroke="#8896AB" 
-                  fontSize={10} 
-                  tickLine={false} 
-                  axisLine={false}
-                />
-                <YAxis 
-                  stroke="#8896AB" 
-                  fontSize={10} 
-                  tickLine={false} 
-                  axisLine={false}
-                />
-                <Tooltip 
-                  cursor={{ fill: '#161B26' }}
-                  contentStyle={{ 
-                    backgroundColor: '#161B26', 
-                    border: '1px solid #273042',
-                    borderRadius: '12px'
-                  }}
-                />
-                <Bar dataKey="sent" fill="#10B981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="read" fill="#0EA5E9" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
+          ) : (
+            <div className="h-80 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={displayChartData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#273042" vertical={false} />
+                  <XAxis dataKey="day" stroke="#8896AB" fontSize={10} tickLine={false} axisLine={false} />
+                  <YAxis stroke="#8896AB" fontSize={10} tickLine={false} axisLine={false} />
+                  <Tooltip cursor={{ fill: '#161B26' }} contentStyle={{ backgroundColor: '#161B26', border: '1px solid #273042', borderRadius: '12px' }} />
+                  <Bar dataKey="sent" fill="#10B981" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="read" fill="#0EA5E9" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
 
         <div className="glass-card">
           <h3 className="text-lg font-bold font-syne mb-8 text-center">Status Breakdown</h3>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={statusData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
-                  paddingAngle={5}
-                  dataKey="value"
-                >
-                  {statusData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: '#161B26', 
-                    border: '1px solid #273042',
-                    borderRadius: '12px'
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="space-y-3 mt-4">
-            {statusData.map((entry: any) => (
-              <div key={entry.name} className="flex justify-between items-center">
-                <div className="flex items-center gap-2">
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }}></div>
-                  <span className="text-xs text-text-muted">{entry.name}</span>
-                </div>
-                <span className="text-xs font-bold">{entry.value}%</span>
+          {totalSent === 0 ? (
+            <div className="h-64 flex flex-col items-center justify-center text-center gap-3">
+              <CheckCircle2 className="w-10 h-10 text-text-muted opacity-20" />
+              <p className="text-xs text-text-muted opacity-60">No data yet</p>
+            </div>
+          ) : (
+            <>
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie data={statusData} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">
+                      {statusData.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip contentStyle={{ backgroundColor: '#161B26', border: '1px solid #273042', borderRadius: '12px' }} />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
+              <div className="space-y-3 mt-4">
+                {statusData.map((entry: any) => (
+                  <div key={entry.name} className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: entry.color }}></div>
+                      <span className="text-xs text-text-muted">{entry.name}</span>
+                    </div>
+                    <span className="text-xs font-bold">{entry.value}%</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
@@ -321,6 +277,13 @@ export default function AnalyticsPage() {
             View All Campaigns <TrendingUp className="w-3 h-3" />
           </button>
         </div>
+        {displayCampaigns.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center gap-3">
+            <TrendingUp className="w-10 h-10 text-text-muted opacity-20" />
+            <p className="text-sm font-semibold text-text-muted">No campaigns yet</p>
+            <p className="text-xs text-text-muted opacity-60">Campaign stats will appear here once you send your first campaign.</p>
+          </div>
+        ) : (
         <table className="w-full text-left">
           <thead>
             <tr className="bg-surface border-b border-border">
@@ -352,6 +315,7 @@ export default function AnalyticsPage() {
             ))}
           </tbody>
         </table>
+        )}
       </div>
     </div>
   );

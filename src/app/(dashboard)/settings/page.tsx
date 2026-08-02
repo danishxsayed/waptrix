@@ -71,6 +71,9 @@ export default function SettingsPage() {
   const [picPreview, setPicPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Real usage stats
+  const [usageStats, setUsageStats] = useState<{ totalSent: number; totalContacts: number; activeTemplates: number } | null>(null);
+
   const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
@@ -108,6 +111,13 @@ export default function SettingsPage() {
 
   useEffect(() => {
     fetchWaProfile();
+    axios.get('/api/analytics').then(r => {
+      setUsageStats({
+        totalSent: r.data?.stats?.totalSent ?? 0,
+        totalContacts: r.data?.stats?.totalContacts ?? 0,
+        activeTemplates: r.data?.stats?.activeTemplates ?? 0,
+      });
+    }).catch(() => {});
   }, []);
 
   async function fetchWaProfile() {
@@ -638,31 +648,32 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        <div className="glass-card space-y-8">
-          <div className="flex items-center justify-between p-6 bg-surface rounded-2xl border border-border">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-jade rounded-2xl flex items-center justify-center shadow-[0_0_20px_rgba(16,185,129,0.2)]">
-                <ShieldCheck className="w-6 h-6 text-background" />
-              </div>
-              <div>
-                <h4 className="font-bold text-lg font-syne">Pro Growth Plan</h4>
-                <p className="text-xs text-text-muted">Billed monthly at $49/mo</p>
-              </div>
+        <div className="glass-card space-y-6">
+          {/* Account stats */}
+          <div className="grid grid-cols-3 gap-4">
+            <div className="p-4 bg-surface rounded-2xl border border-border text-center">
+              <p className="text-2xl font-bold font-syne">{usageStats?.totalSent?.toLocaleString() ?? '—'}</p>
+              <p className="text-xs text-text-muted mt-1">Messages Sent</p>
             </div>
-            <button className="btn-secondary text-xs">Upgrade Plan</button>
+            <div className="p-4 bg-surface rounded-2xl border border-border text-center">
+              <p className="text-2xl font-bold font-syne">{usageStats?.totalContacts?.toLocaleString() ?? '—'}</p>
+              <p className="text-xs text-text-muted mt-1">Total Contacts</p>
+            </div>
+            <div className="p-4 bg-surface rounded-2xl border border-border text-center">
+              <p className="text-2xl font-bold font-syne">{usageStats?.activeTemplates?.toLocaleString() ?? '—'}</p>
+              <p className="text-xs text-text-muted mt-1">Active Templates</p>
+            </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-end">
-              <div>
-                <h4 className="text-sm font-bold">Message Usage</h4>
-                <p className="text-xs text-text-muted mt-1">You have used 75% of your monthly limit.</p>
-              </div>
-              <span className="text-sm font-bold text-text-primary">7,500 / 10,000</span>
-            </div>
-            <div className="w-full bg-surface rounded-full h-3 border border-border overflow-hidden">
-              <div className="bg-jade h-full rounded-full shadow-[0_0_10px_rgba(16,185,129,0.3)]" style={{ width: '75%' }}></div>
-            </div>
+          <div className="flex items-center gap-3 p-4 bg-jade/5 border border-jade/20 rounded-2xl">
+            <ShieldCheck className="w-5 h-5 text-jade flex-shrink-0" />
+            <p className="text-sm text-text-muted">
+              WhatsApp message costs are billed directly by Meta to your connected WhatsApp Business Account.
+              <a href="https://business.facebook.com/billing" target="_blank" rel="noopener noreferrer"
+                className="text-jade font-semibold ml-1 hover:underline inline-flex items-center gap-1">
+                View Meta Billing <ExternalLink className="w-3 h-3" />
+              </a>
+            </p>
           </div>
         </div>
       </section>

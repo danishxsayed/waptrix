@@ -1,5 +1,12 @@
 # Implementation History
 
+## [2026-08-02] - Real Usage Metrics & Analytics Empty States
+- **Analytics Dashboard Empty States**:
+  - Refactored `src/app/(dashboard)/analytics/page.tsx` to conditionally display a clean placeholder/illustration ("No messages sent yet" and "No campaigns yet") instead of rendering empty charts or empty tables when `totalSent` or `displayCampaigns.length` is 0.
+- **Settings Page Real Usage Stats**:
+  - Integrated `/api/analytics` endpoint in the Settings page (`src/app/(dashboard)/settings/page.tsx`) to retrieve and display real tenant statistics (Messages Sent, Total Contacts, and Active Templates) inside the plan dashboard.
+  - Replaced the mockup credit card usage bar with a helper prompt and redirect link to view direct billing on Meta's Business Suite, since message fees are billed directly by Meta.
+
 ## [2026-08-01] - Personal WhatsApp Phone Migration Flow
 - **WhatsApp Migration API Endpoints**:
   - Implemented `/api/whatsapp/request-verification-code`: Calls Meta's `/request_code` endpoint to trigger an SMS verification code to the phone number. Attempts this with the system token first before falling back to the user's connection token.
