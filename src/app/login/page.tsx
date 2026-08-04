@@ -2,7 +2,7 @@
 
 export const dynamic = 'force-dynamic';
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Mail, Lock, ArrowRight, CheckCircle, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -14,6 +14,14 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+
+  // If an invite token is in the URL, redirect to the accept-invite page
+  useEffect(() => {
+    const token = new URLSearchParams(window.location.search).get("token");
+    if (token) {
+      router.replace(`/accept-invite?token=${encodeURIComponent(token)}`);
+    }
+  }, [router]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
