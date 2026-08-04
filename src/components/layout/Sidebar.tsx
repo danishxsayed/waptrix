@@ -16,7 +16,8 @@ import {
   LogOut,
   MessageSquare,
   UserPlus,
-  Bot
+  Bot,
+  MessageSquareText,
 } from "lucide-react";
 import { useTenant } from "@/context/TenantContext";
 import { createClient } from "@/lib/supabase/client";
@@ -26,8 +27,9 @@ import { useEffect, useState } from "react";
 // All nav items tagged with minimum role required to see them
 // roles in order: agent < admin < owner
 const ALL_NAV_ITEMS = [
-  { name: "Dashboard",     href: "/",             icon: LayoutDashboard, minRole: "agent"  },
-  { name: "Inbox",         href: "/inbox",         icon: MessageSquare,   minRole: "agent", badge: true },
+  { name: "Dashboard",     href: "/",             icon: LayoutDashboard,   minRole: "agent"  },
+  { name: "Inbox",         href: "/inbox",         icon: MessageSquare,     minRole: "agent", badge: true },
+  { name: "Team Chat",     href: "/team-chat",     icon: MessageSquareText, minRole: "agent" },
   { name: "Campaigns",     href: "/campaigns",     icon: Send,            minRole: "admin" },
   { name: "Templates",     href: "/templates",     icon: FileText,        minRole: "admin" },
   { name: "Media Library", href: "/media",         icon: Images,          minRole: "admin" },
