@@ -12,6 +12,10 @@
   - Configured `src/middleware.ts` to allow public, unauthenticated access to the invite page (`/accept-invite`), verification endpoint (`/api/team/invite`), and admin account creation endpoint (`/api/team/create-account`).
   - Created a new backend route `/api/team/create-account` to allow admin-level creation of staff accounts, validating tokens and auto-confirming email addresses to completely bypass the confirmation mail friction. If the user account already exists in Supabase Auth, the route updates the password and confirms the account automatically via admin API self-healing.
   - Integrated the `/api/team/create-account` route inside the signup submission on `/accept-invite/page.tsx`, logging staff in immediately on client success for instant onboarding.
+  - Created a user session info endpoint `/api/me` resolving the logged-in user's role (`owner` | `admin` | `agent`), effective tenant details, and staff status.
+  - Refactored `TenantContext.tsx` to retrieve user information from `/api/me`, exposing `role` and `isStaff` attributes context-wide.
+  - Updated `src/components/layout/Sidebar.tsx` to filter navigation links according to user roles (e.g. agent only sees Dashboard/Inbox, owner sees Team/Automations/Connect/Settings, admin sees campaign modules).
+  - Modified the main dashboard page (`src/app/(dashboard)/page.tsx`) to automatically redirect agents to `/inbox` on load, and to hide the onboarding checklist from all team staff members.
   - Updated conversation and message endpoints to resolve the effective tenant context.
   - Created a dedicated dashboard page for team management (`src/app/(dashboard)/team/page.tsx`) and linked it in the Sidebar. Removed the team settings list from the global Settings page.
 - **Inbound Message Automations (Greeting & OOO)**:

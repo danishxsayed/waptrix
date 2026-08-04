@@ -24,11 +24,20 @@ import {
   ResponsiveContainer
 } from "recharts";
 import OnboardingChecklist from "@/components/onboarding/OnboardingChecklist";
+import { useTenant } from "@/context/TenantContext";
 export default function DashboardPage() {
   const router = useRouter();
+  const { role, isStaff } = useTenant();
   const [data, setData] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [fetchError, setFetchError] = useState("");
+
+  // Agents only have inbox access — send them straight there
+  useEffect(() => {
+    if (role === "agent") {
+      router.replace("/inbox");
+    }
+  }, [role, router]);
 
   const fetchAnalytics = async () => {
     setFetchError("");
@@ -44,8 +53,8 @@ export default function DashboardPage() {
   };
 
   useEffect(() => {
-    fetchAnalytics();
-  }, []);
+    if (role !== "agent") fetchAnalytics();
+  }, [role]);
 
   if (isLoading) {
     return (
@@ -124,7 +133,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       {/* Onboarding checklist — only visible until all steps are done */}
-      <OnboardingChecklist stats={data?.stats ?? null} />
+      {!isStaff && <OnboardingChecklist stats={data?.stats ?? null} />}
 
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">

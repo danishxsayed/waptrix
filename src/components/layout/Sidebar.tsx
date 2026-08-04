@@ -23,25 +23,34 @@ import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const navItems = [
-  { name: "Dashboard",     href: "/",             icon: LayoutDashboard },
-  { name: "Inbox",         href: "/inbox",         icon: MessageSquare,  badge: true },
-  { name: "Campaigns",     href: "/campaigns",     icon: Send },
-  { name: "Templates",     href: "/templates",     icon: FileText },
-  { name: "Media Library", href: "/media",         icon: Images },
-  { name: "Contacts",      href: "/contacts",      icon: Users },
-  { name: "Team Members",  href: "/team",          icon: UserPlus },
-  { name: "Automations",   href: "/automations",   icon: Bot },
-  { name: "Connect",       href: "/connect",       icon: Link2 },
-  { name: "Analytics",     href: "/analytics",     icon: BarChart3 },
-  { name: "Settings",      href: "/settings",      icon: Settings },
-];
+// All nav items tagged with minimum role required to see them
+// roles in order: agent < admin < owner
+const ALL_NAV_ITEMS = [
+  { name: "Dashboard",     href: "/",             icon: LayoutDashboard, minRole: "agent"  },
+  { name: "Inbox",         href: "/inbox",         icon: MessageSquare,   minRole: "agent", badge: true },
+  { name: "Campaigns",     href: "/campaigns",     icon: Send,            minRole: "admin" },
+  { name: "Templates",     href: "/templates",     icon: FileText,        minRole: "admin" },
+  { name: "Media Library", href: "/media",         icon: Images,          minRole: "admin" },
+  { name: "Contacts",      href: "/contacts",      icon: Users,           minRole: "admin" },
+  { name: "Analytics",     href: "/analytics",     icon: BarChart3,       minRole: "admin" },
+  { name: "Team Members",  href: "/team",          icon: UserPlus,        minRole: "owner" },
+  { name: "Automations",   href: "/automations",   icon: Bot,             minRole: "owner" },
+  { name: "Connect",       href: "/connect",       icon: Link2,           minRole: "owner" },
+  { name: "Settings",      href: "/settings",      icon: Settings,        minRole: "owner" },
+] as const;
+
+const ROLE_RANK: Record<string, number> = { agent: 0, admin: 1, owner: 2 };
+
+function navItemsForRole(role: string) {
+  return ALL_NAV_ITEMS.filter(item => ROLE_RANK[role] >= ROLE_RANK[item.minRole]);
+}
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { tenant, loading } = useTenant();
+  const { tenant, role, loading } = useTenant();
   const router = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
+  const navItems = navItemsForRole(role);
 
   // Poll for unread message count every 30s
   useEffect(() => {

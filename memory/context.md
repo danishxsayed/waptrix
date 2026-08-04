@@ -14,7 +14,7 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 
 ## Core Architecture
 - **(dashboard)**: Grouped route containing all authenticated user pages (Analytics, Connect, Campaigns, Contacts, etc.).
-- **TenantContext**: Shared client-side state for authenticated user profiles and messaging quotas.
+- **TenantContext**: Shared client-side state for authenticated user profiles and messaging quotas. It queries `/api/me` on load to expose the user's role (`owner` | `admin` | `agent`), effective tenant, and staff status context-wide.
 - **Middleware**: Handles authentication redirects via Supabase SSR, with explicit exclusions for public routes (login, signup, terms, privacy, password recovery, `/accept-invite`, `/api/auth/` endpoint routes, `/api/webhooks/`, `/api/team/invite`, and `/api/team/create-account`).
 - **Client/Server Libs**: Unified Supabase clients in `src/lib/supabase`, Meta API helpers in `src/lib/meta.ts`, and Resend email utilities in `src/lib/email`.
 - **API Authentication & RLS Bypass Standard**: Database operations in Next.js API Route Handlers authenticate users using the cookie-reliable `supabase.auth.getUser()`. To support multi-tenant team management, the system resolves the target scope by running `getEffectiveTenantId(user.id)`, which maps staff/agents to their account owner's `tenant_id` while returning the owner's own ID directly. Query operations are performed using a Supabase `service_role` client to bypass RLS, utilizing manual tenant-level filtering by this resolved `tenant_id`. API request bodies normalize camelCase and snake_case parameters (e.g. `templateId` and `template_id`) seamlessly to ensure robust client and schema alignment.

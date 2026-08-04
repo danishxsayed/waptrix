@@ -1,7 +1,6 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 interface TenantData {
   id: string;
@@ -12,14 +11,20 @@ interface TenantData {
   company: string;
 }
 
+type UserRole = 'owner' | 'admin' | 'agent';
+
 interface TenantContextProps {
   tenant: TenantData | null;
+  role: UserRole;
+  isStaff: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
 }
 
 const TenantContext = createContext<TenantContextProps>({
   tenant: null,
+  role: 'owner',
+  isStaff: false,
   loading: true,
   refresh: async () => {},
 });
@@ -27,27 +32,21 @@ const TenantContext = createContext<TenantContextProps>({
 export const useTenant = () => useContext(TenantContext);
 
 export function TenantProvider({ children }: { children: React.ReactNode }) {
-  const [tenant, setTenant] = useState<TenantData | null>(null);
+  const [tenant, setTenant]   = useState<TenantData | null>(null);
+  const [role, setRole]       = useState<UserRole>('owner');
+  const [isStaff, setIsStaff] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const fetchTenantData = async () => {
     try {
-      const supabase = createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-
-      if (user) {
-        const { data, error } = await supabase
-          .from("tenants")
-          .select("id, name, plan, messages_used, messages_limit, company")
-          .eq("id", user.id)
-          .single();
-
-        if (data && !error) {
-          setTenant(data);
-        }
-      }
+      const res = await fetch('/api/me');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.tenant) setTenant(data.tenant);
+      if (data.role)   setRole(data.role);
+      setIsStaff(!!data.isStaff);
     } catch (err) {
-      console.error("Error fetching tenant data:", err);
+      console.error('Error fetching tenant data:', err);
     } finally {
       setLoading(false);
     }
@@ -58,7 +57,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <TenantContext.Provider value={{ tenant, loading, refresh: fetchTenantData }}>
+    <TenantContext.Provider value={{ tenant, role, isStaff, loading, refresh: fetchTenantData }}>
       {children}
     </TenantContext.Provider>
   );
