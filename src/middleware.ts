@@ -41,6 +41,7 @@ export async function middleware(request: NextRequest) {
       !request.nextUrl.pathname.startsWith('/api/auth/') &&
       !request.nextUrl.pathname.startsWith('/api/webhooks/') &&
       !request.nextUrl.pathname.startsWith('/api/team/invite') &&
+      !request.nextUrl.pathname.startsWith('/api/team/create-account') &&
       !request.nextUrl.pathname.includes('/process-batch')) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'

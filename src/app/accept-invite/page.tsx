@@ -1,25 +1,25 @@
 "use client";
 
 import { useState, useEffect, Suspense } from "react";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Mail, Lock, Eye, EyeOff, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, CheckCircle2, Loader2, AlertCircle, MailCheck } from "lucide-react";
 
 function AcceptInviteInner() {
-  const params   = useSearchParams();
-  const router   = useRouter();
-  const token    = params.get("token") ?? "";
+  const params = useSearchParams();
+  const token  = params.get("token") ?? "";
 
-  const [mode, setMode]           = useState<"signup" | "login">("signup");
+  const [mode, setMode]                 = useState<"signup" | "login">("signup");
   const [invitedEmail, setInvitedEmail] = useState<string | null>(null);
-  const [password, setPassword]   = useState("");
-  const [showPw, setShowPw]       = useState(false);
-  const [loading, setLoading]     = useState(false);
-  const [initLoading, setInitLoading] = useState(true);
-  const [error, setError]         = useState<string | null>(null);
-  const [success, setSuccess]     = useState(false);
+  const [password, setPassword]         = useState("");
+  const [showPw, setShowPw]             = useState(false);
+  const [loading, setLoading]           = useState(false);
+  const [initLoading, setInitLoading]   = useState(true);
+  const [error, setError]               = useState<string | null>(null);
+  const [success, setSuccess]           = useState(false);
+  // After signUp, show "check your email" screen
+  const [pendingConfirm, setPendingConfirm] = useState(false);
 
-  // On mount: resolve invited email from token, then sign out any existing session
   useEffect(() => {
     if (!token) {
       setError("Invalid invite link — no token found.");
@@ -29,8 +29,8 @@ function AcceptInviteInner() {
 
     async function init() {
       try {
-        // 1. Fetch the invited email for this token (no auth needed)
-        const res = await fetch(`/api/team/invite?token=${encodeURIComponent(token)}`);
+        // Fetch invited email from token (public endpoint, no auth needed)
+        const res  = await fetch(`/api/team/invite?token=${encodeURIComponent(token)}`);
         const data = await res.json();
 
         if (!res.ok) {
@@ -40,17 +40,17 @@ function AcceptInviteInner() {
 
         setInvitedEmail(data.email);
 
-        // 2. Sign out any existing session so it doesn't interfere
+        // Check if already signed in
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
+
         if (user) {
-          // If they're already signed in with the RIGHT email, skip auth entirely on submit
           if (user.email?.toLowerCase() === data.email.toLowerCase()) {
-            // Already signed in as the correct user — jump straight to accepting
+            // Correct user is already signed in (returned from email confirmation link)
             await acceptInvite();
             return;
           }
-          // Wrong account — sign out first
+          // Different account signed in — sign it out
           await supabase.auth.signOut();
         }
       } catch {
@@ -70,7 +70,6 @@ function AcceptInviteInner() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
     });
-    // Guard against empty / non-JSON responses
     let data: any = {};
     try { data = await res.json(); } catch { /* empty body */ }
     if (!res.ok) throw new Error(data.error || `Server error (${res.status})`);
@@ -88,38 +87,35 @@ function AcceptInviteInner() {
       const supabase = createClient();
 
       if (mode === "signup") {
+        // Pass emailRedirectTo so Supabase confirmation link brings them back here
+        const redirectTo = `${window.location.origin}/accept-invite?token=${encodeURIComponent(token)}`;
         const { data: signupData, error: signupErr } = await supabase.auth.signUp({
           email: invitedEmail,
           password,
+          options: { emailRedirectTo: redirectTo },
         });
+
         if (signupErr) throw new Error(signupErr.message);
 
-        // If email confirmation is required, Supabase returns user but no session.
-        // In that case, tell the user to confirm their email first.
-        if (!signupData.session) {
-          // Try signing in immediately — the account may already exist
-          const { error: loginErr } = await supabase.auth.signInWithPassword({
-            email: invitedEmail,
-            password,
-          });
-          if (loginErr) {
-            throw new Error(
-              "Account created — please check your email to confirm your address, then come back and use 'I have an account' to sign in."
-            );
-          }
+        if (signupData.session) {
+          // Email confirmation is off — session created immediately, accept now
+          await new Promise(r => setTimeout(r, 400));
+          await acceptInvite();
+        } else {
+          // Email confirmation required — show "check your email" screen
+          setPendingConfirm(true);
         }
       } else {
+        // Login tab
         const { error: loginErr } = await supabase.auth.signInWithPassword({
           email: invitedEmail,
           password,
         });
         if (loginErr) throw new Error(loginErr.message);
+
+        await new Promise(r => setTimeout(r, 400));
+        await acceptInvite();
       }
-
-      // Wait for the session cookie to propagate to the server
-      await new Promise(r => setTimeout(r, 600));
-
-      await acceptInvite();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -127,6 +123,7 @@ function AcceptInviteInner() {
     }
   };
 
+  // ── Success screen ────────────────────────────────────────────
   if (success) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg px-4">
@@ -141,6 +138,33 @@ function AcceptInviteInner() {
     );
   }
 
+  // ── "Check your email" screen (after signUp with confirm required) ─
+  if (pendingConfirm) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-bg px-4">
+        <div className="text-center max-w-sm space-y-4">
+          <div className="w-16 h-16 bg-jade/10 border border-jade/20 rounded-2xl flex items-center justify-center mx-auto">
+            <MailCheck className="w-8 h-8 text-jade" />
+          </div>
+          <h2 className="text-xl font-bold font-syne text-text-primary">Check your email</h2>
+          <p className="text-sm text-text-muted leading-relaxed">
+            We sent a confirmation link to <strong className="text-text-primary">{invitedEmail}</strong>.
+            Click that link and you'll be automatically signed in and added to the team — no extra steps needed.
+          </p>
+          <p className="text-xs text-text-muted">Didn't get it? Check spam, or{" "}
+            <button
+              onClick={() => setPendingConfirm(false)}
+              className="text-jade font-semibold hover:underline"
+            >
+              try again
+            </button>.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Loading ───────────────────────────────────────────────────
   if (initLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-bg">
@@ -149,10 +173,10 @@ function AcceptInviteInner() {
     );
   }
 
+  // ── Main form ─────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex items-center justify-center bg-bg px-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center gap-3 mb-4">
             <div className="bg-jade text-bg px-4 py-2.5 rounded-xl font-black text-xl shadow-[0_0_20px_rgba(16,185,129,0.35)]">W</div>
@@ -160,9 +184,7 @@ function AcceptInviteInner() {
           </div>
           <h1 className="text-2xl font-bold font-syne text-text-primary">You've been invited!</h1>
           <p className="text-sm text-text-muted mt-1">
-            {mode === "signup"
-              ? "Create your account to join the team."
-              : "Sign in to accept your invitation."}
+            {mode === "signup" ? "Create your account to join the team." : "Sign in to accept your invitation."}
           </p>
           {invitedEmail && (
             <p className="text-xs text-jade mt-2 bg-jade/10 border border-jade/20 rounded-xl px-4 py-2">
@@ -172,17 +194,16 @@ function AcceptInviteInner() {
         </div>
 
         <div className="glass-card">
-          {/* Mode toggle — only show if we have an email (valid invite) */}
           {invitedEmail && (
             <div className="flex gap-2 mb-6 bg-surface rounded-xl p-1">
               <button
-                onClick={() => setMode("signup")}
+                onClick={() => { setMode("signup"); setError(null); }}
                 className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${mode === "signup" ? "bg-jade text-bg" : "text-text-muted hover:text-text-primary"}`}
               >
                 New account
               </button>
               <button
-                onClick={() => setMode("login")}
+                onClick={() => { setMode("login"); setError(null); }}
                 className={`flex-1 py-2 rounded-lg text-sm font-bold transition-all ${mode === "login" ? "bg-jade text-bg" : "text-text-muted hover:text-text-primary"}`}
               >
                 I have an account
@@ -191,15 +212,14 @@ function AcceptInviteInner() {
           )}
 
           {error && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-danger/10 border border-danger/20 mb-4">
-              <AlertCircle className="w-4 h-4 text-danger flex-shrink-0" />
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-danger/10 border border-danger/20 mb-4">
+              <AlertCircle className="w-4 h-4 text-danger flex-shrink-0 mt-0.5" />
               <p className="text-xs text-danger">{error}</p>
             </div>
           )}
 
           {invitedEmail ? (
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Email — locked to invited address */}
               <div>
                 <label className="block text-xs font-bold text-text-muted mb-1.5">Email</label>
                 <div className="relative">
@@ -239,14 +259,14 @@ function AcceptInviteInner() {
                 className="w-full btn-primary flex items-center justify-center gap-2 py-3 disabled:opacity-50"
               >
                 {loading
-                  ? <><Loader2 className="w-4 h-4 animate-spin" /> Joining team…</>
+                  ? <><Loader2 className="w-4 h-4 animate-spin" /> {mode === "signup" ? "Creating account…" : "Signing in…"}</>
                   : mode === "signup" ? "Create account & join" : "Sign in & join team"
                 }
               </button>
 
               <p className="text-center text-xs text-text-muted">
                 {mode === "signup" ? "Already have an account? " : "New to Waptrix? "}
-                <button type="button" onClick={() => setMode(mode === "signup" ? "login" : "signup")} className="text-jade font-semibold hover:underline">
+                <button type="button" onClick={() => { setMode(mode === "signup" ? "login" : "signup"); setError(null); }} className="text-jade font-semibold hover:underline">
                   {mode === "signup" ? "Sign in instead" : "Create new account"}
                 </button>
               </p>
