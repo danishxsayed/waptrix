@@ -17,7 +17,9 @@
   - Updated `src/components/layout/Sidebar.tsx` to filter navigation links according to user roles (e.g. agent only sees Dashboard/Inbox/Team Chat, owner sees Team/Automations/Connect/Settings, admin sees campaign modules).
   - Modified the main dashboard page (`src/app/(dashboard)/page.tsx`) to automatically redirect agents to `/inbox` on load, and to hide the onboarding checklist from all team staff members.
   - Implemented internal Team Chat database schema (`supabase/add-team-chat.sql`) enabling realtime communication between owners and staff.
-  - Developed Team Chat API endpoints (`/api/team-chat`) and page `/team-chat` with optimistic inserts and real-time subscriptions, linked in the Sidebar for all roles.
+  - Developed Team Chat API endpoints (`/api/team-chat`) and page `/team-chat` with optimistic inserts, custom audio notification alerts (Web Audio API), realtime postgres filters, and duplicate prevention via ID tracking caches.
+  - Polished the team chat interface layout to cancel main layout margins (`-m-8`) and fill the scrollable container exactly (`calc(100vh - 80px)`), adding a 5-second polling fallback loop to catch websocket drops.
+  - Updated `src/components/layout/Sidebar.tsx` to display skeleton loader cards while user profiles and roles load to prevent layout shift flashes.
   - Updated conversation and message endpoints to resolve the effective tenant context.
   - Created a dedicated dashboard page for team management (`src/app/(dashboard)/team/page.tsx`) and linked it in the Sidebar. Removed the team settings list from the global Settings page.
 - **Inbound Message Automations (Greeting & OOO)**:

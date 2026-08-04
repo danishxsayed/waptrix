@@ -96,7 +96,15 @@ export default function Sidebar() {
       </div>
 
       <nav className="flex-1 px-4 space-y-1 mt-4">
-        {navItems.map((item) => {
+        {/* Show skeleton while role is resolving to prevent flash of all items */}
+        {loading && (
+          <div className="space-y-1">
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="h-11 rounded-xl bg-card/50 animate-pulse" />
+            ))}
+          </div>
+        )}
+        {!loading && navItems.map((item) => {
           const isActive =
             item.href === "/"
               ? pathname === "/"
