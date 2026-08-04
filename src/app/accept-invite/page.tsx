@@ -3,7 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Mail, Lock, Eye, EyeOff, CheckCircle2, Loader2, AlertCircle, MailCheck } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
 
 function AcceptInviteInner() {
   const params = useSearchParams();
@@ -17,8 +17,6 @@ function AcceptInviteInner() {
   const [initLoading, setInitLoading]   = useState(true);
   const [error, setError]               = useState<string | null>(null);
   const [success, setSuccess]           = useState(false);
-  // After signUp, show "check your email" screen
-  const [pendingConfirm, setPendingConfirm] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -87,24 +85,26 @@ function AcceptInviteInner() {
       const supabase = createClient();
 
       if (mode === "signup") {
-        // Pass emailRedirectTo so Supabase confirmation link brings them back here
-        const redirectTo = `${window.location.origin}/accept-invite?token=${encodeURIComponent(token)}`;
-        const { data: signupData, error: signupErr } = await supabase.auth.signUp({
+        // Create account via server (admin API) — auto-confirms so no confirmation
+        // email is needed. The invite email already verified the address.
+        const createRes = await fetch("/api/team/create-account", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: invitedEmail, password, token }),
+        });
+        let createData: any = {};
+        try { createData = await createRes.json(); } catch { /* empty */ }
+        if (!createRes.ok) throw new Error(createData.error || "Failed to create account");
+
+        // Sign in on client to establish session cookie
+        const { error: loginErr } = await supabase.auth.signInWithPassword({
           email: invitedEmail,
           password,
-          options: { emailRedirectTo: redirectTo },
         });
+        if (loginErr) throw new Error(loginErr.message);
 
-        if (signupErr) throw new Error(signupErr.message);
-
-        if (signupData.session) {
-          // Email confirmation is off — session created immediately, accept now
-          await new Promise(r => setTimeout(r, 400));
-          await acceptInvite();
-        } else {
-          // Email confirmation required — show "check your email" screen
-          setPendingConfirm(true);
-        }
+        await new Promise(r => setTimeout(r, 400));
+        await acceptInvite();
       } else {
         // Login tab
         const { error: loginErr } = await supabase.auth.signInWithPassword({
@@ -133,32 +133,6 @@ function AcceptInviteInner() {
           </div>
           <h2 className="text-xl font-bold font-syne text-text-primary mb-2">You're in! 🎉</h2>
           <p className="text-sm text-text-muted">Redirecting you to the dashboard…</p>
-        </div>
-      </div>
-    );
-  }
-
-  // ── "Check your email" screen (after signUp with confirm required) ─
-  if (pendingConfirm) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-bg px-4">
-        <div className="text-center max-w-sm space-y-4">
-          <div className="w-16 h-16 bg-jade/10 border border-jade/20 rounded-2xl flex items-center justify-center mx-auto">
-            <MailCheck className="w-8 h-8 text-jade" />
-          </div>
-          <h2 className="text-xl font-bold font-syne text-text-primary">Check your email</h2>
-          <p className="text-sm text-text-muted leading-relaxed">
-            We sent a confirmation link to <strong className="text-text-primary">{invitedEmail}</strong>.
-            Click that link and you'll be automatically signed in and added to the team — no extra steps needed.
-          </p>
-          <p className="text-xs text-text-muted">Didn't get it? Check spam, or{" "}
-            <button
-              onClick={() => setPendingConfirm(false)}
-              className="text-jade font-semibold hover:underline"
-            >
-              try again
-            </button>.
-          </p>
         </div>
       </div>
     );
