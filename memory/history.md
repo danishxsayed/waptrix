@@ -10,7 +10,7 @@
   - Hardened `/accept-invite/page.tsx` with error boundary guards for non-JSON server responses and optimized propagation delays.
   - Added a token query parameter check in `src/app/login/page.tsx` to automatically redirect users with invite tokens to the `/accept-invite` page.
   - Configured `src/middleware.ts` to allow public, unauthenticated access to the invite page (`/accept-invite`), verification endpoint (`/api/team/invite`), and admin account creation endpoint (`/api/team/create-account`).
-  - Created a new backend route `/api/team/create-account` to allow admin-level creation of staff accounts, validating tokens and auto-confirming email addresses to completely bypass the confirmation mail friction.
+  - Created a new backend route `/api/team/create-account` to allow admin-level creation of staff accounts, validating tokens and auto-confirming email addresses to completely bypass the confirmation mail friction. If the user account already exists in Supabase Auth, the route updates the password and confirms the account automatically via admin API self-healing.
   - Integrated the `/api/team/create-account` route inside the signup submission on `/accept-invite/page.tsx`, logging staff in immediately on client success for instant onboarding.
   - Updated conversation and message endpoints to resolve the effective tenant context.
   - Created a dedicated dashboard page for team management (`src/app/(dashboard)/team/page.tsx`) and linked it in the Sidebar. Removed the team settings list from the global Settings page.

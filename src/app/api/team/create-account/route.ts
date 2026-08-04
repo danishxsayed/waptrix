@@ -4,9 +4,9 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 
 // ── POST /api/team/create-account ─────────────────────────────
-// Creates a Supabase auth user with email_confirm: true (bypasses
-// confirmation email) for invited staff accounts. The invite token
-// is validated before creating the account.
+// Creates (or fixes) a Supabase auth user for an invited staff member.
+// Uses admin API so email_confirm is set to true — no confirmation
+// email needed since the invite email already verified the address.
 export async function POST(req: Request) {
   try {
     const { email, password, token } = await req.json();
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
       process.env.SUPABASE_SERVICE_KEY!
     );
 
-    // Validate the invite token first — don't create accounts for bogus tokens
+    // Validate the invite token
     const { data: invite, error: findErr } = await db
       .from('team_members')
       .select('id, email, status')
@@ -36,23 +36,53 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Email does not match the invited address' }, { status: 400 });
     }
 
-    // Create user via admin API — email_confirm: true skips the confirmation email
+    // Try creating the user first
     const { data: created, error: createErr } = await db.auth.admin.createUser({
       email,
       password,
       email_confirm: true,
     });
 
-    if (createErr) {
-      // If the user already exists, that's fine — they'll sign in on the client
-      if (createErr.message?.toLowerCase().includes('already registered') ||
-          createErr.message?.toLowerCase().includes('already exists')) {
-        return NextResponse.json({ existed: true });
-      }
+    if (!createErr) {
+      // Fresh account created successfully
+      return NextResponse.json({ userId: created.user?.id });
+    }
+
+    // User already exists — find them and confirm + update password
+    const isAlreadyExists =
+      createErr.message?.toLowerCase().includes('already registered') ||
+      createErr.message?.toLowerCase().includes('already exists') ||
+      createErr.message?.toLowerCase().includes('already been registered');
+
+    if (!isAlreadyExists) {
       return NextResponse.json({ error: createErr.message }, { status: 500 });
     }
 
-    return NextResponse.json({ userId: created.user?.id, existed: false });
+    // Look up the existing user by email
+    const { data: listData, error: listErr } = await db.auth.admin.listUsers();
+    if (listErr) {
+      return NextResponse.json({ error: 'Failed to look up existing account' }, { status: 500 });
+    }
+
+    const existingUser = listData.users.find(
+      u => u.email?.toLowerCase() === email.toLowerCase()
+    );
+
+    if (!existingUser) {
+      return NextResponse.json({ error: 'Account lookup failed. Please try again.' }, { status: 500 });
+    }
+
+    // Update: confirm email + set the password they just chose
+    const { error: updateErr } = await db.auth.admin.updateUserById(existingUser.id, {
+      email_confirm: true,
+      password,
+    });
+
+    if (updateErr) {
+      return NextResponse.json({ error: updateErr.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ userId: existingUser.id });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
