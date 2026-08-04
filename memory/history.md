@@ -5,6 +5,8 @@
   - Implemented team members database schema (`supabase/add-team-automations.sql`) with roles (`admin`, `agent`), invitation tokens, and RLS policies.
   - Created a tenant resolution helper `getEffectiveTenantId()` in `src/lib/tenant.ts` to seamlessly map logged-in staff members to the owner's `tenant_id` for shared database records (conversations, messages, contacts, campaigns).
   - Built team invitation API endpoints (`/api/team`, `/api/team/[id]`, and `/api/team/accept`) and a invitation acceptance page (`src/app/accept-invite/page.tsx`) utilizing Resend templates.
+  - Implemented public invite verification route `/api/team/invite` returning the invited email and role for validation on mount.
+  - Updated `/accept-invite/page.tsx` to call `/api/team/invite` on load, pre-fill and lock down the email field to the invited address to prevent registration mismatches, and automatically process acceptance if already authenticated as the correct user.
   - Updated conversation and message endpoints to resolve the effective tenant context.
   - Created a dedicated dashboard page for team management (`src/app/(dashboard)/team/page.tsx`) and linked it in the Sidebar. Removed the team settings list from the global Settings page.
 - **Inbound Message Automations (Greeting & OOO)**:

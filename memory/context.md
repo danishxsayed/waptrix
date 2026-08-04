@@ -91,7 +91,7 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 - **Team Management & Shared Scoping**:
   - Implemented team members database schema (`team_members`) supporting invite tokens, user roles (`admin`, `agent`), and membership statuses.
   - Developed invite API routes (`/api/team`, `/api/team/accept`, `/api/team/[id]`) sending customized emails via Resend.
-  - Created a dedicated page `/accept-invite` to sign up/login new staff members and activate their association, instantly routing them to the shared tenant workspace.
+  - Created a dedicated page `/accept-invite` to sign up/login new staff members and activate their association, instantly routing them to the shared tenant workspace. The page validates tokens on mount using a public `/api/team/invite` endpoint and locks down the email input to prevent registration mismatches.
   - Created a dedicated `/team` dashboard view to list staff, modify roles, copy pending invite URLs, and revoke memberships.
 - **Inbound Message Automations (Greeting & OOO)**:
   - Added support for automated messaging via `/api/automations` and schema `automations`.
