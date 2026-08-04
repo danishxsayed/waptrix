@@ -65,13 +65,15 @@ function AcceptInviteInner() {
   }, [token]);
 
   const acceptInvite = async () => {
-    const res  = await fetch("/api/team/accept", {
+    const res = await fetch("/api/team/accept", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ token }),
     });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Failed to accept invite");
+    // Guard against empty / non-JSON responses
+    let data: any = {};
+    try { data = await res.json(); } catch { /* empty body */ }
+    if (!res.ok) throw new Error(data.error || `Server error (${res.status})`);
     setSuccess(true);
     setTimeout(() => { window.location.href = "/"; }, 2500);
   };
@@ -86,15 +88,36 @@ function AcceptInviteInner() {
       const supabase = createClient();
 
       if (mode === "signup") {
-        const { error: signupErr } = await supabase.auth.signUp({ email: invitedEmail, password });
+        const { data: signupData, error: signupErr } = await supabase.auth.signUp({
+          email: invitedEmail,
+          password,
+        });
         if (signupErr) throw new Error(signupErr.message);
+
+        // If email confirmation is required, Supabase returns user but no session.
+        // In that case, tell the user to confirm their email first.
+        if (!signupData.session) {
+          // Try signing in immediately — the account may already exist
+          const { error: loginErr } = await supabase.auth.signInWithPassword({
+            email: invitedEmail,
+            password,
+          });
+          if (loginErr) {
+            throw new Error(
+              "Account created — please check your email to confirm your address, then come back and use 'I have an account' to sign in."
+            );
+          }
+        }
       } else {
-        const { error: loginErr } = await supabase.auth.signInWithPassword({ email: invitedEmail, password });
+        const { error: loginErr } = await supabase.auth.signInWithPassword({
+          email: invitedEmail,
+          password,
+        });
         if (loginErr) throw new Error(loginErr.message);
       }
 
-      // Wait for the session cookie to be set before calling the server
-      await new Promise(r => setTimeout(r, 500));
+      // Wait for the session cookie to propagate to the server
+      await new Promise(r => setTimeout(r, 600));
 
       await acceptInvite();
     } catch (err: any) {
