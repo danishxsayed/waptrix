@@ -92,11 +92,13 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Implemented team members database schema (`team_members`) supporting invite tokens, user roles (`admin`, `agent`), and membership statuses.
   - Developed invite API routes (`/api/team`, `/api/team/accept`, `/api/team/[id]`) sending customized emails via Resend.
   - Created a dedicated page `/accept-invite` to sign up/login new staff members and activate their association, instantly routing them to the shared tenant workspace.
+  - Created a dedicated `/team` dashboard view to list staff, modify roles, copy pending invite URLs, and revoke memberships.
 - **Inbound Message Automations (Greeting & OOO)**:
   - Added support for automated messaging via `/api/automations` and schema `automations`.
   - Greeting automations send a greeting auto-reply when a new conversation is initiated.
   - Out-of-office (OOO) automations execute during scheduled hours relative to local timezone selections, with a 12-hour per-contact throttle.
-  - Managed and toggled directly via dashboard Settings page controls.
+  - Webhook auto-reply triggers automatically log outbound responses in `chat_messages` and update conversations' last message preview/timestamp to keep the inbox in sync.
+  - Managed and toggled directly via the dedicated `/automations` page dashboard controls.
 
 ## Related Projects
 - **Dandeli Wild adventure**: A React/Vite resort booking web application located on the Desktop (`/Users/danishsayed/Desktop/Dandeli Wild adventure`), which shares assets and photo mapping configurations with the same local workspace context.

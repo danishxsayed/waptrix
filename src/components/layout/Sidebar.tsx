@@ -14,7 +14,9 @@ import {
   Images,
   Loader2,
   LogOut,
-  MessageSquare
+  MessageSquare,
+  UserPlus,
+  Bot
 } from "lucide-react";
 import { useTenant } from "@/context/TenantContext";
 import { createClient } from "@/lib/supabase/client";
@@ -22,15 +24,17 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 const navItems = [
-  { name: "Dashboard",     href: "/",          icon: LayoutDashboard },
-  { name: "Inbox",         href: "/inbox",      icon: MessageSquare,  badge: true },
-  { name: "Campaigns",     href: "/campaigns",  icon: Send },
-  { name: "Templates",     href: "/templates",  icon: FileText },
-  { name: "Media Library", href: "/media",      icon: Images },
-  { name: "Contacts",      href: "/contacts",   icon: Users },
-  { name: "Connect",       href: "/connect",    icon: Link2 },
-  { name: "Analytics",     href: "/analytics",  icon: BarChart3 },
-  { name: "Settings",      href: "/settings",   icon: Settings },
+  { name: "Dashboard",     href: "/",             icon: LayoutDashboard },
+  { name: "Inbox",         href: "/inbox",         icon: MessageSquare,  badge: true },
+  { name: "Campaigns",     href: "/campaigns",     icon: Send },
+  { name: "Templates",     href: "/templates",     icon: FileText },
+  { name: "Media Library", href: "/media",         icon: Images },
+  { name: "Contacts",      href: "/contacts",      icon: Users },
+  { name: "Team Members",  href: "/team",          icon: UserPlus },
+  { name: "Automations",   href: "/automations",   icon: Bot },
+  { name: "Connect",       href: "/connect",       icon: Link2 },
+  { name: "Analytics",     href: "/analytics",     icon: BarChart3 },
+  { name: "Settings",      href: "/settings",      icon: Settings },
 ];
 
 export default function Sidebar() {

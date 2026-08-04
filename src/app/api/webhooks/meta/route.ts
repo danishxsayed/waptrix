@@ -63,7 +63,7 @@ async function sendAutoReply(
     if (!waConn?.phone_number_id || !waConn.access_token) return;
 
     const sendToken = process.env.META_SYSTEM_TOKEN || waConn.access_token;
-    await fetch(`https://graph.facebook.com/v19.0/${waConn.phone_number_id}/messages`, {
+    const sendRes = await fetch(`https://graph.facebook.com/v19.0/${waConn.phone_number_id}/messages`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${sendToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -73,6 +73,38 @@ async function sendAutoReply(
         text: { body: message, preview_url: false },
       }),
     });
+
+    const sendData = await sendRes.json();
+    const metaMsgId = sendData?.messages?.[0]?.id ?? null;
+    const now = new Date().toISOString();
+
+    // Find the conversation so we can save the message and update last_message
+    const { data: conv } = await db
+      .from('conversations')
+      .select('id')
+      .eq('tenant_id', tenantId)
+      .eq('contact_phone', toPhone)
+      .maybeSingle();
+
+    if (conv?.id) {
+      // Save outbound auto-reply to chat_messages so it appears in the inbox
+      await db.from('chat_messages').insert({
+        tenant_id:       tenantId,
+        conversation_id: conv.id,
+        direction:       'outbound',
+        meta_message_id: metaMsgId,
+        type:            'text',
+        content:         message,
+        status:          'sent',
+        created_at:      now,
+      });
+
+      // Update conversation preview
+      await db.from('conversations').update({
+        last_message:    message.slice(0, 120),
+        last_message_at: now,
+      }).eq('id', conv.id);
+    }
   } catch (err: any) {
     console.error('Auto-reply send failed:', err.message);
   }

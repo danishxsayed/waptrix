@@ -6,10 +6,13 @@
   - Created a tenant resolution helper `getEffectiveTenantId()` in `src/lib/tenant.ts` to seamlessly map logged-in staff members to the owner's `tenant_id` for shared database records (conversations, messages, contacts, campaigns).
   - Built team invitation API endpoints (`/api/team`, `/api/team/[id]`, and `/api/team/accept`) and a invitation acceptance page (`src/app/accept-invite/page.tsx`) utilizing Resend templates.
   - Updated conversation and message endpoints to resolve the effective tenant context.
+  - Created a dedicated dashboard page for team management (`src/app/(dashboard)/team/page.tsx`) and linked it in the Sidebar. Removed the team settings list from the global Settings page.
 - **Inbound Message Automations (Greeting & OOO)**:
   - Implemented automations schema and endpoints (`/api/automations`) supporting greeting messages and Out-of-Office (OOO) timezone-aware scheduling.
   - Integrated automation triggers inside the Meta webhook handler (`src/app/api/webhooks/meta/route.ts`). New contacts receive a greeting auto-reply, and out-of-office messages are automatically triggered outside business hours (throttled to max once per 12 hours per contact to prevent spam).
-  - Integrated team management list and greeting/OOO configuration forms in the Settings page (`src/app/(dashboard)/settings/page.tsx`).
+  - Configured webhook auto-replies to save outbound messages into `chat_messages` and update conversations' `last_message` and `last_message_at` to reflect in the real-time inbox.
+  - Created a dedicated dashboard page for automations (`src/app/(dashboard)/automations/page.tsx`) and linked it in the Sidebar. Removed the automations form from the Settings page.
+- **Sidebar Navigation**: Added "Team Members" (`/team` route) and "Automations" (`/automations` route) to the main navigation menu in `src/components/layout/Sidebar.tsx`.
 - **Analytics Date Filtering Fix**: Modified `src/app/api/analytics/route.ts` to query and group logs using `sent_at` instead of `created_at`. This resolves an issue where the dashboard charts showed zero sent messages because `created_at` values are sometimes `NULL` for batch-processed messages, while `sent_at` holds the correct timestamp.
 - **Real Read Tracking in Analytics**:
   - Modified Meta webhooks handler (`src/app/api/webhooks/meta/route.ts`) to capture `read_at` timestamps on `read` status updates.
