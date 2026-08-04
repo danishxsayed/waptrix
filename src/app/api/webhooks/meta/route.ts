@@ -71,10 +71,14 @@ async function handleMessages(db: SupabaseClient, value: any) {
       .update({ status: status.status })
       .eq('meta_message_id', status.id);
 
-    // Update message_log status
+    // Update message_log status (and read_at timestamp when read)
+    const logUpdate: Record<string, any> = { status: status.status };
+    if (status.status === 'read' && status.timestamp) {
+      logUpdate.read_at = new Date(parseInt(status.timestamp) * 1000).toISOString();
+    }
     await db
       .from('message_logs')
-      .update({ status: status.status })
+      .update(logUpdate)
       .eq('meta_msg_id', status.id);
 
     // Increment campaign counters based on delivery status

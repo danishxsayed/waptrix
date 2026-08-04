@@ -80,33 +80,37 @@ export async function GET() {
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-    // Use sent_at — that's what process-batch actually writes (created_at may be NULL)
+    // Fetch all successfully-sent logs (sent/delivered/read) — process-batch writes sent_at
     const { data: logs, error: logsError } = await serviceClient
       .from('message_logs')
-      .select('sent_at, status')
+      .select('sent_at, status, read_at')
       .eq('tenant_id', user.id)
-      .eq('status', 'sent')
+      .in('status', ['sent', 'delivered', 'read'])
       .gte('sent_at', fourteenDaysAgo.toISOString());
 
     // Generate chronological array for the last 14 days
-    const chartData: { date: string; sent: number }[] = [];
+    const chartData: { date: string; sent: number; read: number }[] = [];
     for (let i = 13; i >= 0; i--) {
       const d = new Date();
       d.setDate(d.getDate() - i);
       const dateStr = d.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-      chartData.push({ date: dateStr, sent: 0 });
+      chartData.push({ date: dateStr, sent: 0, read: 0 });
     }
 
-    // Group logs by sent_at date
+    // Group logs by sent_at for sent count; by read_at for real read count
     if (logs && !logsError) {
       logs.forEach(log => {
-        const ts = log.sent_at;
-        if (!ts) return;
-        const logDate = new Date(ts);
-        const dateStr = logDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
-        const dayObj = chartData.find(item => item.date === dateStr);
-        if (dayObj) {
-          dayObj.sent += 1;
+        // Count sent by send date
+        if (log.sent_at) {
+          const dateStr = new Date(log.sent_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+          const dayObj = chartData.find(item => item.date === dateStr);
+          if (dayObj) dayObj.sent += 1;
+        }
+        // Count reads by actual read date (only if read_at is populated by webhook)
+        if (log.read_at) {
+          const readDateStr = new Date(log.read_at).toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+          const readDayObj = chartData.find(item => item.date === readDateStr);
+          if (readDayObj) readDayObj.read += 1;
         }
       });
     }

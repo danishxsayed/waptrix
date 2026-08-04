@@ -1,7 +1,12 @@
 # Implementation History
 
-## [2026-08-04] - Fix Analytics Date Filtering
+## [2026-08-04] - Fix Analytics Date Filtering & Real Read Tracking
 - **Analytics Date Filtering Fix**: Modified `src/app/api/analytics/route.ts` to query and group logs using `sent_at` instead of `created_at`. This resolves an issue where the dashboard charts showed zero sent messages because `created_at` values are sometimes `NULL` for batch-processed messages, while `sent_at` holds the correct timestamp.
+- **Real Read Tracking in Analytics**:
+  - Modified Meta webhooks handler (`src/app/api/webhooks/meta/route.ts`) to capture `read_at` timestamps on `read` status updates.
+  - Updated the analytics API (`src/app/api/analytics/route.ts`) to dynamically calculate and group actual `read` counts chronologically based on `read_at` dates.
+  - Refactored the dashboard analytics page (`src/app/(dashboard)/analytics/page.tsx`) to pull and render actual read logs rather than estimations, updating the legend and chart configurations.
+- **Supabase Storage & Table Migrations**: Added [supabase/setup-media-storage.sql](file:///Users/danishsayed/Desktop/Waptrix/supabase/setup-media-storage.sql) to easily provision the `template-media` storage bucket and add the new `read_at` column.
 - **Version Control**: Committed and pushed these updates to the remote repository.
 
 ## [2026-08-02] - Real Usage Metrics & Analytics Empty States

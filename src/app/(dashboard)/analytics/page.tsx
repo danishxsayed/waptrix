@@ -120,7 +120,8 @@ export default function AnalyticsPage() {
   const displayChartData = chartData.map((d: any) => ({
     day: d.date,
     sent: d.sent,
-    read: Math.round(d.sent * (readRate / 100)),
+    // Use real per-day read count if available (populated by webhook); fall back to 0
+    read: d.read ?? 0,
   }));
 
   const displayCampaigns = campaigns.slice(0, 5).map((c: any) => {
@@ -203,7 +204,7 @@ export default function AnalyticsPage() {
                 </div>
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-info"></span>
-                  <span className="text-[10px] font-bold text-text-muted uppercase">Read (est.)</span>
+                  <span className="text-[10px] font-bold text-text-muted uppercase">Read</span>
                 </div>
               </div>
             )}
