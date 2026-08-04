@@ -336,14 +336,34 @@ export default function MediaLibrary({
     setUploading(true);
     setUploadError("");
     for (const file of Array.from(files)) {
-      if (file.size > 20 * 1024 * 1024) {
-        setUploadError(`"${file.name}" exceeds 20 MB limit — skipped.`);
+      if (file.size > 50 * 1024 * 1024) {
+        setUploadError(`"${file.name}" exceeds 50 MB limit — skipped.`);
         continue;
       }
       try {
-        const dataUrl = await readFileAsDataUrl(file);
+        // Upload to Supabase Storage so files get a public URL usable in Meta templates
+        let storageUrl: string | null = null;
+        try {
+          const { data: urlData } = await axios.post("/api/upload-url", {
+            fileName: file.name,
+            contentType: file.type,
+          });
+          if (urlData?.signedUrl) {
+            const fd = new FormData();
+            fd.append("cacheControl", "3600");
+            fd.append("", file);
+            const uploadRes = await fetch(urlData.signedUrl, { method: "PUT", body: fd });
+            if (uploadRes.ok) storageUrl = urlData.publicUrl as string;
+          }
+        } catch {
+          // Fall through to base64 if Storage upload fails
+        }
+
+        // Determine what to store as dataUrl
+        const dataUrl = storageUrl ?? (await readFileAsDataUrl(file));
         const res = await axios.post("/api/media", { name: file.name, dataUrl });
-        // Pre-seed the cache so the new LazyCard renders the thumbnail instantly
+
+        // Pre-seed the cache so the thumbnail renders immediately
         if (res.data?.id) {
           thumbnailCache.set(res.data.id, dataUrl);
         }

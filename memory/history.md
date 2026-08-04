@@ -6,6 +6,16 @@
   - Modified Meta webhooks handler (`src/app/api/webhooks/meta/route.ts`) to capture `read_at` timestamps on `read` status updates.
   - Updated the analytics API (`src/app/api/analytics/route.ts`) to dynamically calculate and group actual `read` counts chronologically based on `read_at` dates.
   - Refactored the dashboard analytics page (`src/app/(dashboard)/analytics/page.tsx`) to pull and render actual read logs rather than estimations, updating the legend and chart configurations.
+- **Onboarding Checklist Widget**:
+  - Implemented `OnboardingChecklist.tsx` tracking user progress across 4 core setup steps: WhatsApp connection, contacts import, template creation, and campaign launch.
+  - Integrated the checklist widget on the home dashboard page (`src/app/(dashboard)/page.tsx`), showing progress in real-time and auto-dismissing after all steps are completed.
+- **Campaign Analytics Email Reports**:
+  - Created a styled email template `getCampaignAnalyticsEmail` in `src/lib/email/template.ts` featuring key stats (Total contacts, Sent, Delivered, Read, and rates) and visual progress bars.
+  - Updated the batch dispatcher at campaign completion (`src/app/api/campaigns/[id]/process-batch/route.ts`) to retrieve user auth details and automatically dispatch the analytics report via Resend API.
+- **Media Upload & Storage Improvements**:
+  - Expanded size limit in `MediaLibrary.tsx` from 20MB to 50MB.
+  - Integrated direct Supabase Storage uploads within `MediaLibrary.tsx` utilizing `/api/upload-url` signed PUT endpoints, falling back to base64 only if storage bucket uploads fail.
+  - Configured the template builder's media upload handler to automatically register new header file uploads in the Media Library database.
 - **Supabase Storage & Table Migrations**: Added [supabase/setup-media-storage.sql](file:///Users/danishsayed/Desktop/Waptrix/supabase/setup-media-storage.sql) to easily provision the `template-media` storage bucket and add the new `read_at` column.
 - **Version Control**: Committed and pushed these updates to the remote repository.
 

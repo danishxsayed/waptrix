@@ -381,6 +381,12 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
     try {
       const url = await uploadToStorage(file);
       setFormData(prev => ({ ...prev, header_image_url: url }));
+      // Register in Media Library so the file appears there too
+      try {
+        await axios.post("/api/media", { name: file.name, dataUrl: url });
+      } catch {
+        // Non-fatal — template still works even if media record fails
+      }
       showToast("Uploaded successfully.");
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.message || "Upload failed";

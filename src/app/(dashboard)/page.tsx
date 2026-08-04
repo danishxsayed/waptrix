@@ -23,6 +23,7 @@ import {
   Tooltip,
   ResponsiveContainer
 } from "recharts";
+import OnboardingChecklist from "@/components/onboarding/OnboardingChecklist";
 export default function DashboardPage() {
   const router = useRouter();
   const [data, setData] = useState<any>(null);
@@ -122,6 +123,9 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {/* Onboarding checklist — only visible until all steps are done */}
+      <OnboardingChecklist stats={data?.stats ?? null} />
+
       {/* Stat Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {stats.map((stat) => {

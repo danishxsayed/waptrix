@@ -27,6 +27,7 @@ import {
   cleanupCampaignStats,
 } from '@/lib/redis';
 import { metaApi } from '@/lib/meta';
+import { getCampaignAnalyticsEmail } from '@/lib/email/template';
 
 function serviceDb() {
   return createClient(
@@ -340,6 +341,71 @@ export async function POST(
     }).eq('id', campaignId);
     await cleanupCampaignStats(campaignId);
     console.log(`Campaign ${campaignId} complete: ${stats.sent} sent, ${stats.failed} failed`);
+
+    // Send campaign analytics email to the tenant
+    try {
+      // Get tenant email from Supabase Auth
+      const { data: userData } = await db.auth.admin.getUserById(campaign.tenant_id);
+      const userEmail = userData?.user?.email;
+
+      if (userEmail && process.env.RESEND_API_KEY) {
+        // Fetch final campaign row to get delivered/read counts (updated by webhook)
+        const { data: finalCampaign } = await db
+          .from('campaigns')
+          .select('name, sent_count, failed_count, delivered_count, read_count')
+          .eq('id', campaignId)
+          .single();
+
+        const sentCount      = finalCampaign?.sent_count      ?? stats.sent;
+        const failedCount    = finalCampaign?.failed_count     ?? stats.failed;
+        const deliveredCount = finalCampaign?.delivered_count  ?? 0;
+        const readCount      = finalCampaign?.read_count       ?? 0;
+        const deliveryRate   = sentCount > 0
+          ? Number(((deliveredCount > 0 ? deliveredCount : sentCount) / (sentCount + failedCount) * 100).toFixed(1))
+          : 0;
+        const readRate       = sentCount > 0
+          ? Number((readCount / sentCount * 100).toFixed(1))
+          : 0;
+
+        const appUrl         = process.env.NEXT_PUBLIC_APP_URL || 'https://app.waptrix.in';
+        const completedAt    = new Date(now).toLocaleString('en-US', {
+          weekday: 'short', year: 'numeric', month: 'short',
+          day: 'numeric', hour: '2-digit', minute: '2-digit', timeZoneName: 'short',
+        });
+
+        const html = getCampaignAnalyticsEmail({
+          campaignName:   finalCampaign?.name || campaignId,
+          totalContacts,
+          sent:           sentCount,
+          failed:         failedCount,
+          delivered:      deliveredCount,
+          read:           readCount,
+          deliveryRate,
+          readRate,
+          dashboardUrl:   `${appUrl}/analytics`,
+          completedAt,
+        });
+
+        await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${process.env.RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            from: 'Waptrix <no-reply@waptrix.in>',
+            to:   userEmail,
+            subject: `📊 Campaign "${finalCampaign?.name || campaignId}" — ${stats.sent} messages sent`,
+            html,
+          }),
+        });
+
+        console.log(`Campaign analytics email sent to ${userEmail}`);
+      }
+    } catch (emailErr: any) {
+      // Non-fatal — campaign is complete regardless of email success
+      console.error('Failed to send campaign analytics email:', emailErr.message);
+    }
   } else {
     // Update partial progress so the UI shows live progress
     await db.from('campaigns').update({

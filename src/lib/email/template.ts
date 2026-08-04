@@ -240,3 +240,172 @@ export const getEmailTemplate = (title: string, message: string, buttonText: str
 </body>
 </html>
 `;
+
+/**
+ * Campaign analytics report email — sent when a campaign finishes sending.
+ */
+export const getCampaignAnalyticsEmail = (params: {
+  campaignName: string;
+  totalContacts: number;
+  sent: number;
+  failed: number;
+  delivered: number;
+  read: number;
+  deliveryRate: number;
+  readRate: number;
+  dashboardUrl: string;
+  completedAt: string;
+}) => {
+  const {
+    campaignName, totalContacts, sent, failed,
+    delivered, read, deliveryRate, readRate, dashboardUrl, completedAt,
+  } = params;
+
+  const statusColor = deliveryRate >= 90 ? '#10B981' : deliveryRate >= 70 ? '#F59E0B' : '#F43F5E';
+  const statusLabel = deliveryRate >= 90 ? '🟢 Excellent' : deliveryRate >= 70 ? '🟡 Good' : '🔴 Needs Review';
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Campaign Report – ${campaignName}</title>
+</head>
+<body style="margin:0;padding:0;background-color:#080A0F;font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#080A0F;padding:40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background-color:#0E1117;border:1px solid #273042;border-radius:24px;overflow:hidden;">
+
+          <!-- Header -->
+          <tr>
+            <td style="padding:36px 40px 28px;background:linear-gradient(135deg,#0E1117 0%,#161B26 100%);text-align:center;border-bottom:1px solid #1E293B;">
+              <div style="display:inline-flex;align-items:center;gap:12px;justify-content:center;">
+                <div style="background-color:#10B981;color:#080A0F;padding:10px 16px;border-radius:12px;font-weight:900;font-size:20px;letter-spacing:-0.5px;box-shadow:0 0 20px rgba(16,185,129,0.35);">W</div>
+                <span style="color:#10B981;font-size:22px;font-weight:800;letter-spacing:-0.5px;">Waptrix</span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Hero -->
+          <tr>
+            <td style="padding:32px 40px 0;">
+              <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:16px;padding:24px;text-align:center;">
+                <div style="font-size:40px;margin-bottom:10px;">📊</div>
+                <h1 style="margin:0 0 6px;font-size:24px;font-weight:800;color:#E2E8F0;">Campaign Complete!</h1>
+                <p style="margin:0;font-size:15px;color:#8896AB;">Your campaign <strong style="color:#E2E8F0;">${campaignName}</strong> has finished sending.</p>
+                <p style="margin:8px 0 0;font-size:12px;color:#4A5568;">${completedAt}</p>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Delivery status badge -->
+          <tr>
+            <td style="padding:20px 40px 0;text-align:center;">
+              <div style="display:inline-block;background:rgba(16,185,129,0.08);border:1px solid #273042;border-radius:12px;padding:12px 28px;">
+                <span style="font-size:13px;font-weight:700;color:${statusColor};">${statusLabel}</span>
+                <span style="font-size:13px;color:#8896AB;margin-left:8px;">— ${deliveryRate}% delivery rate</span>
+              </div>
+            </td>
+          </tr>
+
+          <!-- Key stats grid -->
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td style="width:23%;padding:4px;">
+                    <div style="background:#161B26;border:1px solid #273042;border-radius:12px;padding:16px 12px;text-align:center;">
+                      <p style="margin:0 0 4px;font-size:10px;font-weight:700;color:#4A5568;text-transform:uppercase;letter-spacing:1px;">Total</p>
+                      <p style="margin:0;font-size:22px;font-weight:800;color:#E2E8F0;">${totalContacts.toLocaleString()}</p>
+                      <p style="margin:4px 0 0;font-size:10px;color:#8896AB;">contacts</p>
+                    </div>
+                  </td>
+                  <td style="width:23%;padding:4px;">
+                    <div style="background:#161B26;border:1px solid rgba(16,185,129,0.3);border-radius:12px;padding:16px 12px;text-align:center;">
+                      <p style="margin:0 0 4px;font-size:10px;font-weight:700;color:#10B981;text-transform:uppercase;letter-spacing:1px;">Sent</p>
+                      <p style="margin:0;font-size:22px;font-weight:800;color:#10B981;">${sent.toLocaleString()}</p>
+                      <p style="margin:4px 0 0;font-size:10px;color:#8896AB;">messages</p>
+                    </div>
+                  </td>
+                  <td style="width:23%;padding:4px;">
+                    <div style="background:#161B26;border:1px solid rgba(14,165,233,0.3);border-radius:12px;padding:16px 12px;text-align:center;">
+                      <p style="margin:0 0 4px;font-size:10px;font-weight:700;color:#0EA5E9;text-transform:uppercase;letter-spacing:1px;">Delivered</p>
+                      <p style="margin:0;font-size:22px;font-weight:800;color:#0EA5E9;">${delivered.toLocaleString()}</p>
+                      <p style="margin:4px 0 0;font-size:10px;color:#8896AB;">messages</p>
+                    </div>
+                  </td>
+                  <td style="width:23%;padding:4px;">
+                    <div style="background:#161B26;border:1px solid rgba(245,158,11,0.3);border-radius:12px;padding:16px 12px;text-align:center;">
+                      <p style="margin:0 0 4px;font-size:10px;font-weight:700;color:#F59E0B;text-transform:uppercase;letter-spacing:1px;">Read</p>
+                      <p style="margin:0;font-size:22px;font-weight:800;color:#F59E0B;">${read.toLocaleString()}</p>
+                      <p style="margin:4px 0 0;font-size:10px;color:#8896AB;">${readRate}% rate</p>
+                    </div>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <!-- Progress bar -->
+          <tr>
+            <td style="padding:24px 40px 0;">
+              <div style="background:#161B26;border:1px solid #273042;border-radius:14px;padding:20px 24px;">
+                <p style="margin:0 0 14px;font-size:12px;font-weight:700;color:#8896AB;text-transform:uppercase;letter-spacing:1px;">Delivery Breakdown</p>
+                <!-- Delivery rate bar -->
+                <div style="margin-bottom:12px;">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                    <span style="font-size:12px;color:#CBD5E1;font-weight:600;">Delivered</span>
+                    <span style="font-size:12px;color:#10B981;font-weight:700;">${deliveryRate}%</span>
+                  </div>
+                  <div style="height:6px;background:#273042;border-radius:999px;overflow:hidden;">
+                    <div style="height:100%;width:${Math.min(deliveryRate, 100)}%;background:#10B981;border-radius:999px;"></div>
+                  </div>
+                </div>
+                <!-- Read rate bar -->
+                <div style="margin-bottom:12px;">
+                  <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                    <span style="font-size:12px;color:#CBD5E1;font-weight:600;">Read</span>
+                    <span style="font-size:12px;color:#F59E0B;font-weight:700;">${readRate}%</span>
+                  </div>
+                  <div style="height:6px;background:#273042;border-radius:999px;overflow:hidden;">
+                    <div style="height:100%;width:${Math.min(readRate, 100)}%;background:#F59E0B;border-radius:999px;"></div>
+                  </div>
+                </div>
+                ${failed > 0 ? `
+                <!-- Failed -->
+                <div style="margin-top:16px;background:rgba(244,63,94,0.07);border:1px solid rgba(244,63,94,0.2);border-radius:10px;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;">
+                  <span style="font-size:12px;color:#F43F5E;font-weight:600;">⚠️ Failed to deliver</span>
+                  <span style="font-size:13px;color:#F43F5E;font-weight:800;">${failed.toLocaleString()} messages</span>
+                </div>` : ''}
+              </div>
+            </td>
+          </tr>
+
+          <!-- CTA -->
+          <tr>
+            <td style="padding:32px 40px;text-align:center;">
+              <a href="${dashboardUrl}" style="display:inline-block;background-color:#10B981;color:#080A0F;padding:14px 36px;border-radius:12px;font-weight:800;font-size:15px;text-decoration:none;letter-spacing:-0.2px;box-shadow:0 0 20px rgba(16,185,129,0.25);">
+                View Full Analytics &rarr;
+              </a>
+            </td>
+          </tr>
+
+          <!-- Footer -->
+          <tr>
+            <td style="padding:0 40px 32px;">
+              <div style="height:1px;background:#1E293B;margin-bottom:24px;"></div>
+              <p style="margin:0;font-size:12px;color:#4A5568;text-align:center;line-height:1.6;">
+                You received this because you sent a campaign on Waptrix.<br/>
+                &copy; 2026 Waptrix &mdash; WhatsApp Marketing Platform
+              </p>
+            </td>
+          </tr>
+
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+};
