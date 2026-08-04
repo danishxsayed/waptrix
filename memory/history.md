@@ -1,5 +1,9 @@
 # Implementation History
 
+## [2026-08-04] - Fix Analytics Date Filtering
+- **Analytics Date Filtering Fix**: Modified `src/app/api/analytics/route.ts` to query and group logs using `sent_at` instead of `created_at`. This resolves an issue where the dashboard charts showed zero sent messages because `created_at` values are sometimes `NULL` for batch-processed messages, while `sent_at` holds the correct timestamp.
+- **Version Control**: Committed and pushed these updates to the remote repository.
+
 ## [2026-08-02] - Real Usage Metrics & Analytics Empty States
 - **Analytics Dashboard Empty States**:
   - Refactored `src/app/(dashboard)/analytics/page.tsx` to conditionally display a clean placeholder/illustration ("No messages sent yet" and "No campaigns yet") instead of rendering empty charts or empty tables when `totalSent` or `displayCampaigns.length` is 0.

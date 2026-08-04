@@ -80,12 +80,13 @@ export async function GET() {
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
+    // Use sent_at — that's what process-batch actually writes (created_at may be NULL)
     const { data: logs, error: logsError } = await serviceClient
       .from('message_logs')
-      .select('created_at, status')
+      .select('sent_at, status')
       .eq('tenant_id', user.id)
       .eq('status', 'sent')
-      .gte('created_at', fourteenDaysAgo.toISOString());
+      .gte('sent_at', fourteenDaysAgo.toISOString());
 
     // Generate chronological array for the last 14 days
     const chartData: { date: string; sent: number }[] = [];
@@ -96,10 +97,12 @@ export async function GET() {
       chartData.push({ date: dateStr, sent: 0 });
     }
 
-    // Group logs by date
+    // Group logs by sent_at date
     if (logs && !logsError) {
       logs.forEach(log => {
-        const logDate = new Date(log.created_at);
+        const ts = log.sent_at;
+        if (!ts) return;
+        const logDate = new Date(ts);
         const dateStr = logDate.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
         const dayObj = chartData.find(item => item.date === dateStr);
         if (dayObj) {
