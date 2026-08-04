@@ -45,6 +45,109 @@ async function getTenantByWaba(db: SupabaseClient, wabaId: string): Promise<stri
 }
 
 // ──────────────────────────────────────────────────────────
+// Automation: send an auto-reply via Meta API
+// ──────────────────────────────────────────────────────────
+async function sendAutoReply(
+  db: SupabaseClient,
+  tenantId: string,
+  toPhone: string,
+  message: string
+) {
+  try {
+    const { data: waConn } = await db
+      .from('wa_connections')
+      .select('access_token, phone_number_id')
+      .eq('tenant_id', tenantId)
+      .single();
+
+    if (!waConn?.phone_number_id || !waConn.access_token) return;
+
+    const sendToken = process.env.META_SYSTEM_TOKEN || waConn.access_token;
+    await fetch(`https://graph.facebook.com/v19.0/${waConn.phone_number_id}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${sendToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        messaging_product: 'whatsapp',
+        to: toPhone,
+        type: 'text',
+        text: { body: message, preview_url: false },
+      }),
+    });
+  } catch (err: any) {
+    console.error('Auto-reply send failed:', err.message);
+  }
+}
+
+/**
+ * Check and fire applicable automations (greeting / OOO) for an inbound message.
+ * - greeting fires on the FIRST ever message from a contact (new conversation)
+ * - ooo fires when current server time is within the configured OOO window
+ *   and at most once per 12h per contact (to avoid spam)
+ */
+async function maybeFireAutomations(
+  db: SupabaseClient,
+  tenantId: string,
+  toPhone: string,
+  isNewConversation: boolean
+) {
+  try {
+    const { data: automations } = await db
+      .from('automations')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .eq('enabled', true);
+
+    if (!automations || automations.length === 0) return;
+
+    for (const auto of automations) {
+      if (auto.type === 'greeting' && isNewConversation && auto.message) {
+        // Small delay so the greeting arrives after the contact's message
+        setTimeout(() => {
+          sendAutoReply(db, tenantId, toPhone, auto.message);
+        }, 1500);
+
+      } else if (auto.type === 'ooo' && auto.message) {
+        // Check if current time is within OOO window
+        const tz = auto.timezone || 'Asia/Kolkata';
+        const now = new Date();
+        const localHour = parseInt(
+          now.toLocaleString('en-US', { timeZone: tz, hour: 'numeric', hour12: false })
+        );
+
+        const start = auto.ooo_start ?? 18;
+        const end   = auto.ooo_end   ?? 9;
+
+        // OOO window can wrap midnight (e.g. 18→9 means 6pm to 9am)
+        const isOoo = start > end
+          ? (localHour >= start || localHour < end)   // wraps midnight
+          : (localHour >= start && localHour < end);  // same day
+
+        if (!isOoo) continue;
+
+        // Throttle: don't send OOO to same contact more than once per 12h
+        const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+        const { data: recentOoo } = await db
+          .from('chat_messages')
+          .select('id')
+          .eq('tenant_id', tenantId)
+          .eq('direction', 'outbound')
+          .ilike('content', '%office hours%')
+          .gte('created_at', twelveHoursAgo)
+          .limit(1);
+
+        if (recentOoo && recentOoo.length > 0) continue; // already sent recently
+
+        setTimeout(() => {
+          sendAutoReply(db, tenantId, toPhone, auto.message);
+        }, 1500);
+      }
+    }
+  } catch (err: any) {
+    console.error('Automation check failed:', err.message);
+  }
+}
+
+// ──────────────────────────────────────────────────────────
 // Handler: messages (inbound + delivery status)
 // ──────────────────────────────────────────────────────────
 async function handleMessages(db: SupabaseClient, value: any) {
@@ -162,6 +265,7 @@ async function handleMessages(db: SupabaseClient, value: any) {
       .single();
 
     let conversationId: string;
+    let isNewConversation = false;
 
     if (existingConv) {
       conversationId = existingConv.id;
@@ -191,6 +295,7 @@ async function handleMessages(db: SupabaseClient, value: any) {
 
       if (!newConv) continue;
       conversationId = newConv.id;
+      isNewConversation = true;
     }
 
     // Check for duplicate before inserting (partial unique index only covers non-null meta_message_id)
@@ -225,6 +330,9 @@ async function handleMessages(db: SupabaseClient, value: any) {
     if (insertErr) {
       console.error('chat_messages insert error:', insertErr.message, insertErr.code);
     }
+
+    // Fire automations (greeting for new conversations, OOO if outside hours)
+    maybeFireAutomations(db, tenantId, senderPhone, isNewConversation);
   }
 }
 

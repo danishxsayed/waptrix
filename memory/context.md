@@ -17,7 +17,7 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 - **TenantContext**: Shared client-side state for authenticated user profiles and messaging quotas.
 - **Middleware**: Handles authentication redirects via Supabase SSR, with explicit exclusions for public routes (login, signup, terms, privacy, password recovery, `/api/auth/` endpoint routes, and `/api/webhooks/`).
 - **Client/Server Libs**: Unified Supabase clients in `src/lib/supabase`, Meta API helpers in `src/lib/meta.ts`, and Resend email utilities in `src/lib/email`.
-- **API Authentication & RLS Bypass Standard**: Database operations in Next.js API Route Handlers authenticate users using the cookie-reliable `supabase.auth.getUser()`. Query operations are performed using a Supabase `service_role` client to bypass RLS, utilizing manual tenant-level filtering by `user.id`. API request bodies normalize camelCase and snake_case parameters (e.g. `templateId` and `template_id`) seamlessly to ensure robust client and schema alignment.
+- **API Authentication & RLS Bypass Standard**: Database operations in Next.js API Route Handlers authenticate users using the cookie-reliable `supabase.auth.getUser()`. To support multi-tenant team management, the system resolves the target scope by running `getEffectiveTenantId(user.id)`, which maps staff/agents to their account owner's `tenant_id` while returning the owner's own ID directly. Query operations are performed using a Supabase `service_role` client to bypass RLS, utilizing manual tenant-level filtering by this resolved `tenant_id`. API request bodies normalize camelCase and snake_case parameters (e.g. `templateId` and `template_id`) seamlessly to ensure robust client and schema alignment.
 - **Light/Dark Mode & Theme Toggle**: Integrated light and dark theme styling using CSS variables. Default is light mode. Theme toggling is supported via a UI toggle button in the `Topbar.tsx` component which syncs selection to `localStorage`. An inline script in `layout.tsx` runs before paint to prevent theme flash (FOUC) by loading the correct class on the root element.
 
 ## Key Integration
@@ -88,6 +88,15 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Aligned `/api/media` route handler mapping variables safely to resolve metadata attributes, and excluded both `type` and `size` fields from insert queries since they are not present in this database schema (with size/type derived client-side instead).
   - Implemented a dismissible, inline warning banner in `MediaLibrary.tsx` to display upload failures (such as file size exceeding the 20MB limit or server exceptions) instead of browser `alert()` popups.
   - Cleaned up the `/media` page dashboard header by removing the redundant upload file modal trigger, centralizing uploads directly in the inline library container.
+- **Team Management & Shared Scoping**:
+  - Implemented team members database schema (`team_members`) supporting invite tokens, user roles (`admin`, `agent`), and membership statuses.
+  - Developed invite API routes (`/api/team`, `/api/team/accept`, `/api/team/[id]`) sending customized emails via Resend.
+  - Created a dedicated page `/accept-invite` to sign up/login new staff members and activate their association, instantly routing them to the shared tenant workspace.
+- **Inbound Message Automations (Greeting & OOO)**:
+  - Added support for automated messaging via `/api/automations` and schema `automations`.
+  - Greeting automations send a greeting auto-reply when a new conversation is initiated.
+  - Out-of-office (OOO) automations execute during scheduled hours relative to local timezone selections, with a 12-hour per-contact throttle.
+  - Managed and toggled directly via dashboard Settings page controls.
 
 ## Related Projects
 - **Dandeli Wild adventure**: A React/Vite resort booking web application located on the Desktop (`/Users/danishsayed/Desktop/Dandeli Wild adventure`), which shares assets and photo mapping configurations with the same local workspace context.

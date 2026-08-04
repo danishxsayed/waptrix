@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 export async function POST(
   req: Request,
@@ -20,26 +21,27 @@ export async function POST(
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const tenantId = await getEffectiveTenantId(user.id);
     const db = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
 
-    // Verify ownership and get contact phone
+    // Verify conversation belongs to this tenant (or their owner's tenant)
     const { data: conv } = await db
       .from('conversations')
       .select('id, contact_phone, tenant_id')
       .eq('id', conversationId)
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (!conv) return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
 
-    // Get WhatsApp connection for this tenant
+    // Get WhatsApp connection for the effective tenant
     const { data: waConn } = await db
       .from('wa_connections')
       .select('access_token, phone_number_id')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     const phoneNumberId = waConn?.phone_number_id && waConn.phone_number_id !== 'pending'
@@ -168,7 +170,7 @@ export async function POST(
 
     // Save outbound message to DB
     const insertPayload: Record<string, any> = {
-      tenant_id: user.id,
+      tenant_id: tenantId,
       conversation_id: conversationId,
       direction: 'outbound',
       meta_message_id: metaMessageId,
