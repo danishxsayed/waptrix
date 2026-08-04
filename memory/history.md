@@ -9,6 +9,7 @@
   - Updated `/accept-invite/page.tsx` to call `/api/team/invite` on load, pre-fill and lock down the email field to the invited address to prevent registration mismatches, and automatically process acceptance if already authenticated as the correct user.
   - Hardened `/accept-invite/page.tsx` with error boundary guards for non-JSON server responses, verification checks for Supabase signup confirmations, and optimized propagation delays.
   - Added a token query parameter check in `src/app/login/page.tsx` to automatically redirect users with invite tokens to the `/accept-invite` page.
+  - Configured `src/middleware.ts` to allow public, unauthenticated access to the invite page (`/accept-invite`) and verification endpoint (`/api/team/invite`).
   - Updated conversation and message endpoints to resolve the effective tenant context.
   - Created a dedicated dashboard page for team management (`src/app/(dashboard)/team/page.tsx`) and linked it in the Sidebar. Removed the team settings list from the global Settings page.
 - **Inbound Message Automations (Greeting & OOO)**:
