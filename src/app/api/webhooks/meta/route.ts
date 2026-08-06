@@ -244,6 +244,17 @@ async function handleMessages(db: SupabaseClient, value: any) {
     if (status.status === 'read' && status.timestamp) {
       logUpdate.read_at = new Date(parseInt(status.timestamp) * 1000).toISOString();
     }
+    // Capture Meta's error details when a message delivery fails
+    // Meta sends: status.errors = [{ code, title, message, error_data, href }]
+    if (status.status === 'failed' && Array.isArray(status.errors) && status.errors.length > 0) {
+      const e = status.errors[0];
+      const parts: string[] = [];
+      if (e.code)    parts.push(`code=${e.code}`);
+      if (e.title)   parts.push(e.title);
+      if (e.message && e.message !== e.title) parts.push(e.message);
+      logUpdate.error = parts.join(' | ') || 'Unknown delivery failure';
+      console.error(`[webhook] Message ${status.id} delivery failed: ${logUpdate.error}`);
+    }
     await db
       .from('message_logs')
       .update(logUpdate)
