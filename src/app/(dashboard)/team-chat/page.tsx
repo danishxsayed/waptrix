@@ -40,11 +40,12 @@ function formatTime(ts: string) {
       d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-/* tiny beep via Web Audio — no file needed */
-function playNotification() {
+/* tiny beep via Web Audio
+   AudioContext must be created/resumed inside a user gesture first.
+   We create it lazily on first interaction and reuse the same context. */
+function beep(ctx: AudioContext) {
   try {
-    const ctx = new AudioContext();
-    const osc = ctx.createOscillator();
+    const osc  = ctx.createOscillator();
     const gain = ctx.createGain();
     osc.connect(gain);
     gain.connect(ctx.destination);
@@ -54,7 +55,7 @@ function playNotification() {
     gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.3);
     osc.start(ctx.currentTime);
     osc.stop(ctx.currentTime + 0.3);
-  } catch { /* browsers may block autoplay */ }
+  } catch { /* ignore */ }
 }
 
 /* ── component ────────────────────────────────────────────── */
@@ -66,9 +67,28 @@ export default function TeamChatPage() {
   const [myId, setMyId]           = useState<string | null>(null);
   const [myEmail, setMyEmail]     = useState("");
   const [tenantId, setTenantId]   = useState<string | null>(null);
-  const bottomRef  = useRef<HTMLDivElement>(null);
-  const inputRef   = useRef<HTMLTextAreaElement>(null);
-  const latestIds  = useRef<Set<string>>(new Set()); // track seen IDs for dedup
+  const bottomRef   = useRef<HTMLDivElement>(null);
+  const inputRef    = useRef<HTMLTextAreaElement>(null);
+  const latestIds   = useRef<Set<string>>(new Set()); // track seen IDs for dedup
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // Call this inside any user gesture (click/keydown) to unlock Web Audio
+  const unlockAudio = useCallback(() => {
+    try {
+      if (!audioCtxRef.current) {
+        audioCtxRef.current = new AudioContext();
+      } else if (audioCtxRef.current.state === "suspended") {
+        audioCtxRef.current.resume();
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  const playNotification = useCallback(() => {
+    if (audioCtxRef.current && audioCtxRef.current.state === "running") {
+      beep(audioCtxRef.current);
+    }
+    // If context not yet unlocked, we can't play — that's expected until user interacts
+  }, []);
 
   const scrollToBottom = useCallback((smooth = true) => {
     bottomRef.current?.scrollIntoView({ behavior: smooth ? "smooth" : "instant" });
@@ -100,6 +120,15 @@ export default function TeamChatPage() {
   }, []);
 
   useEffect(() => { if (!loading) scrollToBottom(false); }, [loading, scrollToBottom]);
+
+  // Mark chat as seen when page is open — clears unread badge in sidebar
+  useEffect(() => {
+    localStorage.setItem("lastSeenTeamChat", new Date().toISOString());
+    return () => {
+      // Also update on unmount so the badge doesn't immediately reappear for messages sent by self
+      localStorage.setItem("lastSeenTeamChat", new Date().toISOString());
+    };
+  }, []);
 
   /* ── Realtime subscription ─────────────────────────────── */
   useEffect(() => {
@@ -160,7 +189,7 @@ export default function TeamChatPage() {
       supabase.removeChannel(channel);
       clearInterval(poll);
     };
-  }, [tenantId, myId, scrollToBottom]);
+  }, [tenantId, myId, scrollToBottom, playNotification]);
 
   /* ── send ──────────────────────────────────────────────── */
   const handleSend = async () => {
@@ -194,6 +223,7 @@ export default function TeamChatPage() {
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    unlockAudio(); // unlock on every keypress
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   };
 
@@ -287,7 +317,7 @@ export default function TeamChatPage() {
             style={{ maxHeight: "120px" }}
           />
           <button
-            onClick={handleSend}
+            onClick={() => { unlockAudio(); handleSend(); }}
             disabled={!input.trim() || sending}
             className="w-11 h-11 bg-jade rounded-2xl flex items-center justify-center flex-shrink-0 disabled:opacity-40 hover:bg-jade/90 transition-colors"
           >

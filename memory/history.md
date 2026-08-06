@@ -1,5 +1,18 @@
 # Implementation History
 
+## [2026-08-06] - Campaign Opt-Outs, Custom Analytics Ranges, & Team Chat Unread Badges
+- **Campaign Opt-Out Handling (STOP/START Keywords)**:
+  - Added SQL migration `supabase/add-optout.sql` to add `opted_out_at` tracking to `contacts` table and created an index for active filtering.
+  - Implemented opt-out/opt-in detection based on keywords (STOP, UNSUBSCRIBE, CANCEL, QUIT, START, YES, etc.) inside Meta webhook route `src/app/api/webhooks/meta/route.ts`, automatically toggling `opted_in` and dispatching confirmation replies.
+  - Filtered campaign enqueuing queries in `src/lib/campaign-queue.ts` and dispatch checks in `src/app/api/campaigns/[id]/process-batch/route.ts` to exclude contacts who have opted out.
+- **Analytics Custom Date Range Picker**:
+  - Rewrote `/api/analytics` route to accept `from` and `to` query parameters, aggregating chronological message volumes inside specified date ranges (up to a 90-day window).
+  - Integrated range preset buttons (7d, 14d, 30d) and a custom date-picker dropdown in the Analytics dashboard page, with auto-click-away overlay closures.
+- **Team Chat Unread Notifications**:
+  - Created `/api/team-chat/unread` endpoint querying message counts from other team members since a given `since` ISO timestamp.
+  - Updated `Sidebar.tsx` to poll for unread team messages using `lastSeenTeamChat` timestamp records stored in `localStorage`, displaying unread badges on the Team Chat menu row.
+  - Hardened Web Audio context activation in `/team-chat` page to dynamically unlock on user interaction gestures to bypass browser autoplay blocks.
+
 ## [2026-08-04] - Fix Analytics Date Filtering & Real Read Tracking
 - **Team Management & Shared Tenant Scoping**:
   - Implemented team members database schema (`supabase/add-team-automations.sql`) with roles (`admin`, `agent`), invitation tokens, and RLS policies.

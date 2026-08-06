@@ -78,8 +78,9 @@ export default function Sidebar() {
   const pathname  = usePathname();
   const { tenant, role, loading } = useTenant();
   const router    = useRouter();
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [expanded, setExpanded]       = useState<Record<string, boolean>>({});
+  const [unreadCount, setUnreadCount]         = useState(0);
+  const [teamChatUnread, setTeamChatUnread]   = useState(0);
+  const [expanded, setExpanded]               = useState<Record<string, boolean>>({});
   const navItems  = navItemsForRole(role);
 
   // Auto-expand parent if a child is active
@@ -106,6 +107,29 @@ export default function Sidebar() {
     const iv = setInterval(fetchUnread, 30_000);
     return () => clearInterval(iv);
   }, []);
+
+  // Poll for unread team chat messages (only when not on the team-chat page)
+  useEffect(() => {
+    async function fetchTeamChatUnread() {
+      if (pathname === "/team-chat") {
+        // User is looking at the chat — reset badge
+        setTeamChatUnread(0);
+        return;
+      }
+      try {
+        const since = localStorage.getItem("lastSeenTeamChat") ?? "";
+        const params = since ? `?since=${encodeURIComponent(since)}` : "";
+        const res = await fetch(`/api/team-chat/unread${params}`);
+        if (res.ok) {
+          const { count } = await res.json();
+          setTeamChatUnread(count ?? 0);
+        }
+      } catch (_) {}
+    }
+    fetchTeamChatUnread();
+    const iv = setInterval(fetchTeamChatUnread, 20_000);
+    return () => clearInterval(iv);
+  }, [pathname]);
 
   const getProgress = () => {
     if (!tenant) return 0;
@@ -173,6 +197,7 @@ export default function Sidebar() {
                     {item.children!.map(child => {
                       const CIcon      = child.icon;
                       const childActive = pathname === child.href || pathname.startsWith(child.href + "/");
+                      const isTeamChat = child.href === "/team-chat";
                       return (
                         <Link
                           key={child.href}
@@ -184,7 +209,12 @@ export default function Sidebar() {
                           }`}
                         >
                           <CIcon className={`w-4 h-4 flex-shrink-0 ${childActive ? "text-jade" : "group-hover:text-jade transition-colors"}`} />
-                          <span className="font-medium">{child.name}</span>
+                          <span className="font-medium flex-1">{child.name}</span>
+                          {isTeamChat && teamChatUnread > 0 && (
+                            <span className="w-5 h-5 bg-jade text-background text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                              {teamChatUnread > 9 ? "9+" : teamChatUnread}
+                            </span>
+                          )}
                         </Link>
                       );
                     })}
@@ -194,6 +224,7 @@ export default function Sidebar() {
             );
           }
 
+          const isTeamChatItem = item.href === "/team-chat";
           return (
             <Link
               key={item.href}
@@ -209,6 +240,11 @@ export default function Sidebar() {
               {item.badge && unreadCount > 0 && (
                 <span className="w-5 h-5 bg-jade text-background text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
                   {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+              {isTeamChatItem && teamChatUnread > 0 && (
+                <span className="w-5 h-5 bg-jade text-background text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                  {teamChatUnread > 9 ? "9+" : teamChatUnread}
                 </span>
               )}
             </Link>

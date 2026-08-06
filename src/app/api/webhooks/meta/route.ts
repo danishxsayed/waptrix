@@ -45,6 +45,39 @@ async function getTenantByWaba(db: SupabaseClient, wabaId: string): Promise<stri
 }
 
 // ──────────────────────────────────────────────────────────
+// Opt-out keywords (case-insensitive, whole message match)
+// ──────────────────────────────────────────────────────────
+const OPT_OUT_KEYWORDS = new Set([
+  'stop', 'unsubscribe', 'optout', 'opt out', 'opt-out',
+  'cancel', 'end', 'quit', 'remove me',
+]);
+const OPT_IN_KEYWORDS = new Set([
+  'start', 'subscribe', 'optin', 'opt in', 'opt-in', 'yes',
+]);
+
+function isOptOut(text: string) {
+  return OPT_OUT_KEYWORDS.has(text.trim().toLowerCase());
+}
+function isOptIn(text: string) {
+  return OPT_IN_KEYWORDS.has(text.trim().toLowerCase());
+}
+
+// Mark a contact opted-out (or back in) by phone number
+async function handleOptOut(
+  db: SupabaseClient,
+  tenantId: string,
+  phone: string,
+  optOut: boolean,
+) {
+  const normalizedPhone = phone.replace(/^\+/, '');
+  await db.from('contacts').update({
+    opted_in:     !optOut,                                          // false = opted out
+    opted_out_at: optOut ? new Date().toISOString() : null,
+  }).eq('tenant_id', tenantId)
+    .or(`phone.eq.${normalizedPhone},phone.eq.+${normalizedPhone}`);
+}
+
+// ──────────────────────────────────────────────────────────
 // Automation: send an auto-reply via Meta API
 // ──────────────────────────────────────────────────────────
 async function sendAutoReply(
@@ -288,6 +321,26 @@ async function handleMessages(db: SupabaseClient, value: any) {
     }
 
     const msgTimestamp = new Date(parseInt(msg.timestamp) * 1000).toISOString();
+
+    // ── Opt-out / opt-in detection ──────────────────────────
+    if (type === 'text') {
+      if (isOptOut(content)) {
+        await handleOptOut(db, tenantId, senderPhone, true);
+        // Confirm opt-out to the contact
+        sendAutoReply(
+          db, tenantId, senderPhone,
+          "You've been unsubscribed and won't receive further messages from us. " +
+          "Reply START anytime to opt back in."
+        );
+      } else if (isOptIn(content)) {
+        await handleOptOut(db, tenantId, senderPhone, false);
+        sendAutoReply(
+          db, tenantId, senderPhone,
+          "You've been re-subscribed! You'll now receive messages from us again. " +
+          "Reply STOP at any time to unsubscribe."
+        );
+      }
+    }
 
     const { data: existingConv } = await db
       .from('conversations')

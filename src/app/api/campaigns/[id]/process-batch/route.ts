@@ -176,8 +176,12 @@ export async function POST(
     .in('contact_id', contactIds);
 
   const alreadySentIds = new Set((existingLogs || []).map((l: any) => l.contact_id));
-  const pendingContacts = contacts.filter((c: any) => !alreadySentIds.has(c.id));
-  const skippedCount = contacts.length - pendingContacts.length;
+
+  // Also skip opted-out contacts (opted_in === false) — never send to them
+  const pendingContacts = contacts.filter(
+    (c: any) => !alreadySentIds.has(c.id) && c.opted_in !== false
+  );
+  const skippedCount = contacts.length - pendingContacts.length; // includes opted-out + already-sent
 
   // ── 5. Send all pending contacts in parallel (CONCURRENCY = 20) ──
   // 20x faster than sequential — each slot does: rate-limit → Meta API → conv upsert
