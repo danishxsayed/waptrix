@@ -25,6 +25,7 @@ import {
   incrCampaignFailed,
   getCampaignStats,
   cleanupCampaignStats,
+  invalidateWaConnection,
 } from '@/lib/redis';
 import { metaApi } from '@/lib/meta';
 import { getCampaignAnalyticsEmail } from '@/lib/email/template';
@@ -36,8 +37,14 @@ function serviceDb() {
   );
 }
 
+/**
+ * Normalize a phone number to bare E.164 digits (no + or other characters).
+ * Meta's API requires digits only, no + prefix, no spaces, no dashes.
+ * Examples: "+91 98765-43210" → "919876543210", "+971501234567" → "971501234567"
+ */
 function normalizePhone(phone: string): string {
-  return phone.replace(/^\+/, '');
+  // Strip every non-digit character (spaces, dashes, brackets, +)
+  return (phone || '').replace(/\D/g, '');
 }
 
 function buildComponents(template: any, variableMapping: Record<string, string>, contact: any): any[] {
@@ -160,9 +167,13 @@ export async function POST(
     return NextResponse.json({ error: 'Missing WA connection or template' }, { status: 400 });
   }
 
-  const sendToken       = process.env.META_SYSTEM_TOKEN || waConnection.access_token;
+  // System token preferred, but we fall back to tenant's own token on permission errors
+  const systemToken     = process.env.META_SYSTEM_TOKEN;
+  const tenantToken     = waConnection.access_token;
+  const sendToken       = systemToken || tenantToken;
   const variableMapping = campaign.variable_mapping || {};
   const now             = new Date().toISOString();
+  // Template name must be lowercase + underscores to match what was submitted to Meta
   const templateName    = template.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
   const messageContent  = `[Template: ${template.name}]`;
 
@@ -204,17 +215,37 @@ export async function POST(
         await checkMetaRateLimit(waConnection.phone_number_id);
 
         const runtimeComponents = buildComponents(template, variableMapping, contact);
+        // Only include components if non-empty — Meta rejects explicit [] for simple templates
+        const templateComponents = runtimeComponents.length > 0 ? runtimeComponents : undefined;
 
-        const response = await metaApi.sendTemplateMessage(
-          sendToken,
-          waConnection.phone_number_id,
-          {
-            to:           normalizedPhone,
-            templateName,
-            languageCode: template.language,
-            components:   runtimeComponents,
+        /** Send via Meta API with automatic fallback from system token → tenant token */
+        async function sendWithFallback(token: string, isRetry = false): Promise<any> {
+          try {
+            return await metaApi.sendTemplateMessage(
+              token,
+              waConnection.phone_number_id,
+              {
+                to:           normalizedPhone,
+                templateName,
+                languageCode: template.language,
+                components:   templateComponents,
+              }
+            );
+          } catch (err: any) {
+            const errCode = err?.response?.data?.error?.code;
+            // Error 200 = permissions; 190 = token expired/invalid
+            // If we were using the system token, retry with the tenant's own token
+            if (!isRetry && systemToken && token === systemToken && (errCode === 200 || errCode === 190)) {
+              console.warn(`[process-batch] System token failed (code ${errCode}) for ${normalizedPhone}, retrying with tenant token`);
+              // Invalidate the cached WA connection so the next batch doesn't reuse a bad token
+              await invalidateWaConnection(campaign.tenant_id);
+              return sendWithFallback(tenantToken, true);
+            }
+            throw err; // propagate so Promise.allSettled marks it as rejected
           }
-        );
+        }
+
+        const response = await sendWithFallback(sendToken);
 
         const metaMsgId = response?.messages?.[0]?.id ?? null;
 
@@ -290,9 +321,23 @@ export async function POST(
       } else {
         const err     = result.reason;
         const metaErr = err?.response?.data?.error;
-        const errorMsg = metaErr
-          ? `[${metaErr.code || ''}] ${metaErr.message || err.message}`
-          : (err?.message || String(err));
+
+        // Build a rich error string that includes all Meta error fields
+        let errorMsg: string;
+        if (metaErr) {
+          const parts: string[] = [];
+          if (metaErr.code)          parts.push(`code=${metaErr.code}`);
+          if (metaErr.error_subcode) parts.push(`subcode=${metaErr.error_subcode}`);
+          if (metaErr.type)          parts.push(`type=${metaErr.type}`);
+          if (metaErr.message)       parts.push(metaErr.message);
+          if (metaErr.error_data)    parts.push(`data=${JSON.stringify(metaErr.error_data)}`);
+          if (metaErr.fbtrace_id)    parts.push(`trace=${metaErr.fbtrace_id}`);
+          errorMsg = parts.join(' | ');
+        } else {
+          errorMsg = err?.message || String(err);
+        }
+
+        console.error(`[process-batch] Failed to send to ${contact.phone}: ${errorMsg}`);
 
         logInserts.push({
           campaign_id: campaignId,

@@ -51,8 +51,10 @@ export async function POST(req: Request) {
     if (!phone) return NextResponse.json({ error: 'phone is required' }, { status: 400 });
     if (!templateName) return NextResponse.json({ error: 'templateName is required — WhatsApp requires a template to initiate new conversations' }, { status: 400 });
 
-    // Normalize phone: must start with +
-    const normalizedPhone = phone.startsWith('+') ? phone : `+${phone}`;
+    // Normalize to E.164: strip all non-digits, then re-add + prefix
+    // Meta's send API needs digits-only (no +), but we store with + in conversations
+    const digitsOnly = (phone || '').replace(/\D/g, '');
+    const normalizedPhone = `+${digitsOnly}`; // stored in conversations table with +
 
     // ── Get WhatsApp connection ───────────────────────────────────────────────
     const { data: waConn } = await db
@@ -75,15 +77,21 @@ export async function POST(req: Request) {
     // ── Send template via Meta API ────────────────────────────────────────────
     // Normalize name to match exactly how it was submitted to Meta
     const normalizedTemplateName = (templateName || '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    // Meta API requires digits-only (no + prefix); we keep normalizedPhone (with +) for DB
+    const metaTemplateBody: Record<string, any> = {
+      name: normalizedTemplateName,
+      language: { code: languageCode },
+    };
+    if (components && components.length > 0) {
+      metaTemplateBody.components = components;
+    }
+
     const metaPayload = {
       messaging_product: 'whatsapp',
-      to: normalizedPhone,
-      type: 'template',
-      template: {
-        name: normalizedTemplateName,
-        language: { code: languageCode },
-        components,
-      },
+      recipient_type:    'individual',
+      to:                digitsOnly,     // digits only, no +
+      type:              'template',
+      template:          metaTemplateBody,
     };
 
     let sendRes = await fetch(

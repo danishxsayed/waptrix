@@ -72,20 +72,27 @@ export const metaApi = {
       to: string;
       templateName: string;
       languageCode: string;
-      components: any[];
+      components?: any[]; // undefined = omit the key; [] still omitted below
     }
   ) {
+    const templateBody: Record<string, any> = {
+      name: payload.templateName,
+      language: { code: payload.languageCode },
+    };
+    // Only include components if there are actual entries — Meta rejects explicit []
+    // for templates that have no variables/headers
+    if (payload.components && payload.components.length > 0) {
+      templateBody.components = payload.components;
+    }
+
     const response = await axios.post(
       `${GRAPH_URL}/${phoneNumberId}/messages`,
       {
         messaging_product: 'whatsapp',
-        to: payload.to,
-        type: 'template',
-        template: {
-          name: payload.templateName,
-          language: { code: payload.languageCode },
-          components: payload.components,
-        },
+        recipient_type:    'individual',
+        to:                payload.to,
+        type:              'template',
+        template:          templateBody,
       },
       {
         headers: { Authorization: `Bearer ${accessToken}` },

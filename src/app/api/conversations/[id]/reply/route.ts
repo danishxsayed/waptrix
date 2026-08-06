@@ -70,28 +70,36 @@ export async function POST(
     let storedContent = content || '';
     let mediaId: string | null = null; // declared at function scope so it's always accessible
 
+    // Meta API requires digits-only (no + prefix)
+    const metaPhone = (conv.contact_phone || '').replace(/\D/g, '');
+
     if (type === 'text') {
       // ── Free-text message (within 24h customer service window)
       metaPayload = {
         messaging_product: 'whatsapp',
-        to: conv.contact_phone,
-        type: 'text',
-        text: { body: content, preview_url: false },
+        recipient_type:    'individual',
+        to:                metaPhone,
+        type:              'text',
+        text:              { body: content, preview_url: false },
       };
 
     } else if (type === 'template') {
       // ── Template message (works outside 24h window)
       // Normalize name to match how it was submitted to Meta (lowercase + underscores)
       const normalizedTemplateName = (templateName || '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+      const tmplBody: Record<string, any> = {
+        name:     normalizedTemplateName,
+        language: { code: languageCode || 'en_US' },
+      };
+      if (components && components.length > 0) {
+        tmplBody.components = components;
+      }
       metaPayload = {
         messaging_product: 'whatsapp',
-        to: conv.contact_phone,
-        type: 'template',
-        template: {
-          name: normalizedTemplateName,
-          language: { code: languageCode || 'en_US' },
-          components: components || [],
-        },
+        recipient_type:    'individual',
+        to:                metaPhone,
+        type:              'template',
+        template:          tmplBody,
       };
       storedContent = `[Template: ${normalizedTemplateName}]`;
 
@@ -129,7 +137,8 @@ export async function POST(
 
       metaPayload = {
         messaging_product: 'whatsapp',
-        to: conv.contact_phone,
+        recipient_type:    'individual',
+        to:                metaPhone,
         type,
         [type]: mediaId ? { id: mediaId } : { link: mediaUrl },
       };

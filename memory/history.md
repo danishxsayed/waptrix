@@ -12,6 +12,12 @@
   - Created `/api/team-chat/unread` endpoint querying message counts from other team members since a given `since` ISO timestamp.
   - Updated `Sidebar.tsx` to poll for unread team messages using `lastSeenTeamChat` timestamp records stored in `localStorage`, displaying unread badges on the Team Chat menu row.
   - Hardened Web Audio context activation in `/team-chat` page to dynamically unlock on user interaction gestures to bypass browser autoplay blocks.
+- **Campaign Error Tracking & Meta API Resilience**:
+  - Added SQL migration `supabase/add-message-logs-error-column.sql` to add a queryable `error` text column to `message_logs` for storing detailed delivery failures.
+  - Rewrote Meta template payload building in `src/lib/meta.ts` and dispatch routes to omit empty components arrays (which are rejected by the Meta API for templates without variables).
+  - Hardened phone number normalization across all sending handlers (`process-batch`, `reply`, `start`) to strip spaces, dashes, and plus symbols, formatting strictly to E.164 digits as expected by the Cloud API.
+  - Implemented automatic token fallback retries in `src/app/api/campaigns/[id]/process-batch/route.ts`. System token authorization failures (e.g. error code 200 or 190) trigger an immediate fallback to send using the tenant's connection token while invalidating the Redis connection cache.
+  - Created a diagnostic API endpoint `/api/whatsapp/test-send` to let users dry-run a template message to a test number and view detailed token comparison results.
 
 ## [2026-08-04] - Fix Analytics Date Filtering & Real Read Tracking
 - **Team Management & Shared Tenant Scoping**:
