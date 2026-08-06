@@ -7,7 +7,7 @@
   - Filtered campaign enqueuing queries in `src/lib/campaign-queue.ts` and dispatch checks in `src/app/api/campaigns/[id]/process-batch/route.ts` to exclude contacts who have opted out.
 - **Analytics Custom Date Range Picker**:
   - Rewrote `/api/analytics` route to accept `from` and `to` query parameters, aggregating chronological message volumes inside specified date ranges (up to a 90-day window).
-  - Integrated range preset buttons (7d, 14d, 30d) and a custom date-picker dropdown in the Analytics dashboard page, with auto-click-away overlay closures.
+  - Integrated range preset buttons (7d, 14d, 30d) and a custom date-picker dropdown in both the Analytics dashboard page and the main home Dashboard page (`src/app/(dashboard)/page.tsx`), featuring auto-click-away overlay closures.
 - **Team Chat Unread Notifications**:
   - Created `/api/team-chat/unread` endpoint querying message counts from other team members since a given `since` ISO timestamp.
   - Updated `Sidebar.tsx` to poll for unread team messages using `lastSeenTeamChat` timestamp records stored in `localStorage`, displaying unread badges on the Team Chat menu row.
