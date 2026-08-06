@@ -14,7 +14,8 @@
   - Integrated the `/api/team/create-account` route inside the signup submission on `/accept-invite/page.tsx`, logging staff in immediately on client success for instant onboarding.
   - Created a user session info endpoint `/api/me` resolving the logged-in user's role (`owner` | `admin` | `agent`), effective tenant details, and staff status.
   - Refactored `TenantContext.tsx` to retrieve user information from `/api/me`, exposing `role` and `isStaff` attributes context-wide.
-  - Updated `src/components/layout/Sidebar.tsx` to filter navigation links according to user roles (e.g. agent only sees Dashboard/Inbox/Team Chat, owner sees Team/Automations/Connect/Settings, admin sees campaign modules).
+  - Updated `src/components/layout/Sidebar.tsx` to filter navigation links according to user roles, supporting collapsible nested submenus (such as nesting "Members" and "Team Chat" under "Team Members" for owner accounts, and automatically expanding menus when nested routes are active).
+  - Configured role-adapted rendering in `Sidebar.tsx` so that non-owner accounts (agents/admins) see "Team Chat" as a top-level sidebar link directly below "Inbox".
   - Modified the main dashboard page (`src/app/(dashboard)/page.tsx`) to automatically redirect agents to `/inbox` on load, and to hide the onboarding checklist from all team staff members.
   - Implemented internal Team Chat database schema (`supabase/add-team-chat.sql`) enabling realtime communication between owners and staff.
   - Developed Team Chat API endpoints (`/api/team-chat`) and page `/team-chat` with optimistic inserts, custom audio notification alerts (Web Audio API), realtime postgres filters, and duplicate prevention via ID tracking caches.

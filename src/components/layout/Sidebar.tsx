@@ -18,58 +18,93 @@ import {
   UserPlus,
   Bot,
   MessageSquareText,
+  ChevronDown,
 } from "lucide-react";
 import { useTenant } from "@/context/TenantContext";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-// All nav items tagged with minimum role required to see them
-// roles in order: agent < admin < owner
-const ALL_NAV_ITEMS = [
-  { name: "Dashboard",     href: "/",             icon: LayoutDashboard,   minRole: "agent"  },
-  { name: "Inbox",         href: "/inbox",         icon: MessageSquare,     minRole: "agent", badge: true },
-  { name: "Team Chat",     href: "/team-chat",     icon: MessageSquareText, minRole: "agent" },
-  { name: "Campaigns",     href: "/campaigns",     icon: Send,            minRole: "admin" },
-  { name: "Templates",     href: "/templates",     icon: FileText,        minRole: "admin" },
-  { name: "Media Library", href: "/media",         icon: Images,          minRole: "admin" },
-  { name: "Contacts",      href: "/contacts",      icon: Users,           minRole: "admin" },
-  { name: "Analytics",     href: "/analytics",     icon: BarChart3,       minRole: "admin" },
-  { name: "Team Members",  href: "/team",          icon: UserPlus,        minRole: "owner" },
-  { name: "Automations",   href: "/automations",   icon: Bot,             minRole: "owner" },
-  { name: "Connect",       href: "/connect",       icon: Link2,           minRole: "owner" },
-  { name: "Settings",      href: "/settings",      icon: Settings,        minRole: "owner" },
-] as const;
-
 const ROLE_RANK: Record<string, number> = { agent: 0, admin: 1, owner: 2 };
 
-function navItemsForRole(role: string) {
-  return ALL_NAV_ITEMS.filter(item => ROLE_RANK[role] >= ROLE_RANK[item.minRole]);
+type NavItem = {
+  name: string;
+  href: string;
+  icon: React.ElementType;
+  minRole: "agent" | "admin" | "owner";
+  badge?: boolean;
+  children?: { name: string; href: string; icon: React.ElementType }[];
+};
+
+const ALL_NAV_ITEMS: NavItem[] = [
+  { name: "Dashboard",     href: "/",           icon: LayoutDashboard, minRole: "agent" },
+  { name: "Inbox",         href: "/inbox",       icon: MessageSquare,   minRole: "agent", badge: true },
+  { name: "Campaigns",     href: "/campaigns",   icon: Send,            minRole: "admin" },
+  { name: "Templates",     href: "/templates",   icon: FileText,        minRole: "admin" },
+  { name: "Media Library", href: "/media",       icon: Images,          minRole: "admin" },
+  { name: "Contacts",      href: "/contacts",    icon: Users,           minRole: "admin" },
+  { name: "Analytics",     href: "/analytics",   icon: BarChart3,       minRole: "admin" },
+  {
+    name: "Team Members",
+    href: "/team",
+    icon: UserPlus,
+    minRole: "owner",
+    children: [
+      { name: "Members",   href: "/team",       icon: Users },
+      { name: "Team Chat", href: "/team-chat",  icon: MessageSquareText },
+    ],
+  },
+  { name: "Automations",   href: "/automations", icon: Bot,    minRole: "owner" },
+  { name: "Connect",       href: "/connect",     icon: Link2,  minRole: "owner" },
+  { name: "Settings",      href: "/settings",    icon: Settings, minRole: "owner" },
+];
+
+// For agents, Team Chat is a top-level item (they can't see Team Members parent)
+const AGENT_EXTRA: NavItem[] = [
+  { name: "Team Chat", href: "/team-chat", icon: MessageSquareText, minRole: "agent" },
+];
+
+function navItemsForRole(role: string): NavItem[] {
+  const base = ALL_NAV_ITEMS.filter(item => ROLE_RANK[role] >= ROLE_RANK[item.minRole]);
+  if (role === "agent" || role === "admin") {
+    // Insert Team Chat after Inbox for non-owners
+    const inboxIdx = base.findIndex(i => i.href === "/inbox");
+    base.splice(inboxIdx + 1, 0, ...AGENT_EXTRA);
+  }
+  return base;
 }
 
 export default function Sidebar() {
-  const pathname = usePathname();
+  const pathname  = usePathname();
   const { tenant, role, loading } = useTenant();
-  const router = useRouter();
+  const router    = useRouter();
   const [unreadCount, setUnreadCount] = useState(0);
-  const navItems = navItemsForRole(role);
+  const [expanded, setExpanded]       = useState<Record<string, boolean>>({});
+  const navItems  = navItemsForRole(role);
 
-  // Poll for unread message count every 30s
+  // Auto-expand parent if a child is active
+  useEffect(() => {
+    navItems.forEach(item => {
+      if (item.children?.some(c => pathname.startsWith(c.href))) {
+        setExpanded(prev => ({ ...prev, [item.href]: true }));
+      }
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   useEffect(() => {
     async function fetchUnread() {
       try {
         const res = await fetch("/api/conversations");
         if (res.ok) {
           const data: { unread_count: number }[] = await res.json();
-          const total = data.reduce((sum, c) => sum + (c.unread_count || 0), 0);
-          setUnreadCount(total);
+          setUnreadCount(data.reduce((s, c) => s + (c.unread_count || 0), 0));
         }
       } catch (_) {}
     }
-
     fetchUnread();
-    const interval = setInterval(fetchUnread, 30_000);
-    return () => clearInterval(interval);
+    const iv = setInterval(fetchUnread, 30_000);
+    return () => clearInterval(iv);
   }, []);
 
   const getProgress = () => {
@@ -84,6 +119,9 @@ export default function Sidebar() {
     router.refresh();
   };
 
+  const toggleExpand = (href: string) =>
+    setExpanded(prev => ({ ...prev, [href]: !prev[href] }));
+
   return (
     <aside className="w-64 min-h-screen bg-surface border-r border-border flex flex-col">
       <div className="p-6">
@@ -95,8 +133,7 @@ export default function Sidebar() {
         </Link>
       </div>
 
-      <nav className="flex-1 px-4 space-y-1 mt-4">
-        {/* Show skeleton while role is resolving to prevent flash of all items */}
+      <nav className="flex-1 px-4 space-y-0.5 mt-4 overflow-y-auto">
         {loading && (
           <div className="space-y-1">
             {[...Array(4)].map((_, i) => (
@@ -104,12 +141,58 @@ export default function Sidebar() {
             ))}
           </div>
         )}
+
         {!loading && navItems.map((item) => {
-          const isActive =
-            item.href === "/"
-              ? pathname === "/"
-              : pathname.startsWith(item.href);
-          const Icon = item.icon;
+          const Icon     = item.icon;
+          const hasKids  = !!item.children?.length;
+          const isOpen   = expanded[item.href] ?? false;
+          const isActive = hasKids
+            ? (pathname === item.href || item.children!.some(c => pathname.startsWith(c.href)))
+            : item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+
+          if (hasKids) {
+            return (
+              <div key={item.href}>
+                {/* Parent row — clicking toggles submenu */}
+                <button
+                  onClick={() => toggleExpand(item.href)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+                    isActive
+                      ? "bg-jade/10 text-jade border border-jade/20"
+                      : "text-text-muted hover:text-text-primary hover:bg-card"
+                  }`}
+                >
+                  <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-jade" : "group-hover:text-jade transition-colors"}`} />
+                  <span className="font-medium flex-1 text-left">{item.name}</span>
+                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""} ${isActive ? "text-jade" : "text-text-muted"}`} />
+                </button>
+
+                {/* Children */}
+                {isOpen && (
+                  <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border/50 pl-3">
+                    {item.children!.map(child => {
+                      const CIcon      = child.icon;
+                      const childActive = pathname === child.href || pathname.startsWith(child.href + "/");
+                      return (
+                        <Link
+                          key={child.href}
+                          href={child.href}
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all group ${
+                            childActive
+                              ? "bg-jade/10 text-jade"
+                              : "text-text-muted hover:text-text-primary hover:bg-card"
+                          }`}
+                        >
+                          <CIcon className={`w-4 h-4 flex-shrink-0 ${childActive ? "text-jade" : "group-hover:text-jade transition-colors"}`} />
+                          <span className="font-medium">{child.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          }
 
           return (
             <Link
@@ -121,11 +204,7 @@ export default function Sidebar() {
                   : "text-text-muted hover:text-text-primary hover:bg-card"
               }`}
             >
-              <Icon
-                className={`w-5 h-5 flex-shrink-0 ${
-                  isActive ? "text-jade" : "group-hover:text-jade transition-colors"
-                }`}
-              />
+              <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-jade" : "group-hover:text-jade transition-colors"}`} />
               <span className="font-medium flex-1">{item.name}</span>
               {item.badge && unreadCount > 0 && (
                 <span className="w-5 h-5 bg-jade text-background text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
