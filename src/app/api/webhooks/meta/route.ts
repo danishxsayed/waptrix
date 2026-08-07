@@ -353,12 +353,14 @@ async function handleMessages(db: SupabaseClient, value: any) {
       }
     }
 
+    // Meta sends phone without + (e.g. "919970939342") but some conversations
+    // are stored with + prefix (created via outbound start route). Match both.
     const { data: existingConv } = await db
       .from('conversations')
       .select('id, unread_count')
       .eq('tenant_id', tenantId)
-      .eq('contact_phone', senderPhone)
-      .single();
+      .or(`contact_phone.eq.${senderPhone},contact_phone.eq.+${senderPhone}`)
+      .maybeSingle();
 
     let conversationId: string;
     let isNewConversation = false;
@@ -379,7 +381,7 @@ async function handleMessages(db: SupabaseClient, value: any) {
         .from('conversations')
         .insert({
           tenant_id: tenantId,
-          contact_phone: senderPhone,
+          contact_phone: '+' + senderPhone,
           contact_name: contactName,
           last_message: content.slice(0, 120),
           last_message_at: msgTimestamp,

@@ -18,6 +18,8 @@
   - Hardened phone number normalization across all sending handlers (`process-batch`, `reply`, `start`) to strip spaces, dashes, and plus symbols, formatting strictly to E.164 digits as expected by the Cloud API.
   - Integrated the global `META_SYSTEM_TOKEN` for all message sends (batch campaigns, inline reply routes, and conversation initiations) with a fallback to the tenant's own `access_token` on permissions error code 200/190.
   - Created a diagnostic API endpoint `/api/whatsapp/test-send` to let users dry-run a template message to a test number and view detailed token comparison results.
+  - Updated `src/app/api/webhooks/meta/route.ts` to query conversations using an OR filter matching both prefix-free and prefixed phone formats, avoiding duplicate chat thread generation when a user responds.
+  - Standardized new conversation inserts in the webhook handler to pre-pend the `+` prefix to the `contact_phone` field.
 
 ## [2026-08-04] - Fix Analytics Date Filtering & Real Read Tracking
 - **Team Management & Shared Tenant Scoping**:
