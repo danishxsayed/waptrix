@@ -174,7 +174,8 @@ export async function POST(
   const now             = new Date().toISOString();
   // Template name must be lowercase + underscores to match what was submitted to Meta
   const templateName    = template.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-  const messageContent  = `[Template: ${template.name}]`;
+  // Use actual template body for conversation preview — not just a placeholder name
+  const messageContent  = (template.body || '').slice(0, 120) || `[Template: ${template.name}]`;
 
   // ── 4. Idempotency — batch check for already-sent contacts ──
   // Single DB call instead of one per contact (much faster at scale)

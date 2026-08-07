@@ -117,7 +117,12 @@ export async function POST(req: Request) {
     }
 
     const metaMessageId = sendData.messages?.[0]?.id ?? null;
-    const storedContent = `[Template: ${normalizedTemplateName}]`;
+    // Look up actual template body for a meaningful conversation preview
+    let storedContent = `[Template: ${normalizedTemplateName}]`;
+    try {
+      const { data: tmpl } = await db.from('templates').select('body').eq('tenant_id', user.id).ilike('name', normalizedTemplateName).maybeSingle();
+      if (tmpl?.body) storedContent = tmpl.body.slice(0, 120);
+    } catch (_) { }
     const now = new Date().toISOString();
 
     // ── Upsert conversation ───────────────────────────────────────────────────

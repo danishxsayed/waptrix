@@ -99,7 +99,13 @@ export async function POST(
         type:              'template',
         template:          tmplBody,
       };
-      storedContent = `[Template: ${normalizedTemplateName}]`;
+      // Look up the actual template body for a meaningful conversation preview
+      try {
+        const { data: tmpl } = await db.from('templates').select('body').eq('tenant_id', tenantId).ilike('name', normalizedTemplateName).maybeSingle();
+        storedContent = tmpl?.body ? tmpl.body.slice(0, 120) : `[Template: ${normalizedTemplateName}]`;
+      } catch (_) {
+        storedContent = `[Template: ${normalizedTemplateName}]`;
+      }
 
     } else if (['image', 'document', 'video', 'audio'].includes(type)) {
       // ── Media message — upload file to Meta first if raw URL provided
