@@ -88,7 +88,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 // ─── WhatsApp Phone Preview ───────────────────────────────────────────────────
-function PhonePreview({ formData, platform, metaStatus }: { formData: FormData; platform: "android" | "ios"; metaStatus: string }) {
+function PhonePreview({ formData, platform, metaStatus, businessName = 'Your Business' }: { formData: FormData; platform: "android" | "ios"; metaStatus: string; businessName?: string }) {
   const isIOS = platform === "ios";
   const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
   const WA = {
@@ -1226,7 +1226,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
               </span>
             </div>
 
-            <PhonePreview formData={previewData} platform={platform} metaStatus={step === 1 ? "DRAFT" : metaStatus} />
+            <PhonePreview formData={previewData} platform={platform} metaStatus={step === 1 ? "DRAFT" : metaStatus} businessName={businessName} />
 
             {step === 1 && (
               <p className="text-xs text-text-muted text-center px-4 leading-relaxed">
