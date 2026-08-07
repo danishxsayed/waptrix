@@ -277,6 +277,25 @@ const CATEGORY_LABELS: Record<string, string> = {
   AUTHENTICATION: "Authentication",
 };
 
+/**
+ * Auto-detect the most appropriate WhatsApp template category based on body text.
+ * Meta's own rules:
+ *  - AUTHENTICATION: OTPs, verification codes, login confirmations
+ *  - UTILITY:        Transactional — order/booking/delivery/appointment/account updates
+ *  - MARKETING:      Promotions, offers, announcements, re-engagement (default)
+ */
+function detectCategory(body: string): 'MARKETING' | 'UTILITY' | 'AUTHENTICATION' {
+  const t = body.toLowerCase();
+  const authWords = ['otp', 'one-time', 'one time', 'verification code', 'verify', 'passcode', 'login code', 'auth code', '2fa', 'two-factor', 'sign in code'];
+  const utilityWords = ['order', 'booking', 'appointment', 'delivery', 'shipped', 'invoice', 'receipt', 'payment', 'subscription', 'reminder', 'confirmation', 'your account', 'your request', 'update on', 'status of', 'tracking', 'dispatch', 'refund', 'renewal', 'due date', 'expir'];
+  const marketingWords = ['offer', 'discount', 'deal', 'sale', 'promo', 'exclusive', '% off', 'free', 'limited time', 'hurry', 'don\'t miss', 'shop now', 'buy now', 'grab', 'festive', 'celebrate', 'amc', 'plan', 'package'];
+
+  if (authWords.some(w => t.includes(w))) return 'AUTHENTICATION';
+  if (utilityWords.some(w => t.includes(w))) return 'UTILITY';
+  if (marketingWords.some(w => t.includes(w))) return 'MARKETING';
+  return 'MARKETING'; // Meta defaults unknown content to MARKETING
+}
+
 const COMMON_EMOJIS = [
   "😊","👋","🎉","✅","🔥","💯","🎁","⭐","🚀","💪",
   "❤️","👍","📞","📱","🛒","💰","🎊","🙌","✨","🎯",
@@ -317,6 +336,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   const [isDragOver, setIsDragOver] = useState(false);
   const [showCloseConfirm, setShowCloseConfirm] = useState(false);
   const [uploadingMedia, setUploadingMedia] = useState(false);
+  const [suggestedCategory, setSuggestedCategory] = useState<string | null>(null);
 
   // ── Sample values modal — shown before Meta submission when body has {{N}} variables ──
   const [showSampleModal, setShowSampleModal] = useState(false);
@@ -346,7 +366,15 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const updated = { ...formData, [e.target.name]: e.target.value };
+    setFormData(updated);
+    // Auto-detect category when body changes — suggest if different from current selection
+    if (e.target.name === 'body' && e.target.value.length > 20) {
+      const suggested = detectCategory(e.target.value);
+      setSuggestedCategory(suggested !== updated.category ? suggested : null);
+    } else if (e.target.name === 'body') {
+      setSuggestedCategory(null);
+    }
   };
 
   // Upload a file directly to Supabase Storage via signed URL.
@@ -622,12 +650,22 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                 <div className="px-6 pb-6 space-y-6">
                   {/* Category */}
                   <div className="space-y-2">
-                    <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Template Category</label>
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Template Category</label>
+                      {suggestedCategory && (
+                        <button
+                          onClick={() => { setFormData({ ...formData, category: suggestedCategory }); setSuggestedCategory(null); }}
+                          className="text-xs text-amber-400 border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 rounded-lg hover:bg-amber-400/20 transition-all"
+                        >
+                          ✦ Suggest: {CATEGORY_LABELS[suggestedCategory]} — tap to apply
+                        </button>
+                      )}
+                    </div>
                     <div className="flex gap-2 flex-wrap">
                       {(["MARKETING", "UTILITY", "AUTHENTICATION"] as const).map((cat) => (
                         <button
                           key={cat}
-                          onClick={() => setFormData({ ...formData, category: cat })}
+                          onClick={() => { setFormData({ ...formData, category: cat }); setSuggestedCategory(null); }}
                           className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all ${
                             formData.category === cat
                               ? "bg-jade/10 border-jade text-jade shadow-[0_0_10px_rgba(16,185,129,0.1)]"
@@ -638,6 +676,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                         </button>
                       ))}
                     </div>
+                    <p className="text-xs text-text-muted">⚠️ Meta may reclassify your template after review. Check the Templates page after approval.</p>
                   </div>
 
                   {/* Template Type */}

@@ -39,8 +39,41 @@ export default function TemplatesPage() {
   };
 
   useEffect(() => {
-    fetchTemplates();
+    fetchTemplates().then(() => {
+      // After templates load, silently sync approved ones in the background
+      // so Meta category changes are reflected without manual clicks
+      backgroundSyncCategories();
+    });
   }, []);
+
+  const backgroundSyncCategories = async () => {
+    // Get current approved templates from the latest state via API (state may not be set yet)
+    try {
+      const res = await axios.get("/api/templates");
+      const allTemplates: any[] = res.data || [];
+      const approved = allTemplates.filter(t => t.meta_template_id && t.meta_status === 'APPROVED');
+      if (approved.length === 0) return;
+
+      // Sync in parallel (fire-and-forget — don't block or show UI)
+      const syncs = await Promise.allSettled(
+        approved.map(t => axios.post(`/api/templates/${t.id}/sync`))
+      );
+
+      // Check if any category changed — if so, refresh the list and show toast
+      let anyChanged = false;
+      syncs.forEach((result, i) => {
+        if (result.status === 'fulfilled' && result.value.data?.categoryChanged) {
+          anyChanged = true;
+          const { from, to } = result.value.data.categoryChanged;
+          showToast(`Meta changed "${approved[i].name}" category: ${from} → ${to}`, "error");
+        }
+      });
+
+      if (anyChanged) fetchTemplates(true); // refresh list to show updated categories
+    } catch {
+      // Silent — don't show errors for background sync
+    }
+  };
 
   const fetchTemplates = async (quiet = false) => {
     if (quiet) setIsRefreshing(true);
@@ -328,6 +361,11 @@ export default function TemplatesPage() {
                   <span className="bg-surface text-text-muted px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border border-border flex items-center">
                     {template.category}
                   </span>
+                  {template.meta_category && template.meta_category !== template.category && (
+                    <span className="bg-amber-500/10 text-amber-400 border border-amber-400/30 px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider">
+                      Meta: {template.meta_category}
+                    </span>
+                  )}
                 </div>
                 <p className="text-xs text-text-muted line-clamp-2 leading-relaxed italic">
                   &ldquo;{template.body}&rdquo;

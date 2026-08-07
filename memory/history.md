@@ -21,6 +21,10 @@
   - Updated `src/app/api/webhooks/meta/route.ts` to query conversations using an OR filter matching both prefix-free and prefixed phone formats, avoiding duplicate chat thread generation when a user responds.
   - Standardized new conversation inserts in the webhook handler to pre-pend the `+` prefix to the `contact_phone` field.
   - Refactored template dispatches in `process-batch`, `reply`, and `start` routes to query the DB for the actual template body text (truncated to 120 characters) to show as a meaningful last-message preview in the conversation inbox, instead of a static `[Template: name]` placeholder.
+- **WhatsApp Template Category Sync & Auto-Detection**:
+  - Implemented background category syncing on mount in `TemplatesPage.tsx` using `/api/templates/[id]/sync` to check for Meta-initiated category reclassifications, notifying users with toast alerts and warning badges on mismatches.
+  - Implemented a smart keyword-based analyzer in `TemplateBuilder.tsx` to analyze body text on the fly and suggest the matching Meta category (Marketing, Utility, Authentication) with a one-click apply trigger.
+
 
 ## [2026-08-04] - Fix Analytics Date Filtering & Real Read Tracking
 - **Team Management & Shared Tenant Scoping**:
