@@ -303,7 +303,7 @@ export default function TemplatesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
           {filteredTemplates.map((template) => (
-            <div key={template.id} className="glass-card flex flex-col group cursor-pointer hover:border-jade/30 transition-all">
+            <div key={template.id} onClick={() => handleEdit(template)} className="glass-card flex flex-col group cursor-pointer hover:border-jade/30 transition-all">
               <div className="flex justify-between items-start mb-4">
                 <div className={`p-2 rounded-lg border transition-all ${
                   template.meta_status === 'APPROVED'
@@ -381,12 +381,9 @@ export default function TemplatesPage() {
                 <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
                   {new Date(template.updated_at).toLocaleDateString()}
                 </span>
-                <button
-                  onClick={() => handleEdit(template)}
-                  className="p-1 px-3 rounded-lg hover:bg-jade/10 text-jade transition-all flex items-center gap-1 text-[10px] font-bold uppercase"
-                >
-                  Edit <ChevronRight className="w-3 h-3" />
-                </button>
+                <span className="p-1 px-3 rounded-lg text-jade text-[10px] font-bold uppercase flex items-center gap-1">
+                  Open <ChevronRight className="w-3 h-3" />
+                </span>
               </div>
             </div>
           ))}

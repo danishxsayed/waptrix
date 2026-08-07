@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   X, Send, Save, Info, Plus, Trash2, Smartphone, Image as ImageIcon,
   CheckCircle2, Clock, XCircle, Link, Phone, MessageSquare, Globe,
@@ -115,9 +115,9 @@ function PhonePreview({ formData, platform, metaStatus }: { formData: FormData; 
         {/* Top bar */}
         <div className="flex items-center px-2 gap-2 flex-shrink-0" style={{ background: WA.header, height: 50, borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
           <svg width="9" height="14" viewBox="0 0 9 14" fill="none"><path d="M8 1L1 7L8 13" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" opacity="0.9"/></svg>
-          <div className="rounded-full flex items-center justify-center font-bold text-[11px] text-white flex-shrink-0" style={{ width: 34, height: 34, background: "#25D366" }}>W</div>
+          <div className="rounded-full flex items-center justify-center font-bold text-[11px] text-white flex-shrink-0" style={{ width: 34, height: 34, background: "#25D366" }}>{businessName.charAt(0).toUpperCase()}</div>
           <div className="flex-1 min-w-0">
-            <p className="text-white text-[11px] font-semibold leading-none mb-0.5">Waptrix Support</p>
+            <p className="text-white text-[11px] font-semibold leading-none mb-0.5">{businessName}</p>
             <p className="text-[9px] leading-none" style={{ color: WA.buttonText }}>online</p>
           </div>
           <div className="flex gap-3 pr-1" style={{ opacity: 0.75 }}>
@@ -304,6 +304,16 @@ const COMMON_EMOJIS = [
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onClose: () => void; onSave: () => void; editTemplate?: any }) {
+  const [businessName, setBusinessName] = useState<string>('Your Business');
+
+  // Fetch the client's WhatsApp business name for the preview header
+  useEffect(() => {
+    fetch('/api/whatsapp/connection')
+      .then(r => r.json())
+      .then(d => { if (d?.businessName) setBusinessName(d.businessName); })
+      .catch(() => {});
+  }, []);
+
   // Step state
   const [step, setStep] = useState<1 | 2>(editTemplate ? 2 : 1);
   const [templateType, setTemplateType] = useState<TemplateType>(

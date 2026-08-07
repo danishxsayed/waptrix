@@ -76,6 +76,9 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Built a beautifully branded HTML email template in `src/lib/email/template.ts` (featuring Waptrix and Crawlers Technologies assets) integrated inside the review synchronization handler (`/api/templates/[id]/sync`) and the webhook handler (`/api/webhooks/meta`) to email status updates immediately upon Meta review changes.
   - Implemented Meta template category change notifications and email alerts. When Meta reclassifies a template, the system updates the local database category, inserts an in-app notification, and emails a branded category-change alert warning (e.g., about marketing pricing implications) utilizing direct Resend API integrations.
   - Implemented body variable position validation preventing variables from being at the very start or end of the body text. Enforced client-side (real-time warning banner and submission block in `TemplateBuilder.tsx`) and server-side (returns 400 Bad Request in `/api/templates/[id]/submit/route.ts`).
+  - Configured phone mockup preview headers in `TemplateBuilder.tsx` to dynamically query `/api/whatsapp/connection` to fetch and render the tenant's actual registered WhatsApp business name.
+  - Implemented a deletion constraint check in the templates API route (`DELETE /api/templates/[id]`) blocking deletions of templates that are currently linked to active campaigns, returning a 409 Conflict.
+  - Rebuilt grid card triggers in `/templates` list view to make the entire card area clickable to edit/preview the template.
 - **Unified Media Library Management**:
   - Implemented `/media` and the `MediaLibrary.tsx` component to handle uploaded images, audio, video, and document attachments.
   - Displays dynamic file previews including custom video frame thumbnails and document extension badges (e.g. PDF, CSV).

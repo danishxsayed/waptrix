@@ -24,6 +24,9 @@
 - **WhatsApp Template Category Sync & Auto-Detection**:
   - Implemented background category syncing on mount in `TemplatesPage.tsx` using `/api/templates/[id]/sync` to check for Meta-initiated category reclassifications, notifying users with toast alerts and warning badges on mismatches.
   - Implemented a smart keyword-based analyzer in `TemplateBuilder.tsx` to analyze body text on the fly and suggest the matching Meta category (Marketing, Utility, Authentication) with a one-click apply trigger.
+  - Updated the template mockup preview header in `TemplateBuilder.tsx` to fetch and display the tenant's actual WhatsApp business name from `/api/whatsapp/connection`.
+  - Added a template deletion blocker in `src/app/api/templates/[id]/route.ts` checking if the template is referenced in any active campaigns, returning a 409 Conflict if so.
+  - Refactored the templates list view card triggers to make the entire card clickable to open/edit, improving dashboard ergonomics.
 
 
 ## [2026-08-04] - Fix Analytics Date Filtering & Real Read Tracking

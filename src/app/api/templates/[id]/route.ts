@@ -132,6 +132,19 @@ export async function DELETE(
       process.env.SUPABASE_SERVICE_KEY!
     )
 
+    // Check if any campaigns reference this template before deleting
+    const { count: campaignCount } = await serviceClient
+      .from('campaigns')
+      .select('id', { count: 'exact', head: true })
+      .eq('template_id', id)
+      .eq('tenant_id', user.id);
+
+    if (campaignCount && campaignCount > 0) {
+      return NextResponse.json({
+        error: `This template is used in ${campaignCount} campaign${campaignCount > 1 ? 's' : ''}. Delete those campaigns first, or the template cannot be removed.`,
+      }, { status: 409 });
+    }
+
     const { error } = await serviceClient
       .from('templates')
       .delete()
