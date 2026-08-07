@@ -167,12 +167,9 @@ export async function POST(
     return NextResponse.json({ error: 'Missing WA connection or template' }, { status: 400 });
   }
 
-  // Always use the tenant's own token for sending — it has direct WABA asset permissions.
-  // META_SYSTEM_TOKEN is a platform-level token (Waptrix BM) and has no asset access
-  // on the client's WABA unless manually added per-client, which isn't scalable.
-  const systemToken     = null; // intentionally not used for sends
+  const systemToken     = process.env.META_SYSTEM_TOKEN || null;
   const tenantToken     = waConnection.access_token;
-  const sendToken       = tenantToken;
+  const sendToken       = systemToken || tenantToken;
   const variableMapping = campaign.variable_mapping || {};
   const now             = new Date().toISOString();
   // Template name must be lowercase + underscores to match what was submitted to Meta

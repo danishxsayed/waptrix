@@ -72,8 +72,7 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // Always use the tenant's own token — it has direct WABA asset permissions.
-    const sendToken = waConn.access_token;
+    const sendToken = process.env.META_SYSTEM_TOKEN || waConn.access_token;
 
     // ── Send template via Meta API ────────────────────────────────────────────
     // Normalize name to match exactly how it was submitted to Meta

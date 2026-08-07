@@ -16,8 +16,8 @@
   - Added SQL migration `supabase/add-message-logs-error-column.sql` to add a queryable `error` text column to `message_logs` for storing detailed delivery failures.
   - Rewrote Meta template payload building in `src/lib/meta.ts` and dispatch routes to omit empty components arrays (which are rejected by the Meta API for templates without variables).
   - Hardened phone number normalization across all sending handlers (`process-batch`, `reply`, `start`) to strip spaces, dashes, and plus symbols, formatting strictly to E.164 digits as expected by the Cloud API.
-  - Enforced the direct use of the tenant's own `access_token` for all message sends (batch campaigns, inline reply routes, and conversation initiations), removing system token fallbacks since BM system tokens lack asset-level send permissions on individual client WABAs.
-  - Created a diagnostic API endpoint `/api/whatsapp/test-send` to let users dry-run a template message to a test number and view detailed authentication validation results.
+  - Integrated the global `META_SYSTEM_TOKEN` for all message sends (batch campaigns, inline reply routes, and conversation initiations) with a fallback to the tenant's own `access_token` on permissions error code 200/190.
+  - Created a diagnostic API endpoint `/api/whatsapp/test-send` to let users dry-run a template message to a test number and view detailed token comparison results.
 
 ## [2026-08-04] - Fix Analytics Date Filtering & Real Read Tracking
 - **Team Management & Shared Tenant Scoping**:

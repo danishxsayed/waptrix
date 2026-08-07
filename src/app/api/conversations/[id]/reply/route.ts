@@ -57,9 +57,7 @@ export async function POST(
     const { type = 'text', content, templateName, languageCode, components, mediaUrl, mediaMimeType } = body;
 
     const baseUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
-    // Always use the tenant's own token — it has direct WABA asset permissions.
-    // META_SYSTEM_TOKEN belongs to the platform BM and has no access on client WABAs.
-    const sendToken = waConn.access_token;
+    const sendToken = process.env.META_SYSTEM_TOKEN || waConn.access_token;
     const headers = {
       Authorization: `Bearer ${sendToken}`,
       'Content-Type': 'application/json',
@@ -156,6 +154,16 @@ export async function POST(
     });
     let sendData = await sendRes.json();
 
+    // If system token failed with permissions error, retry with tenant's own token
+    if (sendData.error && process.env.META_SYSTEM_TOKEN && sendData.error.code === 200) {
+      console.warn('System token send failed (#200), retrying with tenant token');
+      sendRes = await fetch(baseUrl, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${waConn.access_token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(metaPayload),
+      });
+      sendData = await sendRes.json();
+    }
 
     if (sendData.error) {
       console.error('Meta send error:', JSON.stringify(sendData.error));
