@@ -5,7 +5,9 @@ import { createClient } from "@/lib/supabase/client";
 import {
   MessageSquare, Send, Paperclip, Search, CheckCheck, Check,
   Clock, FileText, Mic, X, Loader2, Download, Play, Plus, Phone, AlertCircle,
-  SlidersHorizontal, ChevronRight, ArrowUpDown, Trash2, CheckSquare, Square
+  SlidersHorizontal, ChevronRight, ArrowUpDown, Trash2, CheckSquare, Square,
+  Smile, User, Tag, PenLine, ChevronDown, ChevronUp, Info, ExternalLink,
+  StickyNote
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 
@@ -188,7 +190,7 @@ function StatusIcon({ status }: { status: string }) {
 // ─── Quoted message bubble ────────────────────────────────────────────────────
 
 /** Quoted context rendered INSIDE the message bubble — matches WhatsApp style */
-function QuotedBubble({ quoted, isOutbound }: { quoted: ChatMessage; isOutbound: boolean }) {
+function QuotedBubble({ quoted, isOutbound, onJump }: { quoted: ChatMessage; isOutbound: boolean; onJump?: () => void }) {
   let preview = quoted.content || "";
   if (quoted.type === "template" || preview.startsWith("[Template:")) {
     const m = preview.match(/^\[Template:\s*(.+)\]$/);
@@ -202,7 +204,10 @@ function QuotedBubble({ quoted, isOutbound }: { quoted: ChatMessage; isOutbound:
 
   return (
     <div
-      className={`border-l-4 pl-3 pr-2 py-1.5 mb-2 rounded-r-lg ${
+      onClick={onJump}
+      className={`border-l-4 pl-3 pr-2 py-1.5 mb-2 rounded-r-lg transition-colors ${
+        onJump ? "cursor-pointer hover:opacity-80 active:opacity-60" : ""
+      } ${
         isOutbound
           ? "border-background/50 bg-background/10"
           : "border-jade/60 bg-jade/5"
@@ -531,6 +536,28 @@ export default function InboxPanel({
   const [newChatSending, setNewChatSending] = useState(false);
   const [newChatError, setNewChatError] = useState("");
 
+  const [highlightedMsgId, setHighlightedMsgId] = useState<string | null>(null);
+
+  // ── Contact Details panel
+  const [showContactPanel, setShowContactPanel] = useState(false);
+  const [contactInfo, setContactInfo] = useState<any | null>(null);
+  const [contactLoading, setContactLoading] = useState(false);
+  const [contactNoteText, setContactNoteText] = useState('');
+  const [savingContactNote, setSavingContactNote] = useState(false);
+  const [editingTags, setEditingTags] = useState(false);
+  const [newTagInput, setNewTagInput] = useState('');
+  const [contactShowMore, setContactShowMore] = useState(false);
+
+  // ── Emoji picker (text reply mode)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // ── Note mode
+  const [showNoteArea, setShowNoteArea] = useState(false);
+  const [noteText, setNoteText] = useState('');
+  const [isSendingNote, setIsSendingNote] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeConvRef = useRef<Conversation | null>(null);
@@ -556,6 +583,116 @@ export default function InboxPanel({
   }, []);
 
   // ── Notification sound — warm C-E-G chime
+  // Jump to a quoted/replied message and briefly highlight it
+  const jumpToMessage = useCallback((msgId: string) => {
+    const el = document.getElementById(`msg-${msgId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    setHighlightedMsgId(msgId);
+    setTimeout(() => setHighlightedMsgId(null), 2000);
+  }, []);
+
+  // Fetch contact record when conversation changes
+  const fetchContact = useCallback(async (phone: string) => {
+    setContactLoading(true);
+    setContactInfo(null);
+    try {
+      const res = await fetch(`/api/contacts/by-phone?phone=${encodeURIComponent(phone)}`);
+      const data = await res.json();
+      setContactInfo(data);
+      if (data?.custom3) setContactNoteText(data.custom3);
+      else setContactNoteText('');
+    } catch { /* silent */ } finally {
+      setContactLoading(false);
+    }
+  }, []);
+
+  // Close emoji picker on outside click
+  useEffect(() => {
+    if (!showEmojiPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showEmojiPicker]);
+
+  // Emoji constants
+  const INBOX_EMOJIS = [
+    "😊","👋","🎉","✅","🔥","💯","🎁","⭐","🚀","💪",
+    "❤️","👍","📞","📱","🛒","💰","🎊","🙌","✨","🎯",
+    "😄","😂","🤔","🙏","👏","😍","💬","🌟","⚡","🏆",
+    "😅","🤝","💡","📢","🎶","🌈","😎","🤩","🥳","💎",
+  ];
+
+  const insertEmoji = (emoji: string) => {
+    const el = textareaRef.current;
+    if (!el) { setReplyText(t => t + emoji); return; }
+    const start = el.selectionStart ?? replyText.length;
+    const end = el.selectionEnd ?? replyText.length;
+    const next = replyText.slice(0, start) + emoji + replyText.slice(end);
+    setReplyText(next);
+    setShowEmojiPicker(false);
+    setTimeout(() => { el.focus(); el.setSelectionRange(start + emoji.length, start + emoji.length); }, 0);
+  };
+
+  // Save internal note to chat_messages
+  const sendNote = async () => {
+    if (!activeConv || !noteText.trim()) return;
+    setIsSendingNote(true);
+    try {
+      const res = await fetch(`/api/conversations/${activeConv.id}/reply`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'note', content: noteText.trim() }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setMessages(prev => [...prev, { ...saved, type: 'note' }]);
+        setNoteText('');
+      }
+    } catch { /* silent */ } finally {
+      setIsSendingNote(false);
+    }
+  };
+
+  // Update contact tags
+  const updateContactTags = async (tags: string[]) => {
+    if (!contactInfo?.id) return;
+    try {
+      const res = await fetch(`/api/contacts/${contactInfo.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ tags }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setContactInfo(updated);
+      }
+    } catch { /* silent */ }
+  };
+
+  // Save contact note (custom3)
+  const saveContactNote = async () => {
+    if (!contactInfo?.id) return;
+    setSavingContactNote(true);
+    try {
+      const res = await fetch(`/api/contacts/${contactInfo.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes: contactNoteText }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setContactInfo(updated);
+      }
+    } catch { /* silent */ } finally {
+      setSavingContactNote(false);
+    }
+  };
+
   const playNotificationSound = useCallback(() => {
     try {
       const AC = window.AudioContext || (window as any).webkitAudioContext;
@@ -769,6 +906,15 @@ export default function InboxPanel({
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // ── Fetch contact when conversation changes
+  useEffect(() => {
+    if (activeConv?.contact_phone) {
+      fetchContact(activeConv.contact_phone);
+    } else {
+      setContactInfo(null);
+    }
+  }, [activeConv?.id]); // eslint-disable-line
 
   // ── Supabase Realtime — single stable subscription (no re-mount on conv change)
   // Uses activeConvRef to avoid stale closures when switching conversations.
@@ -1354,8 +1500,10 @@ export default function InboxPanel({
           </div>
         </div>
 
-        {/* ── Right: Chat View ───────────────────────────────────── */}
+        {/* ── Right: Chat View + Contact Panel ─────────────────── */}
         {activeConv ? (
+          <div className="flex-1 flex min-w-0 overflow-hidden">
+          {/* Chat column */}
           <div className="flex-1 flex flex-col min-w-0">
             {/* Chat header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-card">
@@ -1370,6 +1518,18 @@ export default function InboxPanel({
                   <p className="text-[11px] text-text-muted">{activeConv.contact_phone}</p>
                 </div>
               </div>
+              {/* Toggle contact panel */}
+              <button
+                onClick={() => setShowContactPanel(v => !v)}
+                title="Contact Details"
+                className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-colors ${
+                  showContactPanel
+                    ? 'bg-jade/10 border-jade/30 text-jade'
+                    : 'bg-surface border-border text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <Info className="w-4 h-4" />
+              </button>
             </div>
 
             {/* Messages */}
@@ -1399,12 +1559,31 @@ export default function InboxPanel({
                     <div className="space-y-2">
                       {group.messages.map((msg) => {
                         const isOutbound = msg.direction === "outbound";
+                        // Internal notes — render specially
+                        if (msg.type === 'note') {
+                          return (
+                            <div key={msg.id} id={`msg-${msg.id}`}
+                              className={`flex justify-center transition-all duration-300 ${highlightedMsgId === msg.id ? 'rounded-xl ring-2 ring-amber-400/40' : ''}`}
+                            >
+                              <div className="max-w-[75%] bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-2.5">
+                                <div className="flex items-center gap-1.5 mb-1">
+                                  <StickyNote className="w-3 h-3 text-amber-400 flex-shrink-0" />
+                                  <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Internal Note</span>
+                                </div>
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-amber-100">{msg.content}</p>
+                                <p className="text-[10px] text-amber-400/60 mt-1 text-right">{formatMsgTime(msg.created_at)}</p>
+                              </div>
+                            </div>
+                          );
+                        }
                         // Find the message being replied to (matched by meta_message_id)
                         const quotedMsg = msg.replied_to_message_id
                           ? messages.find(m => m.meta_message_id === msg.replied_to_message_id)
                           : null;
                         return (
-                        <div key={msg.id}>
+                        <div key={msg.id} id={`msg-${msg.id}`}
+                          className={`transition-all duration-300 ${highlightedMsgId === msg.id ? 'rounded-xl ring-2 ring-jade/60 bg-jade/5' : ''}`}
+                        >
                         <div
                           className={`flex ${isOutbound ? "justify-end" : "justify-start"}`}
                         >
@@ -1417,7 +1596,7 @@ export default function InboxPanel({
                           >
                             {/* Quoted context — inside the bubble */}
                             {quotedMsg && (
-                              <QuotedBubble quoted={quotedMsg} isOutbound={isOutbound} />
+                              <QuotedBubble quoted={quotedMsg} isOutbound={isOutbound} onJump={() => jumpToMessage(quotedMsg.id)} />
                             )}
 
                             {/* Media rendering */}
@@ -1548,7 +1727,7 @@ export default function InboxPanel({
                 </div>
               )}
               {/* Mode tabs */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-1 flex-wrap">
                 {(["text", "template", "media"] as const).map((mode) => (
                   <button
                     key={mode}
@@ -1558,6 +1737,7 @@ export default function InboxPanel({
                       setMediaFile(null);
                       setMediaPreview("");
                       setSelectedTemplate(null);
+                      setShowEmojiPicker(false);
                     }}
                     className={`px-3 py-1 rounded-lg text-xs font-bold transition-all capitalize ${
                       replyMode === mode
@@ -1568,6 +1748,17 @@ export default function InboxPanel({
                     {mode}
                   </button>
                 ))}
+                {/* Note toggle */}
+                <button
+                  onClick={() => setShowNoteArea(v => !v)}
+                  className={`px-3 py-1 rounded-lg text-xs font-bold transition-all flex items-center gap-1 ${
+                    showNoteArea
+                      ? "bg-amber-500/20 text-amber-400 border border-amber-500/30"
+                      : "text-text-muted hover:text-amber-400 hover:bg-amber-500/10"
+                  }`}
+                >
+                  <StickyNote className="w-3 h-3" /> Note
+                </button>
                 <span className="ml-auto text-[10px] text-text-muted">
                   {replyMode === "text" && "Free-text (within 24h window)"}
                   {replyMode === "template" && "Works outside 24h window"}
@@ -1575,33 +1766,92 @@ export default function InboxPanel({
                 </span>
               </div>
 
+              {/* Internal Note area */}
+              {showNoteArea && (
+                <div className="border border-amber-500/20 rounded-xl bg-amber-500/5 p-3 space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <StickyNote className="w-3.5 h-3.5 text-amber-400" />
+                    <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Internal Note</span>
+                    <span className="text-[10px] text-text-muted ml-1">— not sent to customer</span>
+                  </div>
+                  <div className="flex items-end gap-2">
+                    <textarea
+                      rows={2}
+                      value={noteText}
+                      onChange={e => setNoteText(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendNote(); } }}
+                      placeholder="Add an internal note for your team…"
+                      className="flex-1 bg-surface border border-amber-500/20 rounded-xl px-3 py-2 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-amber-500/40 resize-none"
+                    />
+                    <button
+                      onClick={sendNote}
+                      disabled={isSendingNote || !noteText.trim()}
+                      className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center disabled:opacity-40 hover:bg-amber-400 transition-colors flex-shrink-0"
+                    >
+                      {isSendingNote ? <Loader2 className="w-4 h-4 text-background animate-spin" /> : <Send className="w-4 h-4 text-background" />}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* TEXT mode */}
               {replyMode === "text" && (
-                <div className="flex items-end gap-2">
-                  <textarea
-                    rows={2}
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        sendReply();
-                      }
-                    }}
-                    placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
-                    className="flex-1 bg-surface border border-border rounded-xl px-4 py-2.5 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-jade/50 resize-none"
-                  />
-                  <button
-                    onClick={sendReply}
-                    disabled={isSending || !replyText.trim()}
-                    className="w-10 h-10 bg-jade rounded-xl flex items-center justify-center disabled:opacity-40 hover:bg-jade/90 transition-colors flex-shrink-0"
-                  >
-                    {isSending ? (
-                      <Loader2 className="w-4 h-4 text-background animate-spin" />
-                    ) : (
-                      <Send className="w-4 h-4 text-background" />
-                    )}
-                  </button>
+                <div className="space-y-1.5">
+                  <div className="flex items-end gap-2">
+                    <div className="flex-1 relative">
+                      <textarea
+                        ref={textareaRef}
+                        rows={2}
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            sendReply();
+                          }
+                        }}
+                        placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
+                        className="w-full bg-surface border border-border rounded-xl px-4 py-2.5 pr-10 text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-jade/50 resize-none"
+                      />
+                      {/* Emoji trigger */}
+                      <button
+                        type="button"
+                        onClick={() => setShowEmojiPicker(v => !v)}
+                        className="absolute right-2 bottom-2.5 text-text-muted hover:text-jade transition-colors"
+                        title="Emoji"
+                      >
+                        <Smile className="w-4 h-4" />
+                      </button>
+                    </div>
+                    <button
+                      onClick={sendReply}
+                      disabled={isSending || !replyText.trim()}
+                      className="w-10 h-10 bg-jade rounded-xl flex items-center justify-center disabled:opacity-40 hover:bg-jade/90 transition-colors flex-shrink-0"
+                    >
+                      {isSending ? (
+                        <Loader2 className="w-4 h-4 text-background animate-spin" />
+                      ) : (
+                        <Send className="w-4 h-4 text-background" />
+                      )}
+                    </button>
+                  </div>
+                  {/* Emoji Picker */}
+                  {showEmojiPicker && (
+                    <div ref={emojiPickerRef} className="bg-card border border-border rounded-xl p-3 shadow-xl">
+                      <div className="grid grid-cols-10 gap-1">
+                        {INBOX_EMOJIS.map((emoji) => (
+                          <button
+                            key={emoji}
+                            type="button"
+                            onClick={() => insertEmoji(emoji)}
+                            className="w-7 h-7 flex items-center justify-center text-base hover:bg-surface rounded-lg transition-colors"
+                          >
+                            {emoji}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -1781,6 +2031,192 @@ export default function InboxPanel({
                 </div>
               )}
             </div>
+          </div>
+          {/* ── Contact Details Right Panel ──────────────────────── */}
+          {showContactPanel && (
+            <div className="w-72 border-l border-border flex flex-col flex-shrink-0 bg-card overflow-y-auto custom-scrollbar">
+              {/* Header */}
+              <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+                <span className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5" /> Contact Details
+                </span>
+                <button onClick={() => setShowContactPanel(false)} className="text-text-muted hover:text-text-primary transition-colors">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {contactLoading ? (
+                <div className="flex items-center justify-center h-32">
+                  <Loader2 className="w-5 h-5 text-jade animate-spin" />
+                </div>
+              ) : (
+                <div className="flex-1 p-4 space-y-5">
+                  {/* Avatar + name */}
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-full bg-jade/20 text-jade font-bold text-base flex items-center justify-center flex-shrink-0">
+                      {avatarInitials(activeConv?.contact_name || activeConv?.contact_phone || '?')}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="font-bold text-sm truncate">{activeConv?.contact_name || 'Unknown'}</p>
+                      <a
+                        href={`https://wa.me/${(activeConv?.contact_phone || '').replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-[11px] text-jade hover:underline flex items-center gap-1 truncate"
+                      >
+                        {activeConv?.contact_phone}
+                        <ExternalLink className="w-2.5 h-2.5 flex-shrink-0" />
+                      </a>
+                    </div>
+                  </div>
+
+                  {/* Core info */}
+                  <div className="space-y-3 text-sm">
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">Email</p>
+                      <p className="text-text-primary text-xs">{contactInfo?.email || '—'}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">WhatsApp Opted</p>
+                      <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${
+                        contactInfo?.opted_in !== false
+                          ? 'bg-jade/10 text-jade border border-jade/20'
+                          : 'bg-danger/10 text-danger border border-danger/20'
+                      }`}>
+                        {contactInfo?.opted_in !== false ? 'Yes' : 'No'}
+                      </span>
+                    </div>
+
+                    {/* Extra fields - show more toggle */}
+                    {contactShowMore && contactInfo && (
+                      <>
+                        {contactInfo.custom1 && (
+                          <div>
+                            <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">Custom 1</p>
+                            <p className="text-xs text-text-primary">{contactInfo.custom1}</p>
+                          </div>
+                        )}
+                      </>
+                    )}
+                    <button
+                      onClick={() => setContactShowMore(v => !v)}
+                      className="flex items-center gap-1 text-[11px] text-text-muted hover:text-jade transition-colors"
+                    >
+                      {contactShowMore ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                      {contactShowMore ? 'Show Less' : 'Show More'}
+                    </button>
+                  </div>
+
+                  <div className="h-px bg-border" />
+
+                  {/* Tags */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted flex items-center gap-1">
+                        <Tag className="w-3 h-3" /> Tags
+                      </span>
+                      <button
+                        onClick={() => setEditingTags(v => !v)}
+                        className="text-[11px] text-jade hover:underline"
+                      >
+                        {editingTags ? 'Done' : 'Edit'}
+                      </button>
+                    </div>
+                    {/* Tag chips */}
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {(contactInfo?.custom2
+                        ? contactInfo.custom2.split(',').map((t: string) => t.trim()).filter(Boolean)
+                        : []
+                      ).map((tag: string) => (
+                        <span key={tag} className="flex items-center gap-1 px-2 py-0.5 bg-surface border border-border rounded-full text-[11px] text-text-primary">
+                          {tag}
+                          {editingTags && (
+                            <button
+                              onClick={() => {
+                                const current = (contactInfo?.custom2 || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+                                updateContactTags(current.filter((t: string) => t !== tag));
+                              }}
+                              className="text-text-muted hover:text-danger transition-colors ml-0.5"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          )}
+                        </span>
+                      ))}
+                      {(!contactInfo?.custom2 || !contactInfo.custom2.trim()) && (
+                        <span className="text-xs text-text-muted italic">No tags</span>
+                      )}
+                    </div>
+                    {editingTags && (
+                      <div className="flex gap-1.5">
+                        <input
+                          type="text"
+                          value={newTagInput}
+                          onChange={e => setNewTagInput(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter' && newTagInput.trim()) {
+                              const current = (contactInfo?.custom2 || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+                              if (!current.includes(newTagInput.trim())) {
+                                updateContactTags([...current, newTagInput.trim()]);
+                              }
+                              setNewTagInput('');
+                            }
+                          }}
+                          placeholder="Add tag…"
+                          className="flex-1 bg-surface border border-border rounded-lg px-2 py-1 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-jade/50"
+                        />
+                        <button
+                          onClick={() => {
+                            if (!newTagInput.trim()) return;
+                            const current = (contactInfo?.custom2 || '').split(',').map((t: string) => t.trim()).filter(Boolean);
+                            if (!current.includes(newTagInput.trim())) {
+                              updateContactTags([...current, newTagInput.trim()]);
+                            }
+                            setNewTagInput('');
+                          }}
+                          className="px-2 py-1 bg-jade text-background text-xs font-bold rounded-lg hover:bg-jade/90 transition-colors"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="h-px bg-border" />
+
+                  {/* Notes */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1">
+                      <PenLine className="w-3 h-3" /> Notes
+                    </p>
+                    <textarea
+                      rows={4}
+                      value={contactNoteText}
+                      onChange={e => setContactNoteText(e.target.value)}
+                      placeholder="Add notes about this contact…"
+                      className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-jade/50 resize-none"
+                    />
+                    <button
+                      onClick={saveContactNote}
+                      disabled={savingContactNote}
+                      className="mt-1.5 w-full py-1.5 bg-jade text-background text-xs font-bold rounded-lg hover:bg-jade/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
+                    >
+                      {savingContactNote ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving…</> : 'Save Note'}
+                    </button>
+                  </div>
+
+                  {/* No contact record warning */}
+                  {!contactInfo && !contactLoading && (
+                    <div className="text-center py-4">
+                      <Info className="w-8 h-8 text-text-muted opacity-30 mx-auto mb-2" />
+                      <p className="text-xs text-text-muted">No contact record found</p>
+                      <p className="text-[11px] text-text-muted mt-1">This number isn't in your Contacts yet</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
           </div>
         ) : (
           /* Empty state — no conversation selected */

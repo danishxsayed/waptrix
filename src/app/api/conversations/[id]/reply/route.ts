@@ -56,6 +56,24 @@ export async function POST(
     const body = await req.json();
     const { type = 'text', content, templateName, languageCode, components, mediaUrl, mediaMimeType } = body;
 
+    // ── Internal note — save to DB only, do NOT send to WhatsApp
+    if (type === 'note') {
+      const { data: noteMsg, error: noteErr } = await db
+        .from('chat_messages')
+        .insert({
+          tenant_id: tenantId,
+          conversation_id: conversationId,
+          direction: 'outbound',
+          type: 'note',
+          content: content || '',
+          status: 'sent',
+        })
+        .select()
+        .single();
+      if (noteErr) return NextResponse.json({ error: noteErr.message }, { status: 500 });
+      return NextResponse.json(noteMsg);
+    }
+
     const baseUrl = `https://graph.facebook.com/v19.0/${phoneNumberId}/messages`;
     const sendToken = process.env.META_SYSTEM_TOKEN || waConn.access_token;
     const headers = {

@@ -28,6 +28,16 @@
   - Added a template deletion blocker in `src/app/api/templates/[id]/route.ts` checking if the template is referenced in any active campaigns, returning a 409 Conflict if so.
   - Refactored the templates list view card triggers to make the entire card clickable to open/edit, improving dashboard ergonomics.
 
+## [2026-08-08] - Inbox Inline Contact Editing, Internal Notes, & Smooth Dashboard Loading
+- **Inbox Inline Contact Editing Sidebar**:
+  - Created `/api/contacts/by-phone` to lookup contacts matching a phone number (with or without `+` prefixes).
+  - Added PATCH and DELETE endpoints in `src/app/api/contacts/[id]/route.ts` to update contact fields (name, email, tags, notes, opted_in) and delete contact records.
+  - Integrated a collapsible right-hand Contact details panel inside `InboxPanel.tsx` allowing agents to view and update contact information, edit tags, and manage notes directly within the conversational viewport.
+- **Inbox Internal Chat Notes**:
+  - Enabled private team communication inside the inbox by adding support for internal chat notes (type `note`) in both `InboxPanel.tsx` and reply endpoint `/api/conversations/[id]/reply/route.ts`, saving notes locally in the thread history without calling Meta APIs.
+- **Home Dashboard UX Refinements**:
+  - Configured click-outside handlers for the date-range picker on the main dashboard homepage using a dedicated `pickerRef` reference.
+  - Replaced hard fullscreen loading and error blockouts on the home dashboard with inline error states and glassmorphic loading overlays inside the campaign delivery chart container.
 
 ## [2026-08-04] - Fix Analytics Date Filtering & Real Read Tracking
 - **Team Management & Shared Tenant Scoping**:

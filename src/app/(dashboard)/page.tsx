@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import axios from "axios";
 import {
@@ -68,6 +68,7 @@ export default function DashboardPage() {
   /* date range */
   const [preset, setPreset]         = useState<Preset>("30d");
   const [showPicker, setShowPicker] = useState(false);
+  const pickerRef = useRef<HTMLDivElement>(null);
   const [fromDate, setFromDate]     = useState(() => toYMD(addDays(today(), -29)));
   const [toDate, setToDate]         = useState(() => toYMD(today()));
   const [pendingFrom, setPendingFrom] = useState(fromDate);
@@ -94,6 +95,18 @@ export default function DashboardPage() {
   useEffect(() => {
     if (role !== "agent") fetchAnalytics(fromDate, toDate);
   }, [role]); // eslint-disable-line
+
+  // Close picker when clicking outside
+  useEffect(() => {
+    if (!showPicker) return;
+    const handler = (e: MouseEvent) => {
+      if (pickerRef.current && !pickerRef.current.contains(e.target as Node)) {
+        setShowPicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showPicker]);
 
   const applyPreset = (p: Preset) => {
     setPreset(p);
@@ -123,8 +136,8 @@ export default function DashboardPage() {
     : preset === "30d" ? "Last 30 days"
     : `${fmtFull(fromDate)} – ${fmtFull(toDate)}`;
 
-  /* ── loading / error ──────────────────────────────────────── */
-  if (isLoading) {
+  /* ── initial load only (no data yet) ─────────────────────── */
+  if (isLoading && !data) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-4">
@@ -137,7 +150,7 @@ export default function DashboardPage() {
     );
   }
 
-  if (fetchError) {
+  if (fetchError && !data) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="flex flex-col items-center gap-4 text-center max-w-sm">
@@ -237,7 +250,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Date range picker */}
-            <div className="relative">
+            <div className="relative" ref={pickerRef}>
               <button
                 onClick={() => setShowPicker(p => !p)}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border bg-surface text-xs font-medium text-text-primary hover:border-jade/40 transition-colors"
@@ -310,8 +323,18 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div className="h-72 w-full">
-            {!hasChartData ? (
+          <div className="h-72 w-full relative">
+            {isLoading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-card/60 backdrop-blur-sm rounded-xl z-10">
+                <div className="w-7 h-7 border-4 border-jade border-t-transparent rounded-full animate-spin" />
+              </div>
+            )}
+            {fetchError && data && (
+              <div className="absolute inset-0 flex items-center justify-center z-10">
+                <p className="text-xs text-danger">{fetchError}</p>
+              </div>
+            )}
+            {!hasChartData && !isLoading ? (
               <div className="h-full flex flex-col items-center justify-center text-center gap-3">
                 <Send className="w-8 h-8 text-text-muted opacity-20" />
                 <p className="text-sm font-semibold text-text-muted">No messages in this period</p>
