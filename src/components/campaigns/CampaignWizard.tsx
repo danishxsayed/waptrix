@@ -27,6 +27,7 @@ export default function CampaignWizard({
     variable_mapping: {} as any,
     send_now: true,
     scheduled_at: "",
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -60,15 +61,45 @@ export default function CampaignWizard({
     }
   };
 
+  /** Convert a naive datetime string (YYYY-MM-DDTHH:MM) in a given IANA timezone to UTC ISO */
+  const wallClockToUTC = (naive: string, tz: string): string => {
+    // Parse the naive string as if it were UTC, then compute what the target tz shows
+    // for that UTC moment, then shift so the target tz shows the desired local time.
+    const naiveUTC = new Date(naive + ':00Z');
+    const fmt = new Intl.DateTimeFormat('sv', {
+      timeZone: tz,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+    });
+    const tzShown = new Date(fmt.format(naiveUTC));   // what tz shows for naiveUTC
+    const offsetMs = tzShown.getTime() - naiveUTC.getTime(); // tz - UTC offset in ms
+    return new Date(naiveUTC.getTime() - offsetMs).toISOString();
+  };
+
+  /** Min value for datetime-local input — now + 1 min, expressed in the selected timezone */
+  const minDatetimeLocal = (): string => {
+    const nowPlus1m = new Date(Date.now() + 60_000);
+    const fmt = new Intl.DateTimeFormat('sv', {
+      timeZone: formData.timezone,
+      year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit',
+    });
+    return fmt.format(nowPlus1m).replace(' ', 'T');
+  };
+
+  /** Check if the chosen datetime is actually in the future (accounting for tz) */
+  const scheduledAtIsValid = (): boolean => {
+    if (!formData.scheduled_at) return false;
+    return new Date(wallClockToUTC(formData.scheduled_at, formData.timezone)) > new Date();
+  };
+
   const handleLaunch = async () => {
     setLaunchError("");
     setIsSubmitting(true);
     try {
-      // Convert scheduled_at from local datetime string → UTC ISO so the
-      // server stores the correct time regardless of timezone offset.
       const payload = { ...formData };
       if (!payload.send_now && payload.scheduled_at) {
-        payload.scheduled_at = new Date(payload.scheduled_at).toISOString();
+        payload.scheduled_at = wallClockToUTC(payload.scheduled_at, payload.timezone);
       }
       await axios.post("/api/campaigns", payload);
       // Close immediately — sending runs in background via waitUntil
@@ -90,7 +121,7 @@ export default function CampaignWizard({
 
   const canProceedStep1 = formData.name.trim().length > 0 && formData.template_id !== "";
   const canProceedStep2 = formData.segment_id !== "";
-  const canProceedStep3 = formData.send_now || (!!formData.scheduled_at && new Date(formData.scheduled_at) > new Date());
+  const canProceedStep3 = formData.send_now || scheduledAtIsValid();
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -305,18 +336,63 @@ export default function CampaignWizard({
                   </div>
 
                   {!formData.send_now && (
-                    <div className="pt-4 animate-in slide-in-from-top-2">
-                      <label className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2 block">Date &amp; Time</label>
-                      <input
-                        type="datetime-local"
-                        value={formData.scheduled_at}
-                        min={new Date(Date.now() + 60000).toISOString().slice(0, 16)}
-                        onChange={e => setFormData({ ...formData, scheduled_at: e.target.value })}
-                        className="input-field w-full text-sm"
-                      />
-                      {formData.scheduled_at && new Date(formData.scheduled_at) <= new Date() && (
-                        <p className="text-xs text-danger mt-1.5">Please choose a future date and time.</p>
-                      )}
+                    <div className="pt-4 animate-in slide-in-from-top-2 space-y-3">
+                      <div>
+                        <label className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2 block">Timezone</label>
+                        <select
+                          value={formData.timezone}
+                          onChange={e => setFormData({ ...formData, timezone: e.target.value, scheduled_at: "" })}
+                          className="input-field w-full text-sm"
+                        >
+                          <optgroup label="India">
+                            <option value="Asia/Kolkata">India Standard Time (IST, UTC+5:30)</option>
+                          </optgroup>
+                          <optgroup label="Middle East &amp; Gulf">
+                            <option value="Asia/Dubai">Gulf Standard Time (GST, UTC+4)</option>
+                            <option value="Asia/Riyadh">Arabia Standard Time (AST, UTC+3)</option>
+                            <option value="Asia/Kuwait">Kuwait Time (UTC+3)</option>
+                            <option value="Asia/Bahrain">Bahrain Time (UTC+3)</option>
+                            <option value="Asia/Qatar">Qatar Time (UTC+3)</option>
+                          </optgroup>
+                          <optgroup label="Asia">
+                            <option value="Asia/Karachi">Pakistan Standard Time (PKT, UTC+5)</option>
+                            <option value="Asia/Dhaka">Bangladesh Standard Time (BST, UTC+6)</option>
+                            <option value="Asia/Colombo">Sri Lanka Time (SLST, UTC+5:30)</option>
+                            <option value="Asia/Kathmandu">Nepal Time (NPT, UTC+5:45)</option>
+                            <option value="Asia/Singapore">Singapore Time (SGT, UTC+8)</option>
+                            <option value="Asia/Tokyo">Japan Standard Time (JST, UTC+9)</option>
+                            <option value="Asia/Shanghai">China Standard Time (CST, UTC+8)</option>
+                          </optgroup>
+                          <optgroup label="Europe">
+                            <option value="Europe/London">GMT / BST (UTC+0/+1)</option>
+                            <option value="Europe/Paris">Central European Time (CET, UTC+1/+2)</option>
+                          </optgroup>
+                          <optgroup label="Americas">
+                            <option value="America/New_York">Eastern Time (ET, UTC-5/-4)</option>
+                            <option value="America/Chicago">Central Time (CT, UTC-6/-5)</option>
+                            <option value="America/Denver">Mountain Time (MT, UTC-7/-6)</option>
+                            <option value="America/Los_Angeles">Pacific Time (PT, UTC-8/-7)</option>
+                          </optgroup>
+                          <optgroup label="Africa &amp; Other">
+                            <option value="Africa/Nairobi">East Africa Time (EAT, UTC+3)</option>
+                            <option value="UTC">UTC / GMT (UTC+0)</option>
+                          </optgroup>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-text-muted uppercase tracking-wider mb-2 block">Date &amp; Time</label>
+                        <input
+                          type="datetime-local"
+                          value={formData.scheduled_at}
+                          min={minDatetimeLocal()}
+                          onChange={e => setFormData({ ...formData, scheduled_at: e.target.value })}
+                          className="input-field w-full text-sm"
+                        />
+                        {formData.scheduled_at && !scheduledAtIsValid() && (
+                          <p className="text-xs text-danger mt-1.5">Please choose a future date and time.</p>
+                        )}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -347,8 +423,18 @@ export default function CampaignWizard({
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-text-muted">Start Time</span>
-                      <span className="text-sm font-bold text-text-primary">
-                        {formData.send_now ? "Immediately" : new Date(formData.scheduled_at).toLocaleString()}
+                      <span className="text-sm font-bold text-text-primary text-right">
+                        {formData.send_now
+                          ? "Immediately"
+                          : (() => {
+                              const d = new Date(wallClockToUTC(formData.scheduled_at, formData.timezone));
+                              return new Intl.DateTimeFormat('en-IN', {
+                                timeZone: formData.timezone,
+                                dateStyle: 'medium',
+                                timeStyle: 'short',
+                              }).format(d) + " (" + formData.timezone.split('/').pop()?.replace('_', ' ') + ")";
+                            })()
+                        }
                       </span>
                     </div>
                   </div>

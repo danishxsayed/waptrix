@@ -187,6 +187,237 @@ function StatusIcon({ status }: { status: string }) {
   return <Clock className="w-3 h-3 text-text-muted" />;
 }
 
+// ─── WhatsApp-style Emoji Picker ─────────────────────────────────────────────
+
+const EMOJI_CATEGORIES = [
+  {
+    id: 'smileys', label: 'Smileys & People',
+    icon: '😊',
+    emojis: [
+      '😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','☺️','😚',
+      '😙','🥲','😋','😛','😜','🤪','😝','🤑','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄',
+      '😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','🥴','😵','🤯','🤠','🥸',
+      '😎','🤓','🧐','😕','😟','🙁','☹️','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱',
+      '😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿','💀','☠️','💩','🤡','👹','👺','👻',
+      '👽','👾','🤖','😺','😸','😹','😻','😼','😽','🙀','😿','😾',
+      '👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍',
+      '👎','✊','👊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','🦾','🦿','🦵','🦶',
+      '👂','🦻','👃','🧠','🫀','🫁','🦷','🦴','👀','👁️','👅','👄','💋','🩸',
+    ],
+  },
+  {
+    id: 'animals', label: 'Animals & Nature',
+    icon: '🐶',
+    emojis: [
+      '🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐻‍❄️','🐨','🐯','🦁','🐮','🐷','🐽','🐸','🐵','🙈','🙉','🙊',
+      '🐔','🐧','🐦','🐤','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦟','🦗',
+      '🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐','🦞','🦀','🐡','🐠','🐟','🐬','🐳','🐋','🦈','🦭','🐊',
+      '🐅','🐆','🦓','🦍','🦧','🦣','🐘','🦛','🦏','🐪','🐫','🦒','🦘','🦬','🐃','🐂','🐄','🐎','🐖','🐏',
+      '🐑','🦙','🐐','🦌','🐕','🐩','🦮','🐕‍🦺','🐈','🐈‍⬛','🪶','🐓','🦃','🦤','🦚','🦜','🦢','🦩','🕊️','🐇',
+      '🦝','🦨','🦡','🦫','🦦','🦥','🐁','🐀','🐿️','🦔','🌵','🎄','🌲','🌳','🌴','🌱','🌿','☘️','🍀','🎍',
+      '🎋','🍃','🍂','🍁','🍄','🐚','🌾','💐','🌷','🌹','🥀','🌺','🌸','🌼','🌻','🌞','🌝','🌛','🌜','🌚',
+      '🌕','🌖','🌗','🌘','🌑','🌒','🌓','🌔','🌙','🌟','⭐','🌠','🌌','☀️','🌤️','⛅','🌥️','☁️','🌦️','🌧️',
+    ],
+  },
+  {
+    id: 'food', label: 'Food & Drink',
+    icon: '🍎',
+    emojis: [
+      '🍏','🍎','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦',
+      '🥬','🥒','🌶️','🫑','🌽','🥕','🫛','🧄','🧅','🥔','🍠','🫚','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳',
+      '🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🫓','🥪','🥙','🧆','🌮','🌯','🫔','🥗','🥘',
+      '🫕','🥫','🍝','🍜','🍲','🍛','🍣','🍱','🥟','🦪','🍤','🍙','🍚','🍘','🍥','🥮','🍢','🧁','🍰','🎂',
+      '🍮','🍭','🍬','🍫','🍿','🍩','🍪','🌰','🥜','🍯','🧃','🥤','🧋','☕','🍵','🫖','🍶','🍺','🍻','🥂',
+      '🍷','🥃','🍸','🍹','🧉','🍾','🧊','🥄','🍴','🍽️','🥢','🧂',
+    ],
+  },
+  {
+    id: 'activities', label: 'Activities',
+    icon: '⚽',
+    emojis: [
+      '⚽','🏀','🏈','⚾','🥎','🏐','🏉','🥏','🎱','🪀','🏓','🏸','🏒','🏑','🥍','🏏','🪃','🥅','⛳','🪁',
+      '🏹','🎣','🤿','🥊','🥋','🎽','🛹','🛼','🛷','⛸️','🥌','🎿','⛷️','🏂','🪂','🏋️','🤼','🤸','⛹️','🤺',
+      '🏇','🧘','🏄','🏊','🤽','🚣','🧗','🚵','🚴','🏆','🥇','🥈','🥉','🏅','🎖️','🏵️','🎗️','🎫','🎟️','🎪',
+      '🤹','🎭','🩰','🎨','🎬','🎤','🎧','🎼','🎹','🪘','🥁','🎷','🎺','🪗','🎸','🪕','🎻','🎲','♟️','🎯',
+      '🎳','🎮','🎰','🧩','🧸','🪆','🖼️','🧵','🪡','🧶','🪢',
+    ],
+  },
+  {
+    id: 'travel', label: 'Travel & Places',
+    icon: '✈️',
+    emojis: [
+      '🚗','🚕','🚙','🚌','🚎','🏎️','🚓','🚑','🚒','🚐','🛻','🚚','🚛','🚜','🦯','🦽','🦼','🛴','🚲','🛵',
+      '🏍️','🛺','🚨','🚔','🚍','🚘','🚖','🚡','🚠','🚟','🚃','🚋','🚞','🚝','🚄','🚅','🚈','🚂','🚆','🚇',
+      '🚊','🚉','✈️','🛫','🛬','🛩️','💺','🛸','🚀','🛶','⛵','🚤','🛥️','🛳️','⛴️','🚢','⚓','🪝','⛽','🚧',
+      '🚦','🚥','🛑','🚏','🗺️','🗿','🗽','🗼','🏰','🏯','🏟️','🎡','🎢','🎠','⛲','⛺','🌁','🌃','🏙️','🌄',
+      '🌅','🌆','🌇','🌉','🎑','🏞️','🌌','🌠','🌃','🏔️','⛰️','🌋','🗻','🏕️','🏖️','🏜️','🏝️','🏗️','🏘️',
+      '🏚️','🏠','🏡','🏢','🏣','🏤','🏥','🏦','🏨','🏩','🏪','🏫','🏬','🏭','🏯','🏰','💒','🗼','🗽',
+    ],
+  },
+  {
+    id: 'objects', label: 'Objects',
+    icon: '💡',
+    emojis: [
+      '⌚','📱','📲','💻','⌨️','🖥️','🖨️','🖱️','🖲️','🕹️','💾','💿','📀','🧮','📷','📸','📹','🎥','📽️','🎞️',
+      '📞','☎️','📟','📠','📺','📻','🧭','⏱️','⏲️','⏰','🕰️','⌛','⏳','📡','🔋','🔌','💡','🔦','🕯️','🪔',
+      '🧯','🛢️','💰','💵','💴','💶','💷','🪙','💸','💳','🧾','💹','💱','💲','✉️','📧','📨','📩','📪','📫',
+      '📬','📭','📮','🗳️','✏️','✒️','🖋️','🖊️','📝','📁','📂','🗂️','📅','📆','🗒️','🗓️','📇','📈','📉','📊',
+      '📋','📌','📍','🗺️','📎','🖇️','📏','📐','✂️','🗃️','🗄️','🗑️','🔒','🔓','🔏','🔐','🔑','🗝️','🔨','🪓',
+      '⛏️','⚒️','🛠️','🗡️','⚔️','🔫','🪃','🏹','🛡️','🪚','🔧','🪛','🔩','⚙️','🗜️','🔗','⛓️','🧲','🪜',
+      '⚗️','🧪','🧫','🧬','🔭','🔬','🩺','💊','🩹','🩼','💉','🩸','🧬','🔬','🧪','🧫','🩻','🧹','🧺',
+    ],
+  },
+  {
+    id: 'symbols', label: 'Symbols',
+    icon: '❤️',
+    emojis: [
+      '❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','☮️',
+      '✝️','☪️','🕉️','☸️','✡️','🔯','🕎','☯️','☦️','🛐','⛎','♈','♉','♊','♋','♌','♍','♎','♏','♐',
+      '♑','♒','♓','🆔','⚛️','🉑','☢️','☣️','📵','🚫','🚳','🚭','🚯','🚱','🚷','📵','🔞','❌','⭕','🛑',
+      '⛔','📛','🔰','✅','☑️','✔️','❎','🔱','⚜️','🔰','♻️','🔄','🔃','🔙','🔛','🔝','🔜','🔚','⚠️','🚦',
+      '🆒','🆕','🆙','🆓','🆖','🅰️','🅱️','🆎','🆑','🅾️','🆘','💤','🔇','🔈','🔉','🔊','📢','📣','🔔','🔕',
+      '🎵','🎶','⁉️','🔅','🔆','📶','🔱','⚜️','🏧','💲','©️','®️','™️','💱','🆚','🉐','㊙️','㊗️','🈴',
+      '#️⃣','*️⃣','0️⃣','1️⃣','2️⃣','3️⃣','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣','9️⃣','🔟','🔢','▶️','⏸️','⏹️','⏺️',
+    ],
+  },
+];
+
+function InboxEmojiPicker({
+  onSelect,
+  onClose,
+  pickerRef,
+}: {
+  onSelect: (emoji: string) => void;
+  onClose: () => void;
+  pickerRef: React.RefObject<HTMLDivElement | null>;
+}) {
+  const [activeCategory, setActiveCategory] = useState(0);
+  const [search, setSearch] = useState('');
+  const [recentEmojis, setRecentEmojis] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem('wp_recent_emojis') || '[]'); } catch { return []; }
+  });
+  const bodyRef = useRef<HTMLDivElement>(null);
+
+  const addToRecent = (emoji: string) => {
+    setRecentEmojis(prev => {
+      const next = [emoji, ...prev.filter(e => e !== emoji)].slice(0, 32);
+      try { localStorage.setItem('wp_recent_emojis', JSON.stringify(next)); } catch { /* */ }
+      return next;
+    });
+  };
+
+  const handleSelect = (emoji: string) => {
+    addToRecent(emoji);
+    onSelect(emoji);
+  };
+
+  const searchResults = search.trim()
+    ? EMOJI_CATEGORIES.flatMap(c => c.emojis).filter(e => {
+        // Simple filter — include emoji if it matches current search character roughly
+        return true; // We'll show all and let user browse; deep search needs emoji names db
+      }).slice(0, 80)
+    : null;
+
+  // Category icons (text emoji as buttons)
+  const catIcons = EMOJI_CATEGORIES.map(c => c.icon);
+
+  const displayEmojis = searchResults
+    ? searchResults
+    : activeCategory === -1
+    ? recentEmojis
+    : EMOJI_CATEGORIES[activeCategory]?.emojis ?? [];
+
+  return (
+    <div
+      ref={pickerRef}
+      className="absolute bottom-full right-0 mb-2 z-50 w-[340px] rounded-2xl border border-border bg-card shadow-2xl overflow-hidden flex flex-col"
+      style={{ height: 380 }}
+    >
+      {/* Search bar */}
+      <div className="px-3 pt-3 pb-2 border-b border-border flex-shrink-0">
+        <div className="flex items-center gap-2 bg-surface rounded-xl px-3 py-1.5 border border-border">
+          <svg className="w-3.5 h-3.5 text-text-muted flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+          </svg>
+          <input
+            autoFocus
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search emoji…"
+            className="flex-1 bg-transparent text-xs text-text-primary placeholder:text-text-muted focus:outline-none"
+          />
+          {search && (
+            <button type="button" onClick={() => setSearch('')} className="text-text-muted hover:text-text-primary">
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Category label */}
+      {!search && (
+        <div className="px-3 pt-2 pb-1 flex-shrink-0">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-text-muted">
+            {activeCategory === -1 ? 'Recently Used' : EMOJI_CATEGORIES[activeCategory]?.label}
+          </span>
+        </div>
+      )}
+
+      {/* Emoji grid */}
+      <div ref={bodyRef} className="flex-1 overflow-y-auto px-2 pb-2 custom-scrollbar">
+        {displayEmojis.length === 0 ? (
+          <div className="flex items-center justify-center h-full">
+            <p className="text-xs text-text-muted">No emojis found</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-8 gap-0.5">
+            {displayEmojis.map((emoji, i) => (
+              <button
+                key={`${emoji}-${i}`}
+                type="button"
+                onClick={() => handleSelect(emoji)}
+                className="w-9 h-9 flex items-center justify-center text-xl rounded-xl hover:bg-surface transition-colors duration-100 active:scale-90"
+                title={emoji}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Category tabs */}
+      <div className="flex items-center justify-around border-t border-border bg-card px-1 py-1.5 flex-shrink-0">
+        {/* Recent */}
+        <button
+          type="button"
+          onClick={() => setActiveCategory(-1)}
+          title="Recently Used"
+          className={`w-8 h-8 flex items-center justify-center rounded-lg text-base transition-colors ${
+            activeCategory === -1 ? 'bg-jade/20 text-jade' : 'text-text-muted hover:text-text-primary hover:bg-surface'
+          }`}
+        >
+          🕐
+        </button>
+        {EMOJI_CATEGORIES.map((cat, i) => (
+          <button
+            key={cat.id}
+            type="button"
+            onClick={() => setActiveCategory(i)}
+            title={cat.label}
+            className={`w-8 h-8 flex items-center justify-center rounded-lg text-base transition-colors ${
+              activeCategory === i ? 'bg-jade/20 text-jade' : 'text-text-muted hover:text-text-primary hover:bg-surface'
+            }`}
+          >
+            {cat.icon}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ─── Quoted message bubble ────────────────────────────────────────────────────
 
 /** Quoted context rendered INSIDE the message bubble — matches WhatsApp style */
@@ -559,6 +790,7 @@ export default function InboxPanel({
   const [isSendingNote, setIsSendingNote] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeConvRef = useRef<Conversation | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -620,13 +852,6 @@ export default function InboxPanel({
   }, [showEmojiPicker]);
 
   // Emoji constants
-  const INBOX_EMOJIS = [
-    "😊","👋","🎉","✅","🔥","💯","🎁","⭐","🚀","💪",
-    "❤️","👍","📞","📱","🛒","💰","🎊","🙌","✨","🎯",
-    "😄","😂","🤔","🙏","👏","😍","💬","🌟","⚡","🏆",
-    "😅","🤝","💡","📢","🎶","🌈","😎","🤩","🥳","💎",
-  ];
-
   const insertEmoji = (emoji: string) => {
     const el = textareaRef.current;
     if (!el) { setReplyText(t => t + emoji); return; }
@@ -658,11 +883,35 @@ export default function InboxPanel({
     }
   };
 
+  // Ensure a contact record exists — creates one if not found, returns the id
+  const ensureContact = async (): Promise<string | null> => {
+    if (contactInfo?.id) return contactInfo.id;
+    if (!activeConv) return null;
+    // Auto-create a minimal contact record for this phone number
+    try {
+      const res = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: activeConv.contact_name || activeConv.contact_phone,
+          phone: activeConv.contact_phone,
+        }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setContactInfo(created);
+        return created.id;
+      }
+    } catch { /* silent */ }
+    return null;
+  };
+
   // Update contact tags
   const updateContactTags = async (tags: string[]) => {
-    if (!contactInfo?.id) return;
+    const id = await ensureContact();
+    if (!id) return;
     try {
-      const res = await fetch(`/api/contacts/${contactInfo.id}`, {
+      const res = await fetch(`/api/contacts/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ tags }),
@@ -676,10 +925,11 @@ export default function InboxPanel({
 
   // Save contact note (custom3)
   const saveContactNote = async () => {
-    if (!contactInfo?.id) return;
     setSavingContactNote(true);
+    const id = await ensureContact();
+    if (!id) { setSavingContactNote(false); return; }
     try {
-      const res = await fetch(`/api/contacts/${contactInfo.id}`, {
+      const res = await fetch(`/api/contacts/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ notes: contactNoteText }),
@@ -902,9 +1152,15 @@ export default function InboxPanel({
   // Keep ref always pointing to the latest version (safe to do inline after declaration)
   selectConversationRef.current = selectConversation;
 
-  // ── Scroll to bottom on new messages
+  // ── Scroll to bottom only when user is already near bottom (prevents stealing scroll)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    const container = messagesContainerRef.current;
+    if (!container) return;
+    const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+    // Auto-scroll only if within 200px of bottom (user hasn't scrolled up to read history)
+    if (distFromBottom < 200) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   // ── Fetch contact when conversation changes
@@ -1533,7 +1789,7 @@ export default function InboxPanel({
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 custom-scrollbar bg-background/40">
+            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 custom-scrollbar bg-background/40">
               {loadingMsgs ? (
                 <div className="flex items-center justify-center h-full">
                   <Loader2 className="w-6 h-6 text-jade animate-spin" />
@@ -1837,20 +2093,11 @@ export default function InboxPanel({
                   </div>
                   {/* Emoji Picker */}
                   {showEmojiPicker && (
-                    <div ref={emojiPickerRef} className="bg-card border border-border rounded-xl p-3 shadow-xl">
-                      <div className="grid grid-cols-10 gap-1">
-                        {INBOX_EMOJIS.map((emoji) => (
-                          <button
-                            key={emoji}
-                            type="button"
-                            onClick={() => insertEmoji(emoji)}
-                            className="w-7 h-7 flex items-center justify-center text-base hover:bg-surface rounded-lg transition-colors"
-                          >
-                            {emoji}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                    <InboxEmojiPicker
+                      pickerRef={emojiPickerRef}
+                      onSelect={(emoji) => insertEmoji(emoji)}
+                      onClose={() => setShowEmojiPicker(false)}
+                    />
                   )}
                 </div>
               )}
@@ -2040,7 +2287,7 @@ export default function InboxPanel({
                 <span className="text-xs font-bold uppercase tracking-wider text-text-muted flex items-center gap-1.5">
                   <User className="w-3.5 h-3.5" /> Contact Details
                 </span>
-                <button onClick={() => setShowContactPanel(false)} className="text-text-muted hover:text-text-primary transition-colors">
+                <button type="button" onClick={() => setShowContactPanel(false)} className="text-text-muted hover:text-text-primary transition-colors">
                   <X className="w-4 h-4" />
                 </button>
               </div>
@@ -2099,6 +2346,7 @@ export default function InboxPanel({
                       </>
                     )}
                     <button
+                      type="button"
                       onClick={() => setContactShowMore(v => !v)}
                       className="flex items-center gap-1 text-[11px] text-text-muted hover:text-jade transition-colors"
                     >
@@ -2116,6 +2364,7 @@ export default function InboxPanel({
                         <Tag className="w-3 h-3" /> Tags
                       </span>
                       <button
+                        type="button"
                         onClick={() => setEditingTags(v => !v)}
                         className="text-[11px] text-jade hover:underline"
                       >
@@ -2132,6 +2381,7 @@ export default function InboxPanel({
                           {tag}
                           {editingTags && (
                             <button
+                              type="button"
                               onClick={() => {
                                 const current = (contactInfo?.custom2 || '').split(',').map((t: string) => t.trim()).filter(Boolean);
                                 updateContactTags(current.filter((t: string) => t !== tag));
@@ -2154,7 +2404,9 @@ export default function InboxPanel({
                           value={newTagInput}
                           onChange={e => setNewTagInput(e.target.value)}
                           onKeyDown={e => {
-                            if (e.key === 'Enter' && newTagInput.trim()) {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              if (!newTagInput.trim()) return;
                               const current = (contactInfo?.custom2 || '').split(',').map((t: string) => t.trim()).filter(Boolean);
                               if (!current.includes(newTagInput.trim())) {
                                 updateContactTags([...current, newTagInput.trim()]);
@@ -2166,6 +2418,7 @@ export default function InboxPanel({
                           className="flex-1 bg-surface border border-border rounded-lg px-2 py-1 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-jade/50"
                         />
                         <button
+                          type="button"
                           onClick={() => {
                             if (!newTagInput.trim()) return;
                             const current = (contactInfo?.custom2 || '').split(',').map((t: string) => t.trim()).filter(Boolean);
@@ -2197,6 +2450,7 @@ export default function InboxPanel({
                       className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-jade/50 resize-none"
                     />
                     <button
+                      type="button"
                       onClick={saveContactNote}
                       disabled={savingContactNote}
                       className="mt-1.5 w-full py-1.5 bg-jade text-background text-xs font-bold rounded-lg hover:bg-jade/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"

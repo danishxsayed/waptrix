@@ -33,6 +33,11 @@
   - Created `/api/contacts/by-phone` to lookup contacts matching a phone number (with or without `+` prefixes).
   - Added PATCH and DELETE endpoints in `src/app/api/contacts/[id]/route.ts` to update contact fields (name, email, tags, notes, opted_in) and delete contact records.
   - Integrated a collapsible right-hand Contact details panel inside `InboxPanel.tsx` allowing agents to view and update contact information, edit tags, and manage notes directly within the conversational viewport.
+  - Implemented `ensureContact()` in `InboxPanel.tsx` to auto-provision a minimal contact record in the database if an agent edits tags/notes for an inbox conversation with no existing contact record.
+  - Hardened chat scroll behavior in `InboxPanel.tsx` to only trigger auto-scroll-to-bottom on new messages if the user is already within 200px of the chat floor, preventing viewport theft when reading past logs.
+- **Timezone-Aware Campaign Scheduling**:
+  - Integrated a regional timezone dropdown selector inside `CampaignWizard.tsx` supporting global zones (IST, GST, AST, CET, ET, CT, PT, SGT).
+  - Implemented `wallClockToUTC` translation to compute future schedule limits relative to target regional settings, storing correct UTC dates on the backend.
 - **Inbox Internal Chat Notes**:
   - Enabled private team communication inside the inbox by adding support for internal chat notes (type `note`) in both `InboxPanel.tsx` and reply endpoint `/api/conversations/[id]/reply/route.ts`, saving notes locally in the thread history without calling Meta APIs.
 - **Home Dashboard UX Refinements**:
