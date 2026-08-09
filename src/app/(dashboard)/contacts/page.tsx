@@ -234,7 +234,7 @@ function CreateContactsDrawer({
     phonePart: "",
     userId: "",
     email: "",
-    optedIn: true,
+    optedIn: false,
     appointmentTime: "",
     location: "",
     segment_id: ""
@@ -579,7 +579,11 @@ function CreateContactsDrawer({
       onSuccess();
       onClose();
     } catch (err: any) {
-      setManualError(err.response?.data?.error || "Failed to create contact.");
+      if (err.response?.status === 409) {
+        setManualError("A contact with this phone number already exists. Please use a different number.");
+      } else {
+        setManualError(err.response?.data?.error || "Failed to create contact.");
+      }
     } finally {
       setIsManualLoading(false);
     }
@@ -960,23 +964,26 @@ function CreateContactsDrawer({
 
               {/* WhatsApp Opted */}
               <div className="space-y-2">
-                <label className="text-xs font-bold text-text-muted uppercase tracking-widest block">WhatsApp Opted</label>
+                <label className="text-xs font-bold text-text-muted uppercase tracking-widest block">WhatsApp Opted In</label>
+                <p className="text-[11px] text-text-muted leading-relaxed">
+                  Only mark as <strong className="text-text-primary">Yes</strong> if you have confirmed this number is active on WhatsApp and the contact has agreed to receive messages.
+                </p>
                 <div className="flex items-center gap-6 mt-1">
                   <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-text-primary">
-                    <input 
-                      type="radio" 
+                    <input
+                      type="radio"
                       name="optedInRadio"
-                      checked={form.optedIn === true} 
+                      checked={form.optedIn === true}
                       onChange={() => setForm({ ...form, optedIn: true })}
                       className="w-4 h-4 accent-jade border-border"
                     />
-                    <span>Yes</span>
+                    <span>Yes — confirmed on WhatsApp</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer text-sm font-medium text-text-primary">
-                    <input 
-                      type="radio" 
+                    <input
+                      type="radio"
                       name="optedInRadio"
-                      checked={form.optedIn === false} 
+                      checked={form.optedIn === false}
                       onChange={() => setForm({ ...form, optedIn: false })}
                       className="w-4 h-4 accent-jade border-border"
                     />

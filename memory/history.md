@@ -1,5 +1,17 @@
 # Implementation History
 
+## [2026-08-09] - Contact Opt-in Defaults, Phone Duplicate Prevention, and Emoji Picker UI Fixes
+- **Contact Opt-in Defaults & Duplicate Prevention**:
+  - Defaulted "WhatsApp Opted In" to `false` for manual contact creations in both the client-side `CreateContactsDrawer` and the server-side API `/api/contacts` POST handler.
+  - Implemented strict database-level phone number duplicate checking under `/api/contacts` POST handler, normalizing phone values to check for both `+91...` and `91...` formats under the active tenant ID, rejecting duplicates with a `409` status code.
+  - Replaced SQL `upsert` with standard `insert` in API route to enforce unique constraint checks.
+  - Added descriptive/warning text to the radio selector options in `CreateContactsDrawer` to remind users of WhatsApp compliance requirements.
+  - Handled duplicate errors (status `409`) on the client side to display a user-friendly manual warning alert instead of generic failure messages.
+- **Inbox Emoji Picker UI Refinements**:
+  - Repositioned the `<InboxEmojiPicker>` component to render inside the reply editor text field relative wrapper, allowing the `bottom-full` class to position the picker correctly above the text box.
+  - Refactored click-outside handler in `InboxPanel.tsx` to exclude clicks on the emoji trigger button (`emojiButtonRef`), preventing the picker from instantly toggling closed when clicked.
+  - Removed `autoFocus` from the emoji picker search box (`InboxEmojiPicker`) to keep focus on the main chat text area.
+
 ## [2026-08-06] - Campaign Opt-Outs, Custom Analytics Ranges, & Team Chat Unread Badges
 - **Campaign Opt-Out Handling (STOP/START Keywords)**:
   - Added SQL migration `supabase/add-optout.sql` to add `opted_out_at` tracking to `contacts` table and created an index for active filtering.

@@ -340,7 +340,6 @@ function InboxEmojiPicker({
             <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
           </svg>
           <input
-            autoFocus
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -782,6 +781,7 @@ export default function InboxPanel({
   // ── Emoji picker (text reply mode)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const emojiPickerRef = useRef<HTMLDivElement>(null);
+  const emojiButtonRef = useRef<HTMLButtonElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // ── Note mode
@@ -839,11 +839,14 @@ export default function InboxPanel({
     }
   }, []);
 
-  // Close emoji picker on outside click
+  // Close emoji picker on outside click — but NOT when clicking the toggle button
   useEffect(() => {
     if (!showEmojiPicker) return;
     const handler = (e: MouseEvent) => {
-      if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target as Node)) {
+      const target = e.target as Node;
+      const insidePicker = emojiPickerRef.current?.contains(target);
+      const insideButton = emojiButtonRef.current?.contains(target);
+      if (!insidePicker && !insideButton) {
         setShowEmojiPicker(false);
       }
     };
@@ -2071,6 +2074,7 @@ export default function InboxPanel({
                       />
                       {/* Emoji trigger */}
                       <button
+                        ref={emojiButtonRef}
                         type="button"
                         onClick={() => setShowEmojiPicker(v => !v)}
                         className="absolute right-2 bottom-2.5 text-text-muted hover:text-jade transition-colors"
@@ -2078,6 +2082,14 @@ export default function InboxPanel({
                       >
                         <Smile className="w-4 h-4" />
                       </button>
+                      {/* Emoji Picker — positioned inside relative wrapper so bottom-full works correctly */}
+                      {showEmojiPicker && (
+                        <InboxEmojiPicker
+                          pickerRef={emojiPickerRef}
+                          onSelect={(emoji) => insertEmoji(emoji)}
+                          onClose={() => setShowEmojiPicker(false)}
+                        />
+                      )}
                     </div>
                     <button
                       onClick={sendReply}
@@ -2091,14 +2103,6 @@ export default function InboxPanel({
                       )}
                     </button>
                   </div>
-                  {/* Emoji Picker */}
-                  {showEmojiPicker && (
-                    <InboxEmojiPicker
-                      pickerRef={emojiPickerRef}
-                      onSelect={(emoji) => insertEmoji(emoji)}
-                      onClose={() => setShowEmojiPicker(false)}
-                    />
-                  )}
                 </div>
               )}
 

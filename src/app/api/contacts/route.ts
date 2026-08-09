@@ -61,9 +61,31 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_KEY!
     )
 
+    // Normalize phone to check both +91... and 91... formats
+    const rawDigits = (phone || '').replace(/\D/g, '');
+    const phoneWithPlus = rawDigits ? `+${rawDigits}` : '';
+    const phoneWithoutPlus = rawDigits;
+
+    // Duplicate check — reject if the phone already exists under this tenant
+    if (rawDigits) {
+      const { data: existing } = await serviceClient
+        .from('contacts')
+        .select('id, phone')
+        .eq('tenant_id', user.id)
+        .or(`phone.eq.${phoneWithPlus},phone.eq.${phoneWithoutPlus}`)
+        .maybeSingle();
+
+      if (existing) {
+        return NextResponse.json(
+          { error: 'A contact with this phone number already exists.', existing_id: existing.id },
+          { status: 409 }
+        );
+      }
+    }
+
     const { data, error } = await serviceClient
       .from('contacts')
-      .upsert({
+      .insert({
         tenant_id: user.id,
         segment_id: segment_id || null,
         name: name || '',
@@ -72,8 +94,8 @@ export async function POST(request: Request) {
         custom1: custom1 || null,
         custom2: custom2 || null,
         custom3: custom3 || null,
-        opted_in: opted_in !== undefined ? opted_in : true
-      }, { onConflict: 'tenant_id,phone' })
+        opted_in: opted_in !== undefined ? opted_in : false
+      })
       .select()
       .single();
 
