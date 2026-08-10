@@ -254,6 +254,29 @@ async function handleMessages(db: SupabaseClient, value: any) {
       if (e.message && e.message !== e.title) parts.push(e.message);
       logUpdate.error = parts.join(' | ') || 'Unknown delivery failure';
       console.error(`[webhook] Message ${status.id} delivery failed: ${logUpdate.error}`);
+
+      // Error 131026 = recipient is not a WhatsApp user
+      // Auto-mark that contact as opted_out and flag as not on WhatsApp
+      if (e.code === 131026 && status.recipient_id) {
+        const recipientPhone = status.recipient_id.startsWith('+') ? status.recipient_id : `+${status.recipient_id}`;
+        const digitsOnly = status.recipient_id.replace(/\D/g, '');
+        try {
+          await db
+            .from('contacts')
+            .update({ opted_in: false, custom4: 'not_on_whatsapp' })
+            .eq('tenant_id', tenantId)
+            .or(`phone.eq.${recipientPhone},phone.eq.${digitsOnly}`);
+          // Also update the conversation to reflect this
+          await db
+            .from('conversations')
+            .update({ status: 'inactive' })
+            .eq('tenant_id', tenantId)
+            .or(`contact_phone.eq.${recipientPhone},contact_phone.eq.${digitsOnly}`);
+          console.log(`[webhook] Marked ${recipientPhone} as not on WhatsApp (error 131026)`);
+        } catch (markErr: any) {
+          console.error('[webhook] Failed to mark contact as not on WhatsApp:', markErr.message);
+        }
+      }
     }
     await db
       .from('message_logs')

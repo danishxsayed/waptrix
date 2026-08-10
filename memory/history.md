@@ -1,5 +1,16 @@
 # Implementation History
 
+## [2026-08-10] - Solution Provider WhatsApp Validation & Automated Recipient Filtering
+- **Solution Provider WhatsApp Validation (BSP API Integration)**:
+  - Created [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/contacts/check-whatsapp/route.ts) which uses Meta's `POST /{phone_number_id}/contacts` endpoint to check if phone numbers are active WhatsApp users. Falls back gracefully with `unsupported: true` if the account does not have Solution Provider status.
+  - Updated contacts upload flow in [page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/contacts/page.tsx) to automatically run batch validation on bulk spreadsheet imports (up to 100 contacts per request), rendering validation statistics (✅ On WhatsApp / ❌ Not on WhatsApp) and filtering invalid numbers from imports.
+- **Automated Delivery Failure Handling (Webhook Error 131026)**:
+  - Modified Meta webhooks handler at [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/webhooks/meta/route.ts) to detect Meta error code `131026` ("recipient is not a WhatsApp user").
+  - On detection, it automatically updates the contact's subscription status to `opted_in = false`, marks their `custom4` field with `'not_on_whatsapp'`, and deactivates any active conversation thread in the database.
+- **UI Enhancements for Non-WhatsApp Contacts**:
+  - Added a "Not on WhatsApp" dashboard summary card to the contacts page tracking numbers flagged with `custom4 === 'not_on_whatsapp'`.
+  - Added a distinctive warning badge for contacts identified as not registered on WhatsApp in the contacts table view, warning agents and preventing accidental outbound templates.
+
 ## [2026-08-09] - Contact Opt-in Defaults, Phone Duplicate Prevention, and Emoji Picker UI Fixes
 - **Contact Opt-in Defaults & Duplicate Prevention**:
   - Defaulted "WhatsApp Opted In" to `false` for manual contact creations in both the client-side `CreateContactsDrawer` and the server-side API `/api/contacts` POST handler.

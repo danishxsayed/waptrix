@@ -207,7 +207,14 @@ function CreateContactsDrawer({
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Column Mapper States
-  const [uploadStep, setUploadStep] = useState<"upload" | "mapping" | "preview">("upload");
+  const [uploadStep, setUploadStep] = useState<"upload" | "mapping" | "preview" | "validating" | "validated">("upload");
+  const [waValidation, setWaValidation] = useState<{
+    valid: string[];
+    invalid: string[];
+    unsupported: boolean;
+    done: boolean;
+  } | null>(null);
+  const [isValidating, setIsValidating] = useState(false);
   const [fileHeaders, setFileHeaders] = useState<string[]>([]);
   const [rawFileRows, setRawFileRows] = useState<any[]>([]);
   const [columnMappings, setColumnMappings] = useState<Record<string, string>>({
@@ -416,9 +423,9 @@ function CreateContactsDrawer({
         normalizedPhone = "+" + fallbackCode + digits;
       }
 
-      const opted_in = optedInText 
+      const opted_in = optedInText
         ? !(optedInText === 'no' || optedInText === 'false' || optedInText === '0' || optedInText === 'optout')
-        : true;
+        : false;  // default to false — only mark opted-in if CSV explicitly says so
 
       return {
         name: nameVal || "Unnamed Contact",
@@ -436,8 +443,46 @@ function CreateContactsDrawer({
       return;
     }
 
-    setParsedContacts(mapped);
-    setPreview(mapped.slice(0, 5));
+    // ── Phone format validation ────────────────────────────────────────────────
+    // Filter out numbers that are clearly invalid (wrong length, no country code)
+    const validContacts: typeof mapped = [];
+    const skippedNumbers: string[] = [];
+
+    for (const c of mapped) {
+      const digits = c.phone.replace(/\D/g, '');
+      // Must be E.164: starts with + and has 7–15 digits total
+      const isE164 = c.phone.startsWith('+') && digits.length >= 7 && digits.length <= 15;
+      if (!isE164) {
+        skippedNumbers.push(c.phone || c.name);
+        continue;
+      }
+      // Country-specific checks for common cases
+      // India (+91): 10 digits after country code, must start with 6-9
+      if (digits.startsWith('91') && digits.length === 12) {
+        const local = digits.slice(2);
+        if (!/^[6-9]/.test(local)) { skippedNumbers.push(c.phone); continue; }
+      }
+      // US/Canada (+1): 10 digits after country code
+      if (digits.startsWith('1') && digits.length !== 11) { skippedNumbers.push(c.phone); continue; }
+      // UAE (+971): 9 digits after country code
+      if (digits.startsWith('971') && digits.length !== 12) { skippedNumbers.push(c.phone); continue; }
+
+      validContacts.push(c);
+    }
+
+    if (validContacts.length === 0) {
+      setBulkError("No contacts with valid international phone numbers found. Please include the full country code (e.g. +91 for India).");
+      return;
+    }
+
+    if (skippedNumbers.length > 0) {
+      setBulkError(`ℹ️ ${skippedNumbers.length} number(s) skipped due to invalid format: ${skippedNumbers.slice(0, 5).join(', ')}${skippedNumbers.length > 5 ? ` and ${skippedNumbers.length - 5} more` : ''}. These were removed.`);
+    } else {
+      setBulkError("");
+    }
+
+    setParsedContacts(validContacts);
+    setPreview(validContacts.slice(0, 5));
     setUploadStep("preview");
   };
 
@@ -468,6 +513,51 @@ function CreateContactsDrawer({
       return;
     }
     processFile(f);
+  };
+
+  const handleValidateWhatsApp = async () => {
+    setIsValidating(true);
+    setUploadStep("validating");
+    setWaValidation(null);
+    setBulkError("");
+
+    const phones = parsedContacts.map(c => c.phone);
+    const BATCH = 50;
+    const allValid: string[] = [];
+    const allInvalid: string[] = [];
+    let unsupported = false;
+
+    try {
+      for (let i = 0; i < phones.length; i += BATCH) {
+        const batch = phones.slice(i, i + BATCH);
+        const res = await axios.post('/api/contacts/check-whatsapp', { phones: batch });
+        if (res.data.unsupported) {
+          unsupported = true;
+          break;
+        }
+        allValid.push(...(res.data.valid || []));
+        allInvalid.push(...(res.data.invalid || []));
+        // small delay between batches to respect rate limits
+        if (i + BATCH < phones.length) await new Promise(r => setTimeout(r, 500));
+      }
+
+      if (unsupported) {
+        // BSP API not available — skip validation, proceed with format-filtered list
+        setWaValidation({ valid: phones, invalid: [], unsupported: true, done: true });
+      } else {
+        // Filter parsedContacts to only valid WhatsApp numbers
+        const validSet = new Set(allValid);
+        const filteredContacts = parsedContacts.filter(c => validSet.has(c.phone));
+        setParsedContacts(filteredContacts);
+        setWaValidation({ valid: allValid, invalid: allInvalid, unsupported: false, done: true });
+      }
+      setUploadStep("validated");
+    } catch (err: any) {
+      setBulkError("WhatsApp validation failed: " + (err.response?.data?.error || err.message));
+      setUploadStep("preview");
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const handleBulkImportSubmit = async () => {
@@ -723,7 +813,7 @@ function CreateContactsDrawer({
             {uploadStep === "mapping" && null /* Rendered as full-screen overlay below */}
 
             {/* ════════════════ Step 3: Preview List & Ingestion Progress ════════════════ */}
-            {uploadStep === "preview" && (
+            {(uploadStep === "preview" || uploadStep === "validating" || uploadStep === "validated") && (
               <div className="space-y-4 pt-2 animate-in fade-in duration-200">
                 <div className="flex justify-between items-center">
                   <p className="text-xs font-bold text-text-muted uppercase tracking-wider">Spreadsheet Preview (First 5 Rows)</p>
@@ -819,23 +909,105 @@ function CreateContactsDrawer({
                     </div>
                   )}
 
-                  {!isBulkLoading && (
-                    <div className="flex gap-3">
+                  {!isBulkLoading && uploadStep === "preview" && (
+                    <div className="space-y-3">
+                      {/* Validate WhatsApp Numbers — primary action */}
                       <button
                         type="button"
-                        onClick={handleBulkImportSubmit}
-                        className="flex-1 btn-primary py-3.5 flex items-center justify-center gap-2 text-sm font-bold shadow-[0_4px_20px_rgba(16,185,129,0.2)]"
+                        onClick={handleValidateWhatsApp}
+                        disabled={isValidating}
+                        className="w-full py-3.5 flex items-center justify-center gap-2 text-sm font-bold rounded-xl bg-jade text-background hover:bg-jade/90 transition-colors shadow-[0_4px_20px_rgba(16,185,129,0.25)] disabled:opacity-50"
                       >
-                        <Upload className="w-4 h-4" />
-                        Bulk Import {parsedContacts.length} Contacts
+                        <span className="text-base">✅</span>
+                        Validate WhatsApp Numbers ({parsedContacts.length})
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => { setFile(null); setUploadStep("upload"); setParsedContacts([]); setPreview([]); setBulkError(""); }}
-                        className="btn-secondary py-3.5 px-5 text-sm font-bold"
-                      >
-                        Cancel
-                      </button>
+                      <p className="text-[10px] text-text-muted text-center">
+                        Checks each number against WhatsApp via Meta BSP API — no messages sent
+                      </p>
+                      <div className="flex gap-3 pt-1">
+                        <button
+                          type="button"
+                          onClick={handleBulkImportSubmit}
+                          className="flex-1 btn-secondary py-3 flex items-center justify-center gap-2 text-xs font-bold"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          Skip validation &amp; import all
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setFile(null); setUploadStep("upload"); setParsedContacts([]); setPreview([]); setBulkError(""); setWaValidation(null); }}
+                          className="btn-secondary py-3 px-5 text-xs font-bold"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Validation in progress */}
+                  {uploadStep === "validating" && (
+                    <div className="p-5 bg-surface/50 border border-jade/20 rounded-2xl space-y-3 animate-in zoom-in-95">
+                      <div className="flex items-center gap-2 text-jade text-sm font-bold">
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Checking numbers with Meta WhatsApp…
+                      </div>
+                      <p className="text-xs text-text-muted">This may take a few seconds depending on the list size.</p>
+                    </div>
+                  )}
+
+                  {/* Validation results */}
+                  {uploadStep === "validated" && waValidation && (
+                    <div className="space-y-4">
+                      {waValidation.unsupported ? (
+                        <div className="p-4 bg-warning/10 border border-warning/20 rounded-xl text-xs text-warning flex items-start gap-2">
+                          <span className="text-base">⚠️</span>
+                          <div>
+                            <p className="font-bold">BSP contacts API not available yet</p>
+                            <p className="text-text-muted mt-0.5">Your account may need Badged Partner status. All format-valid numbers will be imported.</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="p-4 bg-card border border-border rounded-2xl space-y-3">
+                          <p className="text-xs font-bold text-text-muted uppercase tracking-wider">Validation Results</p>
+                          <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-jade/10 border border-jade/20 rounded-xl p-3 text-center">
+                              <p className="text-2xl font-bold text-jade font-syne">{waValidation.valid.length}</p>
+                              <p className="text-[10px] text-jade font-bold uppercase tracking-wider mt-0.5">✅ On WhatsApp</p>
+                            </div>
+                            <div className="bg-danger/10 border border-danger/20 rounded-xl p-3 text-center">
+                              <p className="text-2xl font-bold text-danger font-syne">{waValidation.invalid.length}</p>
+                              <p className="text-[10px] text-danger font-bold uppercase tracking-wider mt-0.5">❌ Not on WhatsApp</p>
+                            </div>
+                          </div>
+                          {waValidation.invalid.length > 0 && (
+                            <p className="text-[10px] text-text-muted">
+                              {waValidation.invalid.length} number(s) removed from import list.
+                              {waValidation.invalid.length <= 5 && (
+                                <span className="block mt-0.5 font-mono">{waValidation.invalid.join(', ')}</span>
+                              )}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      <div className="flex gap-3">
+                        <button
+                          type="button"
+                          onClick={handleBulkImportSubmit}
+                          disabled={isBulkLoading || parsedContacts.length === 0}
+                          className="flex-1 btn-primary py-3.5 flex items-center justify-center gap-2 text-sm font-bold shadow-[0_4px_20px_rgba(16,185,129,0.2)] disabled:opacity-40"
+                        >
+                          <Upload className="w-4 h-4" />
+                          Import {parsedContacts.length} Valid Contacts
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => { setFile(null); setUploadStep("upload"); setParsedContacts([]); setPreview([]); setBulkError(""); setWaValidation(null); }}
+                          className="btn-secondary py-3.5 px-5 text-sm font-bold"
+                        >
+                          Cancel
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2202,14 +2374,15 @@ export default function ContactsPage() {
           </div>
         </div>
 
-        <div className="glass-card flex items-center justify-between !p-4 bg-gradient-to-br from-card/30 to-card/10 hover:border-jade/30 transition-all group">
+        <div className="glass-card flex items-center justify-between !p-4 bg-gradient-to-br from-card/30 to-card/10 hover:border-orange-500/30 transition-all group" title="Contacts confirmed as not registered on WhatsApp (detected from failed message delivery)">
           <div className="space-y-1">
-            <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Filtered View</p>
-            <p className="text-2xl font-bold text-text-primary tracking-tight font-syne">{filteredContacts.length}</p>
-
+            <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Not on WhatsApp</p>
+            <p className="text-2xl font-bold text-orange-400 tracking-tight font-syne">
+              {contacts.filter((c: any) => c.custom4 === 'not_on_whatsapp').length}
+            </p>
           </div>
-          <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center text-warning border border-warning/20 group-hover:scale-110 transition-transform">
-            <Search className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-orange-400 border border-orange-500/20 group-hover:scale-110 transition-transform">
+            <span className="text-lg">⚠️</span>
           </div>
         </div>
       </div>
@@ -2460,7 +2633,12 @@ export default function ContactsPage() {
                             })()}
                           </td>
                           <td className="px-6 py-4">
-                            {contact.opted_in ? (
+                            {contact.custom4 === 'not_on_whatsapp' ? (
+                              <span className="inline-flex items-center gap-1.5 bg-orange-500/10 text-orange-400 border border-orange-500/25 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider" title="Meta confirmed this number is not registered on WhatsApp">
+                                <span className="text-sm leading-none">⚠️</span>
+                                Not on WhatsApp
+                              </span>
+                            ) : contact.opted_in ? (
                               <span className="inline-flex items-center gap-1.5 bg-jade/10 text-jade border border-jade/25 text-[10px] font-bold uppercase tracking-wider py-1 px-2.5 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.1)]">
                                 <span className="relative flex h-1.5 w-1.5">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jade opacity-75"></span>
