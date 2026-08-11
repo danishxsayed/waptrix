@@ -54,7 +54,7 @@ export async function enqueueCampaignBatches(campaignId: string): Promise<void> 
     async () => {
       const { data, error } = await db
         .from('contacts')
-        .select('id, phone, name, email, custom1, custom2, custom3, custom4, opted_in')
+        .select('id, phone, name, email, custom1, custom2, custom3, opted_in')
         .eq('tenant_id', campaign.tenant_id)
         .eq('segment_id', campaign.segment_id)
         .or('opted_in.is.null,opted_in.eq.true');  // include active contacts (null = not set, true = explicit opt-in)

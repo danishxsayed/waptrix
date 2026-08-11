@@ -191,12 +191,11 @@ export async function POST(
   // Idempotency: contacts already sent in a prior attempt (QStash retry) count as sent
   const alreadySentCount = contacts.filter((c: any) => alreadySentIds.has(c.id)).length;
 
-  // Skip: already sent (idempotency), opted-out (opted_in=false), or confirmed not on WhatsApp
+  // Skip: already sent (idempotency) or opted-out (opted_in=false)
   const pendingContacts = contacts.filter(
     (c: any) =>
       !alreadySentIds.has(c.id) &&
-      c.opted_in !== false &&
-      c.custom4 !== 'not_on_whatsapp'
+      c.opted_in !== false
   );
 
   // ── 5. Send all pending contacts in parallel (CONCURRENCY = 20) ──
