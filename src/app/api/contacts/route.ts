@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-
+import { redis } from '@/lib/redis';
 
 import { NextResponse } from 'next/server';
 
@@ -190,6 +190,13 @@ export async function PATCH(request: Request) {
       .eq('tenant_id', user.id);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Invalidate all segment contact caches for this tenant so campaigns see fresh data
+    try {
+      const keys = await redis.keys(`contacts:${user.id}:*`);
+      if (keys.length > 0) await redis.del(...keys);
+    } catch { /* non-fatal */ }
+
     return NextResponse.json({ success: true });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

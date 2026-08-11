@@ -10,6 +10,10 @@
   - Redesigned the contacts table status badges in [page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/contacts/page.tsx) to show "Active" (for contacts with null `opted_out_at`) and "Opted-out" (for contacts with non-null `opted_out_at`).
   - Added a self-healing utility banner at the top of the contacts table to identify and fix legacy contacts incorrectly default-flagged as `opted_in = false` on import, patching them to `true` (Active) with a click.
   - Adjusted the Opted-in Rate calculation card to reflect active contacts (`!c.opted_out_at`) instead of `opted_in === true`.
+- **Redis Contact List Caching & Invalidation Resiliency**:
+  - Refactored `getCachedContacts` in [redis.ts](file:///Users/danishsayed/Desktop/Waptrix/src/lib/redis.ts) to ignore cached empty arrays and avoid caching empty query results entirely, shielding campaigns from transient empty list caches.
+  - Modified the contacts `PATCH` route in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/contacts/route.ts) to scan and delete all cached segment keys (`contacts:tenant_id:*`) on update, forcing campaigns to immediately pull freshly updated status records.
+  - Hardened `enqueueCampaignBatches` in [campaign-queue.ts](file:///Users/danishsayed/Desktop/Waptrix/src/lib/campaign-queue.ts) to log database query errors, print enqueuing metrics, and immediately flag empty campaigns (0 contacts) as `sent` to prevent silent enqueuer hangs.
 - **Friendly Meta Template Submission Error Translations**:
   - Added user-friendly English explanations in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/templates/[id]/submit/route.ts) for common Meta API template submission failures: duplicate names (subcode 2388024), invalid words (subcode 2388003), utility content rejections (subcode 2388006), account template limits (subcode 2388007), and expired OAuth tokens (code 190).
 - **Simplified Contacts Importer UX**:

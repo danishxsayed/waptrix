@@ -52,17 +52,20 @@ export async function enqueueCampaignBatches(campaignId: string): Promise<void> 
     campaign.segment_id,
     campaign.tenant_id,
     async () => {
-      const { data } = await db
+      const { data, error } = await db
         .from('contacts')
         .select('id, phone, name, email, custom1, custom2, custom3, custom4, opted_in, opted_out_at')
         .eq('tenant_id', campaign.tenant_id)
         .eq('segment_id', campaign.segment_id)
         .is('opted_out_at', null);   // exclude only contacts who explicitly opted out (STOP command)
+      if (error) console.error(`[campaign-queue] DB error fetching contacts for segment ${campaign.segment_id}:`, error);
+      console.log(`[campaign-queue] Fetched ${data?.length ?? 0} contacts for campaign ${campaignId} (segment ${campaign.segment_id})`);
       return data ?? [];
     }
   );
 
   if (!contacts || contacts.length === 0) {
+    console.warn(`[campaign-queue] 0 contacts found for campaign ${campaignId} — marking as sent with 0.`);
     await db.from('campaigns').update({
       status:         'sent',
       total_contacts: 0,

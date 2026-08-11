@@ -36,10 +36,13 @@ export async function getCachedTemplate(templateId: string, fetcher: () => Promi
 export async function getCachedContacts(segmentId: string, tenantId: string, fetcher: () => Promise<any[]>) {
   const key = `contacts:${tenantId}:${segmentId}`;
   const cached = await redis.get<any[]>(key);
-  if (cached) return cached;
+  // Use strict null check — empty array [] is truthy but should NOT be a cache hit
+  // (empty result may have been cached from a bad query; always re-fetch if 0 cached)
+  if (cached !== null && Array.isArray(cached) && cached.length > 0) return cached;
   const fresh = await fetcher();
-  if (fresh) await redis.set(key, fresh, { ex: TTL.CONTACTS });
-  return fresh;
+  // Never cache empty results — prevents stale zero-contact lists blocking future campaigns
+  if (fresh && fresh.length > 0) await redis.set(key, fresh, { ex: TTL.CONTACTS });
+  return fresh ?? [];
 }
 
 export function invalidateWaConnection(tenantId: string) {
