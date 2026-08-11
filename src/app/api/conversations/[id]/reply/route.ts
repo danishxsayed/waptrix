@@ -211,6 +211,10 @@ export async function POST(
     };
     // Only include media_id if we have one (column may not exist in older schemas)
     if (mediaId) insertPayload.media_id = mediaId;
+    // Store template name so InboxPanel can render the full template (image + buttons)
+    if (type === 'template' && templateName) {
+      insertPayload.template_name = (templateName || '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    }
 
     const { data: savedMsg, error: insertErr } = await db
       .from('chat_messages')

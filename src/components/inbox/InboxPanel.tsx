@@ -29,6 +29,7 @@ interface ChatMessage {
   direction: "inbound" | "outbound";
   type: string;
   content: string;
+  template_name?: string;
   media_url?: string;
   media_id?: string;
   media_mime?: string;
@@ -84,7 +85,7 @@ function groupByDate(messages: ChatMessage[]) {
 }
 
 // ─── Template Bubble ──────────────────────────────────────────────────────────
-function TemplateBubble({ template }: { template: Template }) {
+function TemplateBubble({ template, resolvedBody }: { template: Template; resolvedBody?: string }) {
   const headerType = template.header_type || "NONE";
   const headerText = template.header_text || "";
   const isMediaHeader = ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType);
@@ -123,9 +124,9 @@ function TemplateBubble({ template }: { template: Template }) {
         </div>
       )}
 
-      {/* Body */}
+      {/* Body — use resolvedBody (with real contact values) if available, else raw template body */}
       <div className="px-3 py-2">
-        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{template.body}</p>
+        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{resolvedBody || template.body}</p>
       </div>
 
       {/* Footer */}
@@ -1918,11 +1919,27 @@ export default function InboxPanel({
 
                             {/* Template message bubble */}
                             {(msg.type === "template" || msg.content?.startsWith("[Template:")) && (() => {
-                              const nameMatch = msg.content?.match(/^\[Template:\s*(.+)\]$/);
-                              const tplName = nameMatch?.[1]?.trim();
-                              const tpl = templates.find(t => t.name === tplName);
+                              // Prefer the stored template_name (set by campaign & inbox send).
+                              // Fall back to parsing [Template: name] from old-style content.
+                              const storedName = msg.template_name;
+                              const legacyMatch = msg.content?.match(/^\[Template:\s*(.+)\]$/);
+                              const legacyName = legacyMatch?.[1]?.trim();
+                              const tplName = storedName || legacyName;
+
+                              // Case-insensitive lookup — template names are normalized to lowercase_underscore
+                              const normalize = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
+                              const tpl = templates.find(t =>
+                                t.name === tplName ||
+                                normalize(t.name) === normalize(tplName || '')
+                              );
+
+                              // resolvedBody: use msg.content only when it's NOT the [Template:] sentinel
+                              const resolvedBody = (!legacyMatch && msg.content && msg.type === 'template')
+                                ? msg.content
+                                : undefined;
+
                               return tpl ? (
-                                <TemplateBubble template={tpl} />
+                                <TemplateBubble template={tpl} resolvedBody={resolvedBody} />
                               ) : (
                                 <p className="text-sm leading-relaxed whitespace-pre-wrap break-words opacity-70 italic">
                                   {tplName ? `Template: ${tplName}` : msg.content}

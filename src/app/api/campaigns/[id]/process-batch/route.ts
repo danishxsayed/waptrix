@@ -290,6 +290,7 @@ export async function POST(
             meta_message_id: metaMsgId,
             type:            'template',
             content:         resolvedContent,
+            template_name:   templateName,
             status:          'sent',
             created_at:      now,
           });
