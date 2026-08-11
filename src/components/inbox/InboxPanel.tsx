@@ -84,6 +84,53 @@ function groupByDate(messages: ChatMessage[]) {
   return groups;
 }
 
+// ─── Read More Text ───────────────────────────────────────────────────────────
+const READ_MORE_LIMIT = 350; // chars — matches WhatsApp's ~4-5 line collapse
+
+function ReadMoreText({
+  text,
+  className = "",
+  noteStyle = false,
+}: {
+  text: string;
+  className?: string;
+  noteStyle?: boolean;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const isLong = text.length > READ_MORE_LIMIT;
+
+  const displayText = isLong && !expanded ? text.slice(0, READ_MORE_LIMIT) : text;
+  const btnColor = noteStyle ? "text-amber-300 hover:text-amber-100" : "text-blue-300 hover:text-blue-100";
+
+  return (
+    <p className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${className}`}>
+      {displayText}
+      {isLong && !expanded && (
+        <>
+          {"… "}
+          <button
+            onClick={() => setExpanded(true)}
+            className={`font-semibold underline underline-offset-2 ${btnColor} focus:outline-none`}
+          >
+            Read more
+          </button>
+        </>
+      )}
+      {isLong && expanded && (
+        <>
+          {" "}
+          <button
+            onClick={() => setExpanded(false)}
+            className={`font-semibold underline underline-offset-2 ${btnColor} focus:outline-none`}
+          >
+            Read less
+          </button>
+        </>
+      )}
+    </p>
+  );
+}
+
 // ─── Template Bubble ──────────────────────────────────────────────────────────
 function TemplateBubble({ template, resolvedBody }: { template: Template; resolvedBody?: string }) {
   const headerType = template.header_type || "NONE";
@@ -126,7 +173,7 @@ function TemplateBubble({ template, resolvedBody }: { template: Template; resolv
 
       {/* Body — use resolvedBody (with real contact values) if available, else raw template body */}
       <div className="px-3 py-2">
-        <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{resolvedBody || template.body}</p>
+        <ReadMoreText text={resolvedBody || template.body} />
       </div>
 
       {/* Footer */}
@@ -1830,7 +1877,7 @@ export default function InboxPanel({
                                   <StickyNote className="w-3 h-3 text-amber-400 flex-shrink-0" />
                                   <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Internal Note</span>
                                 </div>
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words text-amber-100">{msg.content}</p>
+                                <ReadMoreText text={msg.content} className="text-amber-100" noteStyle />
                                 <p className="text-[10px] text-amber-400/60 mt-1 text-right">{formatMsgTime(msg.created_at)}</p>
                               </div>
                             </div>
@@ -1959,9 +2006,7 @@ export default function InboxPanel({
                              msg.content !== "[button message]" &&
                              !msg.content?.startsWith("[Template:") &&
                              (msg.type === "text" || (msg.content && !["[image]","[video]","[audio]","[document]","[sticker]"].includes(msg.content))) && (
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">
-                                {msg.content}
-                              </p>
+                              <ReadMoreText text={msg.content} />
                             )}
 
                             <div
