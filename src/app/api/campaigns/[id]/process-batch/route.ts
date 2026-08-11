@@ -47,21 +47,27 @@ function normalizePhone(phone: string): string {
   return (phone || '').replace(/\D/g, '');
 }
 
-function buildComponents(template: any, variableMapping: Record<string, string>, contact: any): any[] {
+function buildComponents(
+  template: any,
+  variableMapping: Record<string, string>,
+  contact: any,
+  headerMediaId?: string | null
+): any[] {
   const components: any[] = [];
 
   // Header component — required for IMAGE / VIDEO / DOCUMENT templates
   if (template.header_type && template.header_text) {
     const headerType = template.header_type.toLowerCase(); // 'image' | 'video' | 'document'
     if (['image', 'video', 'document'].includes(headerType)) {
+      // Prefer pre-uploaded media_id (avoids 131053 Media upload errors).
+      // Fall back to link if no id available.
+      const mediaParam = headerMediaId
+        ? { type: headerType, [headerType]: { id: headerMediaId } }
+        : { type: headerType, [headerType]: { link: template.header_text } };
+
       components.push({
         type: 'header',
-        parameters: [
-          {
-            type: headerType,
-            [headerType]: { link: template.header_text },
-          },
-        ],
+        parameters: [mediaParam],
       });
     }
   }
@@ -116,11 +122,12 @@ export async function POST(
 
   // ── 2. Parse body ────────────────────────────────────────────
   let payload: {
-    campaignId:    string;
-    batchIndex:    number;
-    totalBatches:  number;
-    totalContacts: number;
-    contacts:      any[];
+    campaignId:     string;
+    batchIndex:     number;
+    totalBatches:   number;
+    totalContacts:  number;
+    contacts:       any[];
+    headerMediaId?: string;
   };
 
   try {
@@ -129,7 +136,7 @@ export async function POST(
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { batchIndex, totalBatches, totalContacts, contacts } = payload;
+  const { batchIndex, totalBatches, totalContacts, contacts, headerMediaId } = payload;
   const db = serviceDb();
 
   // ── 3. Load campaign (with Redis-cached WA connection + template) ──
@@ -174,8 +181,19 @@ export async function POST(
   const now             = new Date().toISOString();
   // Template name must be lowercase + underscores to match what was submitted to Meta
   const templateName    = template.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
-  // Use actual template body for conversation preview — not just a placeholder name
-  const messageContent  = (template.body || '').slice(0, 120) || `[Template: ${template.name}]`;
+  const templateBody    = template.body || '';
+
+  /** Resolve {{N}} placeholders in the template body with actual contact field values */
+  function resolveBody(contact: any): string {
+    const resolved = templateBody.replace(/\{\{(\d+)\}\}/g, (_: string, num: string) => {
+      const fieldName = variableMapping[num] || '';
+      if (fieldName && contact[fieldName] != null && String(contact[fieldName]).trim() !== '') {
+        return String(contact[fieldName]);
+      }
+      return contact.name || contact.phone || 'Customer';
+    });
+    return resolved || `[Template: ${template.name}]`;
+  }
 
   // ── 4. Idempotency — batch check for already-sent contacts ──
   // Single DB call instead of one per contact (much faster at scale)
@@ -205,7 +223,7 @@ export async function POST(
   let batchFailed = 0;
   const logInserts: any[]  = [];
   const msgInserts: any[]  = [];
-  const convUpdates: { id: string; name: string }[] = [];
+  const convUpdates: { id: string; name: string; lastMsg: string }[] = [];
 
   // Process contacts in parallel chunks
   for (let i = 0; i < pendingContacts.length; i += CONCURRENCY) {
@@ -218,7 +236,7 @@ export async function POST(
         // Rate limit: respect Meta's ~80 msg/sec cap
         await checkMetaRateLimit(waConnection.phone_number_id);
 
-        const runtimeComponents = buildComponents(template, variableMapping, contact);
+        const runtimeComponents = buildComponents(template, variableMapping, contact, headerMediaId);
         // Only include components if non-empty — Meta rejects explicit [] for simple templates
         const templateComponents = runtimeComponents.length > 0 ? runtimeComponents : undefined;
 
@@ -252,6 +270,8 @@ export async function POST(
         const response = await sendWithFallback(sendToken);
 
         const metaMsgId = response?.messages?.[0]?.id ?? null;
+        // Resolve {{N}} variables for this specific contact so inbox shows real names
+        const resolvedContent = resolveBody(contact);
 
         // Upsert conversation
         const { data: existingConv } = await db
@@ -262,14 +282,14 @@ export async function POST(
           .maybeSingle();
 
         if (existingConv) {
-          convUpdates.push({ id: existingConv.id, name: contact.name || normalizedPhone });
+          convUpdates.push({ id: existingConv.id, name: contact.name || normalizedPhone, lastMsg: resolvedContent });
           msgInserts.push({
             tenant_id:       campaign.tenant_id,
             conversation_id: existingConv.id,
             direction:       'outbound',
             meta_message_id: metaMsgId,
             type:            'template',
-            content:         messageContent,
+            content:         resolvedContent,
             status:          'sent',
             created_at:      now,
           });
@@ -280,7 +300,7 @@ export async function POST(
               tenant_id:       campaign.tenant_id,
               contact_phone:   normalizedPhone,
               contact_name:    contact.name || normalizedPhone,
-              last_message:    messageContent,
+              last_message:    resolvedContent,
               last_message_at: now,
               unread_count:    0,
               status:          'open',
@@ -295,7 +315,7 @@ export async function POST(
               direction:       'outbound',
               meta_message_id: metaMsgId,
               type:            'template',
-              content:         messageContent,
+              content:         resolvedContent,
               status:          'sent',
               created_at:      now,
             });
@@ -362,7 +382,7 @@ export async function POST(
     convUpdates.map((upd) =>
       db.from('conversations').update({
         contact_name:    upd.name,
-        last_message:    messageContent,
+        last_message:    upd.lastMsg,
         last_message_at: now,
       }).eq('id', upd.id)
     )
