@@ -85,7 +85,7 @@ function groupByDate(messages: ChatMessage[]) {
 }
 
 // ─── Read More Text ───────────────────────────────────────────────────────────
-const READ_MORE_LIMIT = 350; // chars — matches WhatsApp's ~4-5 line collapse
+const READ_MORE_LIMIT = 60; // chars
 
 function ReadMoreText({
   text,
