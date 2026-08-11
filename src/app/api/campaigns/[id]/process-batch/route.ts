@@ -409,12 +409,11 @@ export async function POST(
         const failedCount    = finalCampaign?.failed_count     ?? stats.failed;
         const deliveredCount = finalCampaign?.delivered_count  ?? 0;
         const readCount      = finalCampaign?.read_count       ?? 0;
-        const deliveryRate   = sentCount > 0
-          ? Number(((deliveredCount > 0 ? deliveredCount : sentCount) / (sentCount + failedCount) * 100).toFixed(1))
-          : 0;
-        const readRate       = sentCount > 0
-          ? Number((readCount / sentCount * 100).toFixed(1))
-          : 0;
+        // Note: deliveredCount / readCount will be 0 here in most cases —
+        // WhatsApp delivery receipts arrive via webhooks minutes after sending.
+        // The email shows only sent/failed; the dashboard shows live stats.
+        const deliveryRate   = 0; // populated by webhooks, see dashboard
+        const readRate       = 0; // populated by webhooks, see dashboard
 
         const appUrl         = process.env.NEXT_PUBLIC_APP_URL || 'https://app.waptrix.in';
         const completedAt    = new Date(now).toLocaleString('en-US', {

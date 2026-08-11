@@ -266,6 +266,7 @@ export default function DashboardPage() {
                   <div className="grid grid-cols-3 gap-2 mb-5">
                     {(["7d", "14d", "30d"] as Preset[]).map(p => (
                       <button
+                        type="button"
                         key={p}
                         onClick={() => applyPreset(p)}
                         className={`py-2 rounded-lg text-xs font-bold transition-colors ${
@@ -312,6 +313,7 @@ export default function DashboardPage() {
                   </div>
 
                   <button
+                    type="button"
                     onClick={applyCustom}
                     disabled={!pendingFrom || !pendingTo || pendingFrom > pendingTo}
                     className="w-full py-2 rounded-xl bg-jade text-background text-xs font-bold disabled:opacity-40 hover:bg-jade/90 transition-colors"
@@ -446,10 +448,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Close picker on outside click */}
-      {showPicker && (
-        <div className="fixed inset-0 z-40" onClick={() => setShowPicker(false)} />
-      )}
+      {/* Outside-click is handled by the mousedown listener in useEffect above */}
     </div>
   );
 }
