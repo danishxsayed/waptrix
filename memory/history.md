@@ -1,6 +1,10 @@
 # Implementation History
 
-## [2026-08-11] - Campaign Analytics Email Redesign & Dashboard Picker Refinement
+## [2026-08-11] - Campaign Analytics Email Redesign & WhatsApp Validation API Fallback
+- **WhatsApp Validation API Database Fallback**:
+  - Rewrote the `/api/contacts/check-whatsapp` API route in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/contacts/check-whatsapp/route.ts) to fall back dynamically. If the Meta API is unavailable or the user doesn't have Badged Partner BSP capability, it runs a database query filtering target phones against known non-WhatsApp numbers (`custom4 = 'not_on_whatsapp'`).
+  - Updated the route to return the resolution `source` (`'meta_api'` or `'db_check'`) alongside confirmation results.
+  - Refactored the bulk contact importer drawer in [page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/contacts/page.tsx) to read the validation `source`, showing a dedicated check-source badge ("Live Meta check" or "Database check") and updating the import/skip metrics dynamically without throwing unsupported warning banners.
 - **Campaign Analytics Email Redesign**:
   - Redesigned the campaign completion email template (`getCampaignAnalyticsEmail`) in [template.ts](file:///Users/danishsayed/Desktop/Waptrix/src/lib/email/template.ts) to feature a modern, clean light theme layout with detailed cards for total, sent, and failed contact metrics.
   - Added an explanatory card in the email template pointing users to the live dashboard for real-time delivery and read rates, which update via webhooks minutes after sending.

@@ -212,6 +212,7 @@ function CreateContactsDrawer({
     valid: string[];
     invalid: string[];
     unsupported: boolean;
+    source: 'meta_api' | 'db_check' | 'unknown';
     done: boolean;
   } | null>(null);
   const [isValidating, setIsValidating] = useState(false);
@@ -525,32 +526,24 @@ function CreateContactsDrawer({
     const BATCH = 50;
     const allValid: string[] = [];
     const allInvalid: string[] = [];
-    let unsupported = false;
+    let source: 'meta_api' | 'db_check' | 'unknown' = 'unknown';
 
     try {
       for (let i = 0; i < phones.length; i += BATCH) {
         const batch = phones.slice(i, i + BATCH);
         const res = await axios.post('/api/contacts/check-whatsapp', { phones: batch });
-        if (res.data.unsupported) {
-          unsupported = true;
-          break;
-        }
+        if (res.data.source) source = res.data.source;
         allValid.push(...(res.data.valid || []));
         allInvalid.push(...(res.data.invalid || []));
         // small delay between batches to respect rate limits
         if (i + BATCH < phones.length) await new Promise(r => setTimeout(r, 500));
       }
 
-      if (unsupported) {
-        // BSP API not available — skip validation, proceed with format-filtered list
-        setWaValidation({ valid: phones, invalid: [], unsupported: true, done: true });
-      } else {
-        // Filter parsedContacts to only valid WhatsApp numbers
-        const validSet = new Set(allValid);
-        const filteredContacts = parsedContacts.filter(c => validSet.has(c.phone));
-        setParsedContacts(filteredContacts);
-        setWaValidation({ valid: allValid, invalid: allInvalid, unsupported: false, done: true });
-      }
+      // Filter parsedContacts to only valid numbers
+      const validSet = new Set(allValid);
+      const filteredContacts = parsedContacts.filter(c => validSet.has(c.phone));
+      setParsedContacts(filteredContacts);
+      setWaValidation({ valid: allValid, invalid: allInvalid, unsupported: false, source, done: true });
       setUploadStep("validated");
     } catch (err: any) {
       setBulkError("WhatsApp validation failed: " + (err.response?.data?.error || err.message));
@@ -958,37 +951,39 @@ function CreateContactsDrawer({
                   {/* Validation results */}
                   {uploadStep === "validated" && waValidation && (
                     <div className="space-y-4">
-                      {waValidation.unsupported ? (
-                        <div className="p-4 bg-warning/10 border border-warning/20 rounded-xl text-xs text-warning flex items-start gap-2">
-                          <span className="text-base">⚠️</span>
-                          <div>
-                            <p className="font-bold">BSP contacts API not available yet</p>
-                            <p className="text-text-muted mt-0.5">Your account may need Badged Partner status. All format-valid numbers will be imported.</p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="p-4 bg-card border border-border rounded-2xl space-y-3">
+                      <div className="p-4 bg-card border border-border rounded-2xl space-y-3">
+                        <div className="flex items-center justify-between">
                           <p className="text-xs font-bold text-text-muted uppercase tracking-wider">Validation Results</p>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div className="bg-jade/10 border border-jade/20 rounded-xl p-3 text-center">
-                              <p className="text-2xl font-bold text-jade font-syne">{waValidation.valid.length}</p>
-                              <p className="text-[10px] text-jade font-bold uppercase tracking-wider mt-0.5">✅ On WhatsApp</p>
-                            </div>
-                            <div className="bg-danger/10 border border-danger/20 rounded-xl p-3 text-center">
-                              <p className="text-2xl font-bold text-danger font-syne">{waValidation.invalid.length}</p>
-                              <p className="text-[10px] text-danger font-bold uppercase tracking-wider mt-0.5">❌ Not on WhatsApp</p>
-                            </div>
-                          </div>
-                          {waValidation.invalid.length > 0 && (
-                            <p className="text-[10px] text-text-muted">
-                              {waValidation.invalid.length} number(s) removed from import list.
-                              {waValidation.invalid.length <= 5 && (
-                                <span className="block mt-0.5 font-mono">{waValidation.invalid.join(', ')}</span>
-                              )}
-                            </p>
+                          {waValidation.source === 'meta_api' ? (
+                            <span className="text-[10px] bg-jade/10 text-jade border border-jade/20 rounded-full px-2 py-0.5 font-bold">✓ Live Meta check</span>
+                          ) : (
+                            <span className="text-[10px] bg-surface text-text-muted border border-border rounded-full px-2 py-0.5 font-bold">📋 Database check</span>
                           )}
                         </div>
-                      )}
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="bg-jade/10 border border-jade/20 rounded-xl p-3 text-center">
+                            <p className="text-2xl font-bold text-jade font-syne">{waValidation.valid.length}</p>
+                            <p className="text-[10px] text-jade font-bold uppercase tracking-wider mt-0.5">✅ Will Import</p>
+                          </div>
+                          <div className="bg-danger/10 border border-danger/20 rounded-xl p-3 text-center">
+                            <p className="text-2xl font-bold text-danger font-syne">{waValidation.invalid.length}</p>
+                            <p className="text-[10px] text-danger font-bold uppercase tracking-wider mt-0.5">❌ Skipping</p>
+                          </div>
+                        </div>
+                        {waValidation.invalid.length > 0 && (
+                          <p className="text-[10px] text-text-muted">
+                            {waValidation.invalid.length} number(s) previously identified as not on WhatsApp — removed from import.
+                            {waValidation.invalid.length <= 5 && (
+                              <span className="block mt-0.5 font-mono">{waValidation.invalid.join(', ')}</span>
+                            )}
+                          </p>
+                        )}
+                        {waValidation.source !== 'meta_api' && waValidation.invalid.length === 0 && (
+                          <p className="text-[10px] text-text-muted">
+                            All numbers pass format validation. Any non-WhatsApp numbers will be auto-flagged when the first message is sent.
+                          </p>
+                        )}
+                      </div>
 
                       <div className="flex gap-3">
                         <button
