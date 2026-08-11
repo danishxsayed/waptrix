@@ -1,6 +1,9 @@
 # Implementation History
 
 ## [2026-08-11] - Campaign Analytics Email Redesign & WhatsApp Validation API Fallback
+- **Simplified Contacts Importer UX**:
+  - Simplified the bulk import drawer flow in [page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/contacts/page.tsx) by removing the explicit validation step from the primary import sequence. Users can now directly import all contacts passing client-side international format checks, with non-WhatsApp numbers dynamically flagged and filtered on send.
+  - Kept the legacy check-whatsapp validation endpoints and results panels in the client as a backend utility.
 - **WhatsApp Validation API Database Fallback & Multi-Token Check**:
   - Rewrote the `/api/contacts/check-whatsapp` API route in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/contacts/check-whatsapp/route.ts) to check multiple tokens sequentially (`META_SYSTEM_TOKEN` -> connection `access_token`), fallback-retrying on all validation failures (e.g. system token missing access to client's specific phone number - code 100) to check if the tenant's own OAuth credentials succeed.
   - If the Meta API is unavailable or returns an error across all tokens, it falls back to a database lookup against known invalid numbers (`custom4 = 'not_on_whatsapp'`). Returns detailed status variables including `apiAvailable`, the resolution `source` (`'meta_api'`, `'db_check'`, or `'unavailable'`), and the specific `metaError` if applicable.

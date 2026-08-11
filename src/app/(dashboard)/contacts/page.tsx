@@ -913,40 +913,34 @@ function CreateContactsDrawer({
 
                   {!isBulkLoading && uploadStep === "preview" && (
                     <div className="space-y-3">
-                      {/* Validate WhatsApp Numbers — primary action */}
+                      {/* Info note */}
+                      <div className="p-3 bg-jade/5 border border-jade/20 rounded-xl flex items-start gap-2">
+                        <WhatsAppIcon className="w-4 h-4 text-jade flex-shrink-0 mt-0.5" />
+                        <p className="text-[11px] text-text-muted leading-relaxed">
+                          <strong className="text-text-primary">Smart filtering active.</strong> Invalid formats are already removed. Any non-WhatsApp numbers are auto-detected and permanently blocked after the first send — they won't be messaged again.
+                        </p>
+                      </div>
+
+                      {/* Primary action */}
                       <button
                         type="button"
-                        onClick={handleValidateWhatsApp}
-                        disabled={isValidating}
-                        className="w-full py-3.5 flex items-center justify-center gap-2 text-sm font-bold rounded-xl bg-jade text-background hover:bg-jade/90 transition-colors shadow-[0_4px_20px_rgba(16,185,129,0.25)] disabled:opacity-50"
+                        onClick={handleBulkImportSubmit}
+                        className="w-full py-3.5 flex items-center justify-center gap-2 text-sm font-bold rounded-xl bg-jade text-background hover:bg-jade/90 transition-colors shadow-[0_4px_20px_rgba(16,185,129,0.25)]"
                       >
-                        <span className="text-base">✅</span>
-                        Validate WhatsApp Numbers ({parsedContacts.length})
+                        <Upload className="w-4 h-4" />
+                        Import {parsedContacts.length} Contacts
                       </button>
-                      <p className="text-[10px] text-text-muted text-center">
-                        Checks each number against WhatsApp via Meta BSP API — no messages sent
-                      </p>
-                      <div className="flex gap-3 pt-1">
-                        <button
-                          type="button"
-                          onClick={handleBulkImportSubmit}
-                          className="flex-1 btn-secondary py-3 flex items-center justify-center gap-2 text-xs font-bold"
-                        >
-                          <Upload className="w-3.5 h-3.5" />
-                          Skip validation &amp; import all
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => { setFile(null); setUploadStep("upload"); setParsedContacts([]); setPreview([]); setBulkError(""); setWaValidation(null); }}
-                          className="btn-secondary py-3 px-5 text-xs font-bold"
-                        >
-                          Cancel
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setFile(null); setUploadStep("upload"); setParsedContacts([]); setPreview([]); setBulkError(""); setWaValidation(null); }}
+                        className="w-full btn-secondary py-3 text-xs font-bold"
+                      >
+                        Cancel
+                      </button>
                     </div>
                   )}
 
-                  {/* Validation in progress */}
+                  {/* Legacy validation states — kept for if Meta API becomes available */}
                   {uploadStep === "validating" && (
                     <div className="p-5 bg-surface/50 border border-jade/20 rounded-2xl space-y-3 animate-in zoom-in-95">
                       <div className="flex items-center gap-2 text-jade text-sm font-bold">
@@ -957,56 +951,26 @@ function CreateContactsDrawer({
                     </div>
                   )}
 
-                  {/* Validation results */}
-                  {uploadStep === "validated" && waValidation && (
+                  {uploadStep === "validated" && waValidation && waValidation.apiAvailable && (
                     <div className="space-y-4">
-
-                      {/* API unavailable warning */}
-                      {!waValidation.apiAvailable && (
-                        <div className="p-4 bg-warning/10 border border-warning/30 rounded-xl text-xs flex items-start gap-2">
-                          <span className="text-base mt-0.5">⚠️</span>
-                          <div className="flex-1">
-                            <p className="font-bold text-warning">Real-time WhatsApp validation not available</p>
-                            {waValidation.metaError && (
-                              <p className="mt-1 font-mono text-[10px] bg-surface rounded px-2 py-1 text-text-muted">
-                                Meta error {waValidation.metaError.code}: {waValidation.metaError.message}
-                              </p>
-                            )}
-                            <p className="text-text-muted mt-1.5 leading-relaxed">
-                              Any non-WhatsApp numbers will be <strong className="text-text-primary">automatically detected and blocked</strong> when the first message is sent, and won't be messaged again.
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
                       <div className="p-4 bg-card border border-border rounded-2xl space-y-3">
                         <div className="flex items-center justify-between">
-                          <p className="text-xs font-bold text-text-muted uppercase tracking-wider">
-                            {waValidation.apiAvailable ? 'Validation Results' : 'Format Check Results'}
-                          </p>
-                          {waValidation.source === 'meta_api' ? (
-                            <span className="text-[10px] bg-jade/10 text-jade border border-jade/20 rounded-full px-2 py-0.5 font-bold">✓ Live Meta check</span>
-                          ) : waValidation.source === 'db_check' ? (
-                            <span className="text-[10px] bg-surface text-text-muted border border-border rounded-full px-2 py-0.5 font-bold">📋 Known invalids removed</span>
-                          ) : (
-                            <span className="text-[10px] bg-warning/10 text-warning border border-warning/20 rounded-full px-2 py-0.5 font-bold">⚠️ Format only</span>
-                          )}
+                          <p className="text-xs font-bold text-text-muted uppercase tracking-wider">Validation Results</p>
+                          <span className="text-[10px] bg-jade/10 text-jade border border-jade/20 rounded-full px-2 py-0.5 font-bold">✓ Live Meta check</span>
                         </div>
                         <div className="grid grid-cols-2 gap-3">
                           <div className="bg-jade/10 border border-jade/20 rounded-xl p-3 text-center">
-                            <p className="text-2xl font-bold text-jade font-syne">{waValidation.apiAvailable ? waValidation.valid.length : parsedContacts.length}</p>
-                            <p className="text-[10px] text-jade font-bold uppercase tracking-wider mt-0.5">
-                              {waValidation.apiAvailable ? '✅ On WhatsApp' : '✅ Valid Format'}
-                            </p>
+                            <p className="text-2xl font-bold text-jade font-syne">{waValidation.valid.length}</p>
+                            <p className="text-[10px] text-jade font-bold uppercase tracking-wider mt-0.5">✅ On WhatsApp</p>
                           </div>
                           <div className="bg-danger/10 border border-danger/20 rounded-xl p-3 text-center">
                             <p className="text-2xl font-bold text-danger font-syne">{waValidation.invalid.length}</p>
-                            <p className="text-[10px] text-danger font-bold uppercase tracking-wider mt-0.5">❌ Skipping</p>
+                            <p className="text-[10px] text-danger font-bold uppercase tracking-wider mt-0.5">❌ Not on WhatsApp</p>
                           </div>
                         </div>
                         {waValidation.invalid.length > 0 && (
                           <p className="text-[10px] text-text-muted">
-                            {waValidation.invalid.length} number(s) {waValidation.source === 'meta_api' ? 'confirmed not on WhatsApp' : 'previously identified as not on WhatsApp'} — removed from import.
+                            {waValidation.invalid.length} number(s) confirmed not on WhatsApp — removed from import.
                             {waValidation.invalid.length <= 5 && (
                               <span className="block mt-0.5 font-mono">{waValidation.invalid.join(', ')}</span>
                             )}
