@@ -177,7 +177,11 @@ export async function PATCH(request: Request) {
 
     const updatePayload: any = {};
     if (segment_id !== undefined) updatePayload.segment_id = segment_id;
-    if (opted_in !== undefined) updatePayload.opted_in = opted_in;
+    if (opted_in !== undefined) {
+      updatePayload.opted_in = opted_in;
+      // Keep opted_out_at in sync: set timestamp when opting out, clear when opting in
+      updatePayload.opted_out_at = opted_in === false ? new Date().toISOString() : null;
+    }
 
     const { error } = await serviceClient
       .from('contacts')

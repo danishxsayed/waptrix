@@ -6,6 +6,10 @@
   - Modified the campaign enqueuing worker query in [campaign-queue.ts](file:///Users/danishsayed/Desktop/Waptrix/src/lib/campaign-queue.ts) to filter using `.is('opted_out_at', null)` instead of `.eq('opted_in', true)`. This expands campaigns to include contacts who haven't explicitly opted out (i.e. those with `opted_in = true` or `null`).
   - Adjusted the batch dispatcher in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/campaigns/[id]/process-batch/route.ts) to skip contacts only if they are explicitly opted out (non-null `opted_out_at`) or confirmed as not on WhatsApp (`custom4 = 'not_on_whatsapp'`).
   - Fixed idempotency counting statistics in the campaign dispatcher, initializing sent counts to `alreadySentCount` instead of `skippedCount`.
+  - Updated the contact `PATCH` route in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/contacts/route.ts) to keep `opted_out_at` in sync with `opted_in` changes, populating the current timestamp when opting out and clearing it when opting in.
+  - Redesigned the contacts table status badges in [page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/contacts/page.tsx) to show "Active" (for contacts with null `opted_out_at`) and "Opted-out" (for contacts with non-null `opted_out_at`).
+  - Added a self-healing utility banner at the top of the contacts table to identify and fix legacy contacts incorrectly default-flagged as `opted_in = false` on import, patching them to `true` (Active) with a click.
+  - Adjusted the Opted-in Rate calculation card to reflect active contacts (`!c.opted_out_at`) instead of `opted_in === true`.
 - **Friendly Meta Template Submission Error Translations**:
   - Added user-friendly English explanations in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/templates/[id]/submit/route.ts) for common Meta API template submission failures: duplicate names (subcode 2388024), invalid words (subcode 2388003), utility content rejections (subcode 2388006), account template limits (subcode 2388007), and expired OAuth tokens (code 190).
 - **Simplified Contacts Importer UX**:

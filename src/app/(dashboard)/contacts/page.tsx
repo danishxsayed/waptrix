@@ -2053,8 +2053,29 @@ export default function ContactsPage() {
     }
   };
 
+  // Fix contacts that were imported with the incorrect opted_in=false default
+  // (they have opted_in=false but no opted_out_at, meaning they never actually opted out)
+  const [isFixingOptedIn, setIsFixingOptedIn] = useState(false);
+  const handleFixOptedInContacts = async () => {
+    const toFix = contacts.filter(c => c.opted_in === false && !c.opted_out_at);
+    if (toFix.length === 0) return;
+    setIsFixingOptedIn(true);
+    try {
+      await axios.patch("/api/contacts", {
+        ids: toFix.map(c => c.id),
+        opted_in: true,
+      });
+      showToast(`Fixed ${toFix.length} contacts — they are now active and will receive campaigns.`);
+      fetchContacts();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || "Fix failed.", "error");
+    } finally {
+      setIsFixingOptedIn(false);
+    }
+  };
+
   const handleSelectRowToggle = (id: string) => {
-    setSelectedIds(prev => 
+    setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
     );
   };
@@ -2344,7 +2365,7 @@ export default function ContactsPage() {
           <div className="space-y-1">
             <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Opted-in Rate</p>
             <p className="text-2xl font-bold text-jade tracking-tight font-syne">
-              {contacts.length ? Math.round((contacts.filter(c => c.opted_in).length / contacts.length) * 100) : 0}%
+              {contacts.length ? Math.round((contacts.filter(c => !c.opted_out_at).length / contacts.length) * 100) : 0}%
             </p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-jade/10 flex items-center justify-center text-jade border border-jade/20 group-hover:scale-110 transition-transform">
@@ -2454,6 +2475,26 @@ export default function ContactsPage() {
                 <button onClick={fetchContacts} className="btn-primary text-sm">Retry</button>
               </div>
             ) : (
+              <>
+                {/* Banner: fix contacts incorrectly marked as opted-out due to import default bug */}
+                {contacts.filter(c => c.opted_in === false && !c.opted_out_at).length > 0 && (
+                  <div className="mb-4 flex items-center justify-between gap-4 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                      <p className="text-xs text-amber-300">
+                        <span className="font-bold">{contacts.filter(c => c.opted_in === false && !c.opted_out_at).length} contacts</span> were imported with an incorrect status and won't appear as opted-out correctly. Click Fix to restore them.
+                      </p>
+                    </div>
+                    <button
+                      onClick={handleFixOptedInContacts}
+                      disabled={isFixingOptedIn}
+                      className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-bold text-amber-300 disabled:opacity-40 transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      {isFixingOptedIn ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
+                      Fix All
+                    </button>
+                  </div>
+                )}
               <div className="overflow-x-auto rounded-2xl border border-border shadow-[0_4px_30px_rgba(0,0,0,0.2)] bg-card/25 backdrop-blur-sm">
                 <table className="w-full text-left">
                   <thead>
@@ -2626,18 +2667,18 @@ export default function ContactsPage() {
                                 <span className="text-sm leading-none">⚠️</span>
                                 Not on WhatsApp
                               </span>
-                            ) : contact.opted_in ? (
+                            ) : contact.opted_out_at ? (
+                              <span className="inline-flex items-center gap-1.5 bg-danger/10 text-danger border border-danger/25 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-[0_0_15px_rgba(244,63,94,0.05)]">
+                                <span className="h-1.5 w-1.5 rounded-full bg-danger"></span>
+                                Opted-out
+                              </span>
+                            ) : (
                               <span className="inline-flex items-center gap-1.5 bg-jade/10 text-jade border border-jade/25 text-[10px] font-bold uppercase tracking-wider py-1 px-2.5 rounded-full shadow-[0_0_15px_rgba(16,185,129,0.1)]">
                                 <span className="relative flex h-1.5 w-1.5">
                                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-jade opacity-75"></span>
                                   <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-jade"></span>
                                 </span>
-                                Opted-in
-                              </span>
-                            ) : (
-                              <span className="inline-flex items-center gap-1.5 bg-danger/10 text-danger border border-danger/25 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-[0_0_15px_rgba(244,63,94,0.05)]">
-                                <span className="h-1.5 w-1.5 rounded-full bg-danger"></span>
-                                Opted-out
+                                Active
                               </span>
                             )}
                           </td>
@@ -2674,6 +2715,7 @@ export default function ContactsPage() {
                   </tbody>
                 </table>
               </div>
+              </>
             )}
 
             {/* Pagination controls */}
