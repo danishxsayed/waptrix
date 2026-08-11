@@ -112,12 +112,12 @@ export async function POST(req: Request) {
           type: metaData.error?.type,
         };
         console.warn(
-          `[check-whatsapp] Meta API error — code ${lastMetaError.code} (${lastMetaError.type}): ${lastMetaError.message}`
+          `[check-whatsapp] Token failed — code ${lastMetaError.code} (${lastMetaError.type}): ${lastMetaError.message}`
         );
-
-        // Token-expired/revoked (190) → try next token
-        // All other errors: problem isn't the token, no point retrying
-        if (lastMetaError.code !== 190) break;
+        // Always try the next token — error 100 means THIS token can't see
+        // the phone number (system user not assigned to client's WABA),
+        // but the client's own access_token might still work.
+        // continue to next token in loop
 
       } catch (fetchErr: any) {
         console.warn('[check-whatsapp] Fetch error:', fetchErr.message);
