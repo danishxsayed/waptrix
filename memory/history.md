@@ -1,10 +1,12 @@
 # Implementation History
 
 ## [2026-08-11] - Campaign Analytics Email Redesign & WhatsApp Validation API Fallback
-- **WhatsApp Validation API Database Fallback**:
-  - Rewrote the `/api/contacts/check-whatsapp` API route in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/contacts/check-whatsapp/route.ts) to fall back dynamically. If the Meta API is unavailable or the user doesn't have Badged Partner BSP capability, it runs a database query filtering target phones against known non-WhatsApp numbers (`custom4 = 'not_on_whatsapp'`).
-  - Updated the route to return the resolution `source` (`'meta_api'` or `'db_check'`) alongside confirmation results.
-  - Refactored the bulk contact importer drawer in [page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/contacts/page.tsx) to read the validation `source`, showing a dedicated check-source badge ("Live Meta check" or "Database check") and updating the import/skip metrics dynamically without throwing unsupported warning banners.
+- **WhatsApp Validation API Database Fallback & Multi-Token Check**:
+  - Rewrote the `/api/contacts/check-whatsapp` API route in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/contacts/check-whatsapp/route.ts) to check multiple tokens sequentially (`META_SYSTEM_TOKEN` -> connection `access_token`), gracefully handling expired or invalid credentials (error 190) by proceeding to the next credential.
+  - If the Meta API is unavailable or returns an error, it falls back to a database lookup against known invalid numbers (`custom4 = 'not_on_whatsapp'`). Returns detailed status variables including `apiAvailable`, the resolution `source` (`'meta_api'`, `'db_check'`, or `'unavailable'`), and the specific `metaError` if applicable.
+  - Refactored the bulk contact importer drawer in [page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/contacts/page.tsx) to read the validation source. If real-time check fails (`apiAvailable = false`), the importer imports all contacts passing format validation, shows a warning box explaining the failure along with the specific Meta API error code, and displays the correct count stats.
+- **Campaign Send Filtering for Known Non-WhatsApp Recipients**:
+  - Modified the campaign batch processing route in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/campaigns/[id]/process-batch/route.ts) to filter out recipients flagged as `custom4 === 'not_on_whatsapp'`, preventing unnecessary Cloud API requests and messaging costs.
 - **Campaign Analytics Email Redesign**:
   - Redesigned the campaign completion email template (`getCampaignAnalyticsEmail`) in [template.ts](file:///Users/danishsayed/Desktop/Waptrix/src/lib/email/template.ts) to feature a modern, clean light theme layout with detailed cards for total, sent, and failed contact metrics.
   - Added an explanatory card in the email template pointing users to the live dashboard for real-time delivery and read rates, which update via webhooks minutes after sending.

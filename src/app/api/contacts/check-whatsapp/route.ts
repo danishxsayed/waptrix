@@ -8,21 +8,18 @@ import { NextResponse } from 'next/server';
 /**
  * POST /api/contacts/check-whatsapp
  *
- * Strategy (in order):
+ * Checks whether phone numbers are registered on WhatsApp using Meta's
+ * contacts validation endpoint. Tries tokens in order:
+ *   1. META_SYSTEM_TOKEN (System User token — best permissions)
+ *   2. conn.access_token (tenant OAuth token — works if app has whatsapp_business_messaging)
  *
- * 1. Try Meta BSP contacts check endpoint (Cloud API).
- *    Requires a System User token in META_SYSTEM_TOKEN.
- *    If the account has this capability, we get instant results.
- *
- * 2. If Meta API is unavailable / returns an error, fall back to our
- *    own database: contacts already flagged as `custom4 = 'not_on_whatsapp'`
- *    (populated by the 131026 webhook handler) are "known invalid".
- *    All other numbers are treated as valid — they'll be re-checked
- *    automatically when messages are sent.
+ * If both fail, returns:
+ *   { valid: [], invalid: [], apiAvailable: false }
+ * so the UI can warn the user clearly instead of silently passing all numbers.
  *
  * Body:  { phones: string[] }   — E.164 numbers (max 100 per call)
- * Returns: { valid: string[], invalid: string[], unsupported: boolean }
- *   - unsupported is now always false — we always return a useful answer.
+ * Returns:
+ *   { valid, invalid, apiAvailable: boolean, source: 'meta_api' | 'db_check' | 'unavailable' }
  */
 export async function POST(req: Request) {
   try {
@@ -54,28 +51,32 @@ export async function POST(req: Request) {
     const phones: string[] = (body.phones || []).slice(0, 100);
 
     if (phones.length === 0) {
-      return NextResponse.json({ valid: [], invalid: [], unsupported: false });
+      return NextResponse.json({ valid: [], invalid: [], apiAvailable: true, source: 'meta_api' });
     }
 
-    // ── 1. Attempt Meta BSP contacts check ──────────────────────────────────
-    // Requires META_SYSTEM_TOKEN — a permanent System User Access Token
-    // with whatsapp_business_messaging permission.
-    const systemToken = process.env.META_SYSTEM_TOKEN;
     const phoneNumberId = conn.phone_number_id;
 
-    if (systemToken) {
+    // ── 1. Attempt Meta BSP contacts check (try multiple tokens) ────────────
+    // Token priority: System User token (permanent, best) → OAuth user token
+    const tokens: string[] = [];
+    if (process.env.META_SYSTEM_TOKEN) tokens.push(process.env.META_SYSTEM_TOKEN);
+    if (conn.access_token) tokens.push(conn.access_token);
+
+    let lastMetaError: { code: number; message: string; type?: string } | null = null;
+
+    for (const token of tokens) {
       try {
         const metaRes = await fetch(
           `https://graph.facebook.com/v20.0/${phoneNumberId}/contacts`,
           {
             method: 'POST',
             headers: {
-              Authorization: `Bearer ${systemToken}`,
+              Authorization: `Bearer ${token}`,
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
               blocking: 'wait',
-              contacts: phones,       // E.164 format e.g. +919876543210
+              contacts: phones,        // E.164 format: +91XXXXXXXXXX
               force_check: false,
             }),
           }
@@ -84,39 +85,49 @@ export async function POST(req: Request) {
         const metaData = await metaRes.json();
 
         if (!metaData.error) {
-          // Parse results
+          // ✅ Meta API worked — parse results
           const valid: string[] = [];
           const invalid: string[] = [];
+
           for (const c of metaData.contacts ?? []) {
             if (c.status === 'valid') valid.push(c.input);
             else invalid.push(c.input);
           }
-          // Any phone not returned → treat as valid (unknown)
+
+          // Phones not in response → treat as valid (unknown status)
           const returned = new Set([...valid, ...invalid]);
           for (const p of phones) {
             if (!returned.has(p)) valid.push(p);
           }
-          console.log(`[check-whatsapp] Meta API: ${valid.length} valid, ${invalid.length} invalid`);
-          return NextResponse.json({ valid, invalid, unsupported: false, source: 'meta_api' });
+
+          console.log(
+            `[check-whatsapp] Meta API success: ${valid.length} valid, ${invalid.length} invalid`
+          );
+          return NextResponse.json({ valid, invalid, apiAvailable: true, source: 'meta_api' });
         }
 
-        // Meta returned an error — log it and fall through to DB fallback
+        lastMetaError = {
+          code: metaData.error?.code,
+          message: metaData.error?.message ?? 'Unknown error',
+          type: metaData.error?.type,
+        };
         console.warn(
-          `[check-whatsapp] Meta API error (code ${metaData.error?.code}): ${metaData.error?.message}`
+          `[check-whatsapp] Meta API error — code ${lastMetaError.code} (${lastMetaError.type}): ${lastMetaError.message}`
         );
-      } catch (metaErr: any) {
-        console.warn('[check-whatsapp] Meta API fetch failed:', metaErr.message);
+
+        // Token-expired/revoked (190) → try next token
+        // All other errors: problem isn't the token, no point retrying
+        if (lastMetaError.code !== 190) break;
+
+      } catch (fetchErr: any) {
+        console.warn('[check-whatsapp] Fetch error:', fetchErr.message);
+        lastMetaError = { code: 0, message: fetchErr.message };
       }
-    } else {
-      console.info('[check-whatsapp] META_SYSTEM_TOKEN not set — using DB fallback.');
     }
 
-    // ── 2. DB fallback: check our known-invalid set ──────────────────────────
-    // Contacts marked custom4 = 'not_on_whatsapp' by the 131026 webhook handler
-    // are definitively not on WhatsApp. All other numbers are treated as valid
-    // and will be re-checked automatically when the first message is sent.
-
-    // Normalise phone list to both +91... and 91... variants so DB lookup works
+    // ── 2. Meta API unavailable — fall back to DB of known-invalid numbers ──
+    // Contacts previously identified as not_on_whatsapp (via 131026 webhook)
+    // are in our DB. All other numbers are unknown — cannot validate without API.
     const allVariants: string[] = [];
     for (const p of phones) {
       allVariants.push(p);
@@ -131,26 +142,35 @@ export async function POST(req: Request) {
       .eq('custom4', 'not_on_whatsapp')
       .in('phone', allVariants);
 
-    const invalidPhones = new Set<string>();
+    const invalidPhoneSet = new Set<string>();
     for (const row of knownInvalid ?? []) {
-      // Normalise to E.164 with +
       const norm = row.phone.startsWith('+') ? row.phone : `+${row.phone}`;
-      invalidPhones.add(norm);
+      invalidPhoneSet.add(norm);
     }
 
-    const valid: string[] = [];
-    const invalid: string[] = [];
+    const dbValid: string[]   = [];
+    const dbInvalid: string[] = [];
     for (const p of phones) {
       const norm = p.startsWith('+') ? p : `+${p}`;
-      if (invalidPhones.has(norm)) invalid.push(p);
-      else valid.push(p);
+      if (invalidPhoneSet.has(norm)) dbInvalid.push(p);
+      else dbValid.push(p);
     }
 
+    const hasKnownInvalid = dbInvalid.length > 0;
     console.log(
-      `[check-whatsapp] DB fallback: ${valid.length} valid, ${invalid.length} known-invalid`
+      `[check-whatsapp] DB fallback: ${dbValid.length} valid, ${dbInvalid.length} known-invalid`
     );
-    // unsupported: false — we always give a useful answer (even if approximate)
-    return NextResponse.json({ valid, invalid, unsupported: false, source: 'db_check' });
+
+    // apiAvailable: false signals the UI to warn the user that real-time
+    // validation didn't run — only previously-identified invalids were caught.
+    return NextResponse.json({
+      valid: dbValid,
+      invalid: dbInvalid,
+      apiAvailable: false,
+      source: hasKnownInvalid ? 'db_check' : 'unavailable',
+      // Expose the Meta error so the UI can show it for debugging
+      metaError: lastMetaError,
+    });
 
   } catch (err: any) {
     console.error('[check-whatsapp] Error:', err.message);

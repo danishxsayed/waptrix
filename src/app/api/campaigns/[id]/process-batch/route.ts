@@ -188,9 +188,12 @@ export async function POST(
 
   const alreadySentIds = new Set((existingLogs || []).map((l: any) => l.contact_id));
 
-  // Also skip opted-out contacts (opted_in === false) — never send to them
+  // Skip: already sent (idempotency), opted-out, or confirmed not on WhatsApp
   const pendingContacts = contacts.filter(
-    (c: any) => !alreadySentIds.has(c.id) && c.opted_in !== false
+    (c: any) =>
+      !alreadySentIds.has(c.id) &&
+      c.opted_in !== false &&
+      c.custom4 !== 'not_on_whatsapp'
   );
   const skippedCount = contacts.length - pendingContacts.length; // includes opted-out + already-sent
 
