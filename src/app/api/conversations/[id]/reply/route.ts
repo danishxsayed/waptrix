@@ -117,10 +117,10 @@ export async function POST(
         type:              'template',
         template:          tmplBody,
       };
-      // Look up the actual template body for a meaningful conversation preview
+      // Look up the actual template body — store the FULL body so inbox can display it
       try {
         const { data: tmpl } = await db.from('templates').select('body').eq('tenant_id', tenantId).ilike('name', normalizedTemplateName).maybeSingle();
-        storedContent = tmpl?.body ? tmpl.body.slice(0, 120) : `[Template: ${normalizedTemplateName}]`;
+        storedContent = tmpl?.body || `[Template: ${normalizedTemplateName}]`;
       } catch (_) {
         storedContent = `[Template: ${normalizedTemplateName}]`;
       }

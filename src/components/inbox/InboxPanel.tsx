@@ -1975,13 +1975,27 @@ export default function InboxPanel({
 
                               // Case-insensitive lookup — template names are normalized to lowercase_underscore
                               const normalize = (s: string) => (s || '').toLowerCase().replace(/[^a-z0-9_]/g, '_');
-                              const tpl = templates.find(t =>
+                              let tpl = templates.find(t =>
                                 t.name === tplName ||
                                 normalize(t.name) === normalize(tplName || '')
                               );
 
-                              // resolvedBody: use msg.content only when it's NOT the [Template:] sentinel
-                              const resolvedBody = (!legacyMatch && msg.content && msg.type === 'template')
+                              // Fallback for old messages that have no template_name stored:
+                              // match by body prefix (ignoring {{N}} variables), first 40 chars
+                              if (!tpl && msg.content && !legacyMatch) {
+                                const stripVars = (s: string) => (s || '').replace(/\{\{\d+\}\}/g, '').trim();
+                                const contentPrefix = stripVars(msg.content).slice(0, 40).toLowerCase();
+                                tpl = templates.find(t =>
+                                  contentPrefix.length > 10 &&
+                                  stripVars(t.body).slice(0, 40).toLowerCase() === contentPrefix
+                                );
+                              }
+
+                              // resolvedBody: use msg.content when it's a resolved body (no raw {{N}}).
+                              // If content still has {{N}} (old message), let TemplateBubble show the
+                              // template's own body field instead (better than showing raw variables).
+                              const hasUnresolvedVars = /\{\{\d+\}\}/.test(msg.content || '');
+                              const resolvedBody = (!legacyMatch && msg.content && msg.type === 'template' && !hasUnresolvedVars)
                                 ? msg.content
                                 : undefined;
 
