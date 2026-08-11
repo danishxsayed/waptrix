@@ -427,7 +427,7 @@ function CreateContactsDrawer({
 
       const opted_in = optedInText
         ? !(optedInText === 'no' || optedInText === 'false' || optedInText === '0' || optedInText === 'optout')
-        : false;  // default to false — only mark opted-in if CSV explicitly says so
+        : null;   // default to null — not explicitly opted in or out; campaigns will include them
 
       return {
         name: nameVal || "Unnamed Contact",

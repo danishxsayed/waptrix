@@ -188,19 +188,21 @@ export async function POST(
 
   const alreadySentIds = new Set((existingLogs || []).map((l: any) => l.contact_id));
 
-  // Skip: already sent (idempotency), opted-out, or confirmed not on WhatsApp
+  // Idempotency: contacts already sent in a prior attempt (QStash retry) count as sent
+  const alreadySentCount = contacts.filter((c: any) => alreadySentIds.has(c.id)).length;
+
+  // Skip: already sent (idempotency), explicitly opted-out (STOP command), or confirmed not on WhatsApp
   const pendingContacts = contacts.filter(
     (c: any) =>
       !alreadySentIds.has(c.id) &&
-      c.opted_in !== false &&
+      !c.opted_out_at &&
       c.custom4 !== 'not_on_whatsapp'
   );
-  const skippedCount = contacts.length - pendingContacts.length; // includes opted-out + already-sent
 
   // ── 5. Send all pending contacts in parallel (CONCURRENCY = 20) ──
   // 20x faster than sequential — each slot does: rate-limit → Meta API → conv upsert
   const CONCURRENCY = 20;
-  let batchSent   = skippedCount; // already-sent contacts count as sent (idempotency)
+  let batchSent   = alreadySentCount; // only already-sent contacts (idempotency) count as sent
   let batchFailed = 0;
   const logInserts: any[]  = [];
   const msgInserts: any[]  = [];
@@ -236,9 +238,9 @@ export async function POST(
             );
           } catch (err: any) {
             const errCode = err?.response?.data?.error?.code;
-            // Error 200 = permissions; 190 = token expired/invalid
+            // Error 200 = permissions; 190 = token expired/invalid; 100 = system user not assigned to WABA
             // If we were using the system token, retry with the tenant's own token
-            if (!isRetry && systemToken && token === systemToken && (errCode === 200 || errCode === 190)) {
+            if (!isRetry && systemToken && token === systemToken && (errCode === 200 || errCode === 190 || errCode === 100)) {
               console.warn(`[process-batch] System token failed (code ${errCode}) for ${normalizedPhone}, retrying with tenant token`);
               // Invalidate the cached WA connection so the next batch doesn't reuse a bad token
               await invalidateWaConnection(campaign.tenant_id);

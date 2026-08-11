@@ -94,7 +94,7 @@ export async function POST(request: Request) {
         custom1: custom1 || null,
         custom2: custom2 || null,
         custom3: custom3 || null,
-        opted_in: opted_in !== undefined ? opted_in : false
+        opted_in: opted_in !== undefined ? opted_in : null
       })
       .select()
       .single();

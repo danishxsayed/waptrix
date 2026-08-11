@@ -1,6 +1,13 @@
 # Implementation History
 
 ## [2026-08-11] - Campaign Analytics Email Redesign & WhatsApp Validation API Fallback
+- **Opt-in Status Defaulting & Campaign Audience Expansion**:
+  - Defaulted contact opt-in status (`opted_in`) to `null` (instead of `false`) during manual contact creations in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/contacts/route.ts) and CSV imports in [page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/contacts/page.tsx).
+  - Modified the campaign enqueuing worker query in [campaign-queue.ts](file:///Users/danishsayed/Desktop/Waptrix/src/lib/campaign-queue.ts) to filter using `.is('opted_out_at', null)` instead of `.eq('opted_in', true)`. This expands campaigns to include contacts who haven't explicitly opted out (i.e. those with `opted_in = true` or `null`).
+  - Adjusted the batch dispatcher in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/campaigns/[id]/process-batch/route.ts) to skip contacts only if they are explicitly opted out (non-null `opted_out_at`) or confirmed as not on WhatsApp (`custom4 = 'not_on_whatsapp'`).
+  - Fixed idempotency counting statistics in the campaign dispatcher, initializing sent counts to `alreadySentCount` instead of `skippedCount`.
+- **Friendly Meta Template Submission Error Translations**:
+  - Added user-friendly English explanations in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/templates/[id]/submit/route.ts) for common Meta API template submission failures: duplicate names (subcode 2388024), invalid words (subcode 2388003), utility content rejections (subcode 2388006), account template limits (subcode 2388007), and expired OAuth tokens (code 190).
 - **Simplified Contacts Importer UX**:
   - Simplified the bulk import drawer flow in [page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/contacts/page.tsx) by removing the explicit validation step from the primary import sequence. Users can now directly import all contacts passing client-side international format checks, with non-WhatsApp numbers dynamically flagged and filtered on send.
   - Kept the legacy check-whatsapp validation endpoints and results panels in the client as a backend utility.
@@ -10,6 +17,7 @@
   - Refactored the bulk contact importer drawer in [page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/contacts/page.tsx) to read the validation source. If real-time check fails (`apiAvailable = false`), the importer imports all contacts passing format validation, shows a warning box explaining the failure along with the specific Meta API error code, and displays the correct count stats.
 - **Campaign Send Filtering for Known Non-WhatsApp Recipients**:
   - Modified the campaign batch processing route in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/campaigns/[id]/process-batch/route.ts) to filter out recipients flagged as `custom4 === 'not_on_whatsapp'`, preventing unnecessary Cloud API requests and messaging costs.
+  - Added error code `100` (system user not assigned to WABA) to token retry fallback triggers in the batch dispatcher, retrying with the tenant's token.
 - **Campaign Analytics Email Redesign**:
   - Redesigned the campaign completion email template (`getCampaignAnalyticsEmail`) in [template.ts](file:///Users/danishsayed/Desktop/Waptrix/src/lib/email/template.ts) to feature a modern, clean light theme layout with detailed cards for total, sent, and failed contact metrics.
   - Added an explanatory card in the email template pointing users to the live dashboard for real-time delivery and read rates, which update via webhooks minutes after sending.

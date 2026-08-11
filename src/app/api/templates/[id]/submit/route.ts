@@ -283,9 +283,27 @@ export async function POST(
   } catch (err: any) {
     console.error('Submit template error:', JSON.stringify(err.response?.data || err.message, null, 2));
     const metaError = err.response?.data?.error;
-    const errorMsg = metaError
-      ? `Meta error: ${metaError.message}${metaError.error_user_msg ? ` — ${metaError.error_user_msg}` : ''}${metaError.error_subcode ? ` (subcode: ${metaError.error_subcode})` : ''}`
-      : err.message || 'Internal server error';
+    const subcode = metaError?.error_subcode;
+
+    // Translate known Meta subcodes into plain English
+    let friendlyError: string | null = null;
+    if (subcode === 2388024 || (metaError?.message || '').toLowerCase().includes('already') && (metaError?.message || '').toLowerCase().includes('content')) {
+      friendlyError = 'A template with this name already exists in your WhatsApp account. Please use a different template name and try again.';
+    } else if (subcode === 2388003) {
+      friendlyError = 'This template name contains reserved or invalid words. Please choose a different name.';
+    } else if (subcode === 2388006) {
+      friendlyError = 'Template content was rejected — it may contain promotional language not allowed in Utility or Authentication templates. Try using the Marketing category instead.';
+    } else if (subcode === 2388007) {
+      friendlyError = 'You have reached the template limit for your WhatsApp account. Delete unused templates before creating new ones.';
+    } else if (metaError?.code === 190) {
+      friendlyError = 'Your WhatsApp connection token has expired. Please reconnect your WhatsApp account in Settings.';
+    }
+
+    const errorMsg = friendlyError
+      || (metaError
+        ? `${metaError.error_user_msg || metaError.message}`
+        : err.message || 'Failed to submit template. Please try again.');
+
     return NextResponse.json({ error: errorMsg, metaError: metaError || null }, { status: 500 });
   }
 }
