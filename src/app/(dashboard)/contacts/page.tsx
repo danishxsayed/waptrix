@@ -2365,7 +2365,7 @@ export default function ContactsPage() {
           <div className="space-y-1">
             <p className="text-[10px] font-bold text-text-muted uppercase tracking-wider">Opted-in Rate</p>
             <p className="text-2xl font-bold text-jade tracking-tight font-syne">
-              {contacts.length ? Math.round((contacts.filter(c => !c.opted_out_at).length / contacts.length) * 100) : 0}%
+              {contacts.length ? Math.round((contacts.filter(c => c.opted_in !== false).length / contacts.length) * 100) : 0}%
             </p>
           </div>
           <div className="w-10 h-10 rounded-xl bg-jade/10 flex items-center justify-center text-jade border border-jade/20 group-hover:scale-110 transition-transform">
@@ -2476,25 +2476,6 @@ export default function ContactsPage() {
               </div>
             ) : (
               <>
-                {/* Banner: fix contacts incorrectly marked as opted-out due to import default bug */}
-                {contacts.filter(c => c.opted_in === false && !c.opted_out_at).length > 0 && (
-                  <div className="mb-4 flex items-center justify-between gap-4 bg-amber-500/10 border border-amber-500/30 rounded-xl px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
-                      <p className="text-xs text-amber-300">
-                        <span className="font-bold">{contacts.filter(c => c.opted_in === false && !c.opted_out_at).length} contacts</span> were imported with an incorrect status and won't appear as opted-out correctly. Click Fix to restore them.
-                      </p>
-                    </div>
-                    <button
-                      onClick={handleFixOptedInContacts}
-                      disabled={isFixingOptedIn}
-                      className="shrink-0 px-3 py-1.5 rounded-lg bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-xs font-bold text-amber-300 disabled:opacity-40 transition-all cursor-pointer flex items-center gap-1.5"
-                    >
-                      {isFixingOptedIn ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
-                      Fix All
-                    </button>
-                  </div>
-                )}
               <div className="overflow-x-auto rounded-2xl border border-border shadow-[0_4px_30px_rgba(0,0,0,0.2)] bg-card/25 backdrop-blur-sm">
                 <table className="w-full text-left">
                   <thead>
@@ -2667,7 +2648,7 @@ export default function ContactsPage() {
                                 <span className="text-sm leading-none">⚠️</span>
                                 Not on WhatsApp
                               </span>
-                            ) : contact.opted_out_at ? (
+                            ) : contact.opted_in === false ? (
                               <span className="inline-flex items-center gap-1.5 bg-danger/10 text-danger border border-danger/25 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-[0_0_15px_rgba(244,63,94,0.05)]">
                                 <span className="h-1.5 w-1.5 rounded-full bg-danger"></span>
                                 Opted-out

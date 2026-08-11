@@ -54,11 +54,11 @@ export async function enqueueCampaignBatches(campaignId: string): Promise<void> 
     async () => {
       const { data, error } = await db
         .from('contacts')
-        .select('id, phone, name, email, custom1, custom2, custom3, custom4, opted_in, opted_out_at')
+        .select('id, phone, name, email, custom1, custom2, custom3, custom4, opted_in')
         .eq('tenant_id', campaign.tenant_id)
         .eq('segment_id', campaign.segment_id)
-        .is('opted_out_at', null);   // exclude only contacts who explicitly opted out (STOP command)
-      if (error) console.error(`[campaign-queue] DB error fetching contacts for segment ${campaign.segment_id}:`, error);
+        .or('opted_in.is.null,opted_in.eq.true');  // include active contacts (null = not set, true = explicit opt-in)
+      if (error) console.error(`[campaign-queue] DB error fetching contacts:`, error.message);
       console.log(`[campaign-queue] Fetched ${data?.length ?? 0} contacts for campaign ${campaignId} (segment ${campaign.segment_id})`);
       return data ?? [];
     }
