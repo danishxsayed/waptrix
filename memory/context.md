@@ -13,9 +13,9 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 - **State Management**: React Hooks, Context API (TenantContext), & Server Components
 
 ## Core Architecture
-- **(dashboard)**: Grouped route containing all authenticated user pages (Analytics, Connect, Campaigns, Contacts, etc.).
+- **(dashboard)**: Grouped route containing all authenticated user pages (Analytics, Connect, Campaigns, Contacts, etc.). The main authenticated dashboard route is `/dashboard` (with the route page defined at `src/app/(dashboard)/dashboard/page.tsx`), while the index `/` is designated for the public marketing home.
 - **TenantContext**: Shared client-side state for authenticated user profiles and messaging quotas. It queries `/api/me` on load to expose the user's role (`owner` | `admin` | `agent`), effective tenant, and staff status context-wide.
-- **Middleware**: Handles authentication redirects via Supabase SSR, with explicit exclusions for public routes (login, signup, terms, privacy, password recovery, `/accept-invite`, `/api/auth/` endpoint routes, `/api/webhooks/`, `/api/team/invite`, and `/api/team/create-account`).
+- **Middleware**: Handles authentication redirects via Supabase SSR, with explicit exclusions for public marketing and webhook routes. Public paths (such as `/pricing`, `/about`, `/contact`, `/blog`, `/docs`, `/login`, `/signup`, terms, privacy, and password recovery) are permitted without authentication. Exclusions are also configured for `/api/auth/`, `/api/webhooks/`, `/api/payments/` (allowing unauthenticated Cashfree callbacks and order creations), invite token validations `/api/team/invite`, invite account setups `/api/team/create-account`, and campaign batch processors. Redirects authenticated users from public marketing `/` to `/dashboard`.
 - **Client/Server Libs**: Unified Supabase clients in `src/lib/supabase`, Meta API helpers in `src/lib/meta.ts`, and Resend email utilities in `src/lib/email`.
 - **API Authentication & RLS Bypass Standard**: Database operations in Next.js API Route Handlers authenticate users using the cookie-reliable `supabase.auth.getUser()`. To support multi-tenant team management, the system resolves the target scope by running `getEffectiveTenantId(user.id)`, which maps staff/agents to their account owner's `tenant_id` while returning the owner's own ID directly. Query operations are performed using a Supabase `service_role` client to bypass RLS, utilizing manual tenant-level filtering by this resolved `tenant_id`. API request bodies normalize camelCase and snake_case parameters (e.g. `templateId` and `template_id`) seamlessly to ensure robust client and schema alignment.
 - **Light/Dark Mode & Theme Toggle**: Integrated light and dark theme styling using CSS variables. Default is light mode. Theme toggling is supported via a UI toggle button in the `Topbar.tsx` component which syncs selection to `localStorage`. An inline script in `layout.tsx` runs before paint to prevent theme flash (FOUC) by loading the correct class on the root element.
@@ -109,6 +109,11 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Webhook auto-reply triggers automatically log outbound responses in `chat_messages` and update conversations' last message preview/timestamp to keep the inbox in sync.
   - Managed and toggled directly via the dedicated `/automations` page dashboard controls.
   - Configured opt-out and opt-in handling based on text keywords (e.g. STOP, START, UNSUBSCRIBE, CANCEL, QUIT, YES) inside the Meta webhook handler, marking contacts as opted out (`opted_in = false` alongside `opted_out_at` timestamp) or back in, and dispatching immediate confirmation replies.
+- **Cashfree Payment Gateway Integration**:
+  - Implemented database schema table `payments` (migration `supabase/add-payments-table.sql`) with search indexes to record and search Cashfree transactions.
+  - Created `/api/payments/create-order` to generate transactions on Cashfree API and return a checkout `payment_session_id`.
+  - Created `/api/payments/webhook` to handle Cashfree webhook notifications, verify signature authenticity (HMAC SHA-256), and update transaction records in the database.
+  - Built an interactive Checkout Modal inside the `/pricing` marketing page (`src/app/(marketing)/pricing/page.tsx`) utilizing the Cashfree JS SDK to collect customer details, process payments, and display order success/failure feedback banners.
 
 ## Related Projects
 - **Dandeli Wild adventure**: A React/Vite resort booking web application located on the Desktop (`/Users/danishsayed/Desktop/Dandeli Wild adventure`), which shares assets and photo mapping configurations with the same local workspace context.

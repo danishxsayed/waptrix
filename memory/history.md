@@ -1,5 +1,20 @@
 # Implementation History
 
+## [2026-08-12] - Cashfree Payments Integration & Marketing Routing Setup
+- **Marketing & Dashboard Routing Restructuring**:
+  - Moved the authenticated dashboard layout from `/` to `/dashboard` (`src/app/(dashboard)/dashboard/page.tsx`).
+  - Added a responsive marketing landing page, pricing page, contact, about, docs, and blog routes under a new `(marketing)` group (`src/app/(marketing)/`).
+  - Restructured `src/components/layout/Sidebar.tsx` to link to `/dashboard` instead of `/` and updated the active path highlights check.
+- **Middleware Authentication Routing Updates**:
+  - Updated `src/middleware.ts` to redirect authenticated users visiting `/` to `/dashboard`.
+  - Added a clean `isPublic` check allowing public access to marketing pages (`/pricing`, `/about`, `/contact`, `/blog`, `/docs`) and webhook endpoints.
+  - Allowed unauthenticated requests to `/api/payments/` endpoint prefix to support Cashfree API functions.
+- **Cashfree Payment Gateway Integration**:
+  - Created a database table `payments` (`supabase/add-payments-table.sql`) with indices to track transaction statuses (`pending`, `paid`, `failed`), customer details, amount, and gateway transaction IDs.
+  - Developed `/api/payments/create-order` endpoint (`src/app/api/payments/create-order/route.ts`) interfacing with Cashfree API to initiate transactions and return a payment session ID.
+  - Built `/api/payments/webhook` route (`src/app/api/payments/webhook/route.ts`) to receive Cashfree webhook callbacks, verify payloads, and upsert transaction records into the database upon successful payments.
+  - Integrated Cashfree Checkout JS SDK in `/pricing` page (`src/app/(marketing)/pricing/page.tsx`), letting users fill details, invoke payment popups, and view success/failure status banners based on callback URL parameters.
+
 ## [2026-08-11] - Campaign Analytics Email Redesign & WhatsApp Validation API Fallback
 - **Opt-in Status Defaulting & Campaign Audience Expansion**:
   - Defaulted contact opt-in status (`opted_in`) to `null` (instead of `false`) during manual contact creations in [route.ts](file:///Users/danishsayed/Desktop/Waptrix/src/app/api/contacts/route.ts) and CSV imports in [page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/contacts/page.tsx).

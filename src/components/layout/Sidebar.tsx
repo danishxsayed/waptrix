@@ -37,7 +37,7 @@ type NavItem = {
 };
 
 const ALL_NAV_ITEMS: NavItem[] = [
-  { name: "Dashboard",     href: "/",           icon: LayoutDashboard, minRole: "agent" },
+  { name: "Dashboard",     href: "/dashboard",  icon: LayoutDashboard, minRole: "agent" },
   { name: "Inbox",         href: "/inbox",       icon: MessageSquare,   minRole: "agent", badge: true },
   { name: "Campaigns",     href: "/campaigns",   icon: Send,            minRole: "admin" },
   { name: "Templates",     href: "/templates",   icon: FileText,        minRole: "admin" },
@@ -172,7 +172,7 @@ export default function Sidebar() {
           const isOpen   = expanded[item.href] ?? false;
           const isActive = hasKids
             ? (pathname === item.href || item.children!.some(c => pathname.startsWith(c.href)))
-            : item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            : pathname.startsWith(item.href);
 
           if (hasKids) {
             return (

@@ -2,6 +2,40 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+// Public marketing routes — no auth required
+const PUBLIC_PATHS = [
+  '/',
+  '/pricing',
+  '/about',
+  '/contact',
+  '/blog',
+  '/docs',
+  '/login',
+  '/signup',
+  '/accept-invite',
+  '/privacy',
+  '/terms',
+  '/forgot-password',
+  '/reset-password',
+];
+
+const PUBLIC_PREFIXES = [
+  '/api/auth/',
+  '/api/webhooks/',
+  '/api/payments/',       // Cashfree webhook + order creation
+  '/api/team/invite',
+  '/api/team/create-account',
+  '/blog/',
+  '/docs/',
+];
+
+function isPublic(pathname: string): boolean {
+  if (PUBLIC_PATHS.includes(pathname)) return true;
+  if (PUBLIC_PREFIXES.some(p => pathname.startsWith(p))) return true;
+  if (pathname.includes('/process-batch')) return true;
+  return false;
+}
+
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
@@ -10,9 +44,7 @@ export async function middleware(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
+        getAll() { return request.cookies.getAll() },
         setAll(cookiesToSet: { name: string, value: string, options: CookieOptions }[]) {
           cookiesToSet.forEach(({ name, value, options }) =>
             request.cookies.set(name, value)
@@ -26,23 +58,18 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // IMPORTANT: Avoid using getUser() in middleware if you only need the session
-  // However, the user specifically requested this pattern.
   const { data: { user } } = await supabase.auth.getUser()
+  const pathname = request.nextUrl.pathname
 
-  // Protected routes check
-  if (!user && !request.nextUrl.pathname.startsWith('/login') &&
-      !request.nextUrl.pathname.startsWith('/signup') &&
-      !request.nextUrl.pathname.startsWith('/accept-invite') &&
-      !request.nextUrl.pathname.startsWith('/privacy') &&
-      !request.nextUrl.pathname.startsWith('/terms') &&
-      !request.nextUrl.pathname.startsWith('/forgot-password') &&
-      !request.nextUrl.pathname.startsWith('/reset-password') &&
-      !request.nextUrl.pathname.startsWith('/api/auth/') &&
-      !request.nextUrl.pathname.startsWith('/api/webhooks/') &&
-      !request.nextUrl.pathname.startsWith('/api/team/invite') &&
-      !request.nextUrl.pathname.startsWith('/api/team/create-account') &&
-      !request.nextUrl.pathname.includes('/process-batch')) {
+  // Authenticated user visiting marketing home → send to dashboard
+  if (user && pathname === '/') {
+    const url = request.nextUrl.clone()
+    url.pathname = '/dashboard'
+    return NextResponse.redirect(url)
+  }
+
+  // Unauthenticated user visiting a protected route → send to login
+  if (!user && !isPublic(pathname)) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
