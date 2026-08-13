@@ -14,6 +14,8 @@ import {
   RefreshCw,
   Trash2,
   RotateCw,
+  Flag,
+  Pencil,
 } from "lucide-react";
 import axios from "axios";
 import TemplateBuilder from "@/components/templates/TemplateBuilder";
@@ -141,6 +143,22 @@ export default function TemplatesPage() {
       showToast(err.response?.data?.error || "Sync failed.", "error");
     } finally {
       setSyncingId(null);
+    }
+  };
+
+  const handleAppeal = async (template: any) => {
+    if (!template.meta_template_id) {
+      showToast("Template hasn't been submitted to Meta yet.", "error");
+      return;
+    }
+    setActiveMenu(null);
+    if (!confirm(`Appeal Meta's category change for "${template.name}"?\n\nThis will request Meta to restore the category back to ${template.category}.`)) return;
+    try {
+      await axios.post(`/api/templates/${template.id}/appeal`);
+      setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, meta_status: 'PENDING' } : t));
+      showToast("Appeal submitted! Meta will review within 24h.");
+    } catch (err: any) {
+      showToast(err.response?.data?.error || "Appeal failed.", "error");
     }
   };
 
@@ -333,7 +351,35 @@ export default function TemplatesPage() {
                     }
                   </button>
                   {activeMenu === template.id && (
-                    <div className="absolute right-0 mt-2 w-44 bg-card border border-border rounded-xl shadow-xl z-10 py-1 overflow-hidden animate-in fade-in zoom-in duration-200">
+                    <div className="absolute right-0 mt-2 w-52 bg-card border border-border rounded-xl shadow-xl z-10 py-1 overflow-hidden animate-in fade-in zoom-in duration-200">
+                      {/* Edit & Resubmit — for approved templates */}
+                      {template.meta_status === 'APPROVED' && (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleEdit(template); setActiveMenu(null); }}
+                            className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-[#111B21] hover:bg-[#EDE8DE] transition-colors"
+                          >
+                            <Pencil className="w-3.5 h-3.5" />
+                            Edit & Resubmit
+                          </button>
+                          <div className="h-px bg-border mx-2" />
+                        </>
+                      )}
+
+                      {/* Appeal Category — when Meta changed the category */}
+                      {template.meta_template_id && template.meta_category && template.meta_category !== template.category && (
+                        <>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleAppeal(template); }}
+                            className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-amber-500 hover:bg-amber-500/10 transition-colors"
+                          >
+                            <Flag className="w-3.5 h-3.5" />
+                            Appeal Category
+                          </button>
+                          <div className="h-px bg-border mx-2" />
+                        </>
+                      )}
+
                       <button
                         onClick={(e) => { e.stopPropagation(); handleSync(template); }}
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-jade hover:bg-jade/10 transition-colors"

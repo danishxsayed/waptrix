@@ -247,27 +247,38 @@ export async function POST(
       });
     }
 
-    // 4. Submit to Meta message_templates API
-    const metaPayload = {
-      name: template.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, ''),
-      category: template.category || 'MARKETING',
-      language: template.language || 'en_US',
-      components: metaComponents
-    };
-    console.log('Meta submit payload:', JSON.stringify(metaPayload, null, 2));
-    console.log('Submitting to WABA:', wabaId);
-    const metaRes = await metaApi.submitTemplate(submitToken, wabaId, metaPayload);
+    // 4. Submit or update on Meta
+    const normalizedName = template.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
+    let metaTemplateId = template.meta_template_id;
 
-    if (!metaRes?.id) {
-      return NextResponse.json({ error: 'Failed to obtain template ID from Meta' }, { status: 500 });
+    if (metaTemplateId && template.meta_status === 'APPROVED') {
+      // ── Edit existing approved template ── POST /{template_id} { components }
+      console.log('Updating existing approved template on Meta:', metaTemplateId);
+      const updateRes = await metaApi.updateTemplate(submitToken, metaTemplateId, metaComponents);
+      console.log('Meta update result:', updateRes);
+      // updateRes may return { success: true } or { id: ... }
+    } else {
+      // ── Create new template ──
+      const metaPayload = {
+        name: normalizedName,
+        category: template.category || 'MARKETING',
+        language: template.language || 'en_US',
+        components: metaComponents
+      };
+      console.log('Meta submit payload:', JSON.stringify(metaPayload, null, 2));
+      console.log('Submitting to WABA:', wabaId);
+      const metaRes = await metaApi.submitTemplate(submitToken, wabaId, metaPayload);
+      if (!metaRes?.id) {
+        return NextResponse.json({ error: 'Failed to obtain template ID from Meta' }, { status: 500 });
+      }
+      metaTemplateId = metaRes.id;
     }
 
-    // 5. Update local database — also persist the normalized name so send routes stay in sync
-    const normalizedName = template.name.toLowerCase().replace(/[^a-z0-9_]/g, '_');
+    // 5. Update local database
     const { error: dbError } = await serviceClient
       .from('templates')
       .update({
-        meta_template_id: metaRes.id,
+        meta_template_id: metaTemplateId,
         meta_status: 'PENDING',
         name: normalizedName,
       })
@@ -278,7 +289,7 @@ export async function POST(
       return NextResponse.json({ error: dbError.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true, metaTemplateId: metaRes.id });
+    return NextResponse.json({ success: true, metaTemplateId });
 
   } catch (err: any) {
     console.error('Submit template error:', JSON.stringify(err.response?.data || err.message, null, 2));

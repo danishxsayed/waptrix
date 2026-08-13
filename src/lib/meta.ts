@@ -113,6 +113,32 @@ export const metaApi = {
   },
 
   /**
+   * Update an existing approved template on Meta (puts it back to PENDING)
+   * POST /{message-template-id}  { components: [...] }
+   */
+  async updateTemplate(accessToken: string, templateId: string, components: any[]) {
+    const response = await axios.post(
+      `${GRAPH_URL}/${templateId}`,
+      { components },
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  /**
+   * Appeal a Meta category reclassification
+   * POST /{message-template-id}  { category: "UTILITY" | "MARKETING" }
+   */
+  async appealCategory(accessToken: string, templateId: string, category: string) {
+    const response = await axios.post(
+      `${GRAPH_URL}/${templateId}`,
+      { category },
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    return response.data;
+  },
+
+  /**
    * Delete a template from Meta
    */
   async deleteTemplate(accessToken: string, wabaId: string, templateName: string) {
