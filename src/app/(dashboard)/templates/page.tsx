@@ -392,9 +392,22 @@ export default function TemplatesPage() {
               </div>
 
               {/* Footer actions */}
-              <div className="mt-6 pt-4 border-t border-border/50">
+              <div className="mt-4 pt-3 border-t border-border/50 flex items-center gap-1.5 mb-1">
+                <div className="w-5 h-5 rounded-full bg-jade/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-[9px] font-bold text-jade uppercase">
+                    {(template.created_by_name || 'O')[0]}
+                  </span>
+                </div>
+                <span className="text-[10px] text-text-muted truncate">
+                  {template.created_by_name || 'Owner'}
+                </span>
+                <span className="text-[10px] text-text-muted ml-auto flex-shrink-0">
+                  {new Date(template.updated_at).toLocaleDateString()}
+                </span>
+              </div>
+
+              <div className="pt-3 border-t border-border/50">
                 {template.meta_status === 'APPROVED' ? (
-                  /* Approved: show Edit & Resubmit + Appeal side by side */
                   <div className="flex gap-2">
                     <button
                       onClick={() => handleEdit(template)}
@@ -410,7 +423,6 @@ export default function TemplatesPage() {
                     </button>
                   </div>
                 ) : (
-                  /* Other statuses: open in builder */
                   <button
                     onClick={() => handleEdit(template)}
                     className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg hover:bg-surface text-jade text-xs font-bold transition-colors"

@@ -76,6 +76,16 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_KEY!
     )
 
+    // Resolve creator name — check team_members first, fall back to auth email
+    let createdByName = user.email || 'Unknown';
+    const { data: member } = await serviceClient
+      .from('team_members')
+      .select('name, email')
+      .eq('member_user_id', user.id)
+      .maybeSingle();
+    if (member?.name) createdByName = member.name;
+    else if (member?.email) createdByName = member.email;
+
     const { data, error } = await serviceClient
       .from('templates')
       .insert({
@@ -88,7 +98,9 @@ export async function POST(request: Request) {
         body: templateBody || '',
         footer: footer || '',
         buttons: buttons || [],
-        meta_status: 'DRAFT'
+        meta_status: 'DRAFT',
+        created_by: user.id,
+        created_by_name: createdByName,
       })
       .select()
       .single();
