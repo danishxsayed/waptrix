@@ -1,11 +1,31 @@
 # Implementation History
 
 ## [2026-08-12] - Cashfree Payments Integration & Marketing Routing Setup
+- **Dev Server Management**:
+  - Started the Next.js development server on port 3001 using `npm run dev` to facilitate local development.
+- **Hero Graphic Replacement**:
+  - Removed the original girl photo (`/hero-person.png`) and the temporary background image from the hero section of the landing page in `src/app/(marketing)/page.tsx`. Replaced it with the platform screenshot preview `/website%20photos/2.png` at full opacity, styled cleanly without any border or shadow borders.
+- **Profile Bubble Images Integration**:
+  - Replaced the solid background colors of the six scattered floating circles in the `FloatingTextSection` component inside `src/app/(marketing)/page.tsx` with circular customer profile images fetched from `/public/waptrix profiles/` (using URL paths `/waptrix%20profiles/1.png` through `/waptrix%20profiles/6.png`). Fitted the images perfectly inside the borders of these floating bubble circles using `object-cover`.
+- **Mobile Typography Optimization**:
+  - Reduced the heading font size in the `FloatingTextSection` component of `src/app/(marketing)/page.tsx` from `text-4xl` to `text-2xl` strictly on mobile screen viewports (keeping `md:text-6xl` for medium and larger devices) to improve layout readability.
+- **CTA Copy & Styling Adjustment**:
+  - Modified the landing page CTA block in `src/app/(marketing)/page.tsx` to remove the incorrect "2,500+ Indian businesses" marketing claim as the platform is in the initial launch phase, replacing it with: "Start reaching your customers directly on WhatsApp with Waptrix."
+  - Fixed a styling issue where the global heading selector in `globals.css` overrode Tailwind's utility class on the CTA header, adding inline `style={{ color: 'white' }}` to ensure the text is rendered in pure white.
+- **Favicon Integration**:
+  - Replaced the default Next.js favicon in `src/app/favicon.ico` with the newly uploaded brand asset `public/fav.ico`. Explicitly defined the favicon path inside the metadata of the root layout `src/app/layout.tsx`.
+- **Trust Cards Integration & Highlights (Testimonials)**:
+  - Removed the trust badges from the Hero section in `src/app/(marketing)/page.tsx`. Added them as a 2-column card grid below the customer reviews inside the Testimonials section. Card 1 features the Meta Partner logo (`/meta.png`) and Card 2 features the WhatsApp logo (`/Whatsapp.png`).
+  - Highlighted and animated the trust cards to distinguish them from standard testimonials: styled them with a transparent green background tint (`bg-[#D9FDD3]/30`), a brand border (`border-2 border-[#25D366]/30`), and smooth hover lift animations (`hover:-translate-y-1.5 hover:shadow-lg transition-all duration-300`).
+  - Adjusted logo image heights inside the cards to visually match and balance their aspect ratios (reduced Meta logo height to `h-7` and increased WhatsApp logo height to `h-12`).
 - **Marketing & Dashboard Routing Restructuring**:
   - Moved the authenticated dashboard layout from `/` to `/dashboard` (`src/app/(dashboard)/dashboard/page.tsx`).
   - Added a responsive marketing landing page, pricing page, contact, about, docs, and blog routes under a new `(marketing)` group (`src/app/(marketing)/`).
   - Restructured `src/components/layout/Sidebar.tsx` to link to `/dashboard` instead of `/` and updated the active path highlights check.
+- **Footer Link React Key Fix**:
+  - Resolved a critical React key duplication issue in the footer component of `src/app/(marketing)/layout.tsx` where links in the "Company" column generated duplicate `key="/contact"` (since both "Contact" and "Careers" point to `/contact`), causing runtime render blocking in development. Fixed by changing key mapping to key={`${label}-${href}`}.
 - **Middleware Authentication Routing Updates**:
+  - Fixed a routing bug where unauthenticated requests to static assets in `public/` (like `/hero-person.png` and `/website photos/1.png`) were intercepted by the auth middleware and redirected to `/login` (returning HTTP 307). Updated the config matcher in `src/middleware.ts` to exclude all common static files (e.g. `.svg`, `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp`).
   - Updated `src/middleware.ts` to redirect authenticated users visiting `/` to `/dashboard`.
   - Added a clean `isPublic` check allowing public access to marketing pages (`/pricing`, `/about`, `/contact`, `/blog`, `/docs`) and webhook endpoints.
   - Allowed unauthenticated requests to `/api/payments/` endpoint prefix to support Cashfree API functions.

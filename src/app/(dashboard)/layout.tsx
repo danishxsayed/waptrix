@@ -13,11 +13,11 @@ export default function DashboardLayout({
   return (
     <TenantProvider>
       <InboxProvider>
-        <div className="flex h-screen bg-background overflow-hidden">
+        <div className="flex h-screen bg-[#EDE8DE] overflow-hidden">
           <Sidebar />
           <div className="flex flex-col flex-1 overflow-hidden">
             <Topbar />
-            <main className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+            <main className="flex-1 overflow-y-auto p-8 custom-scrollbar bg-[#EDE8DE]">
               {children}
             </main>
           </div>

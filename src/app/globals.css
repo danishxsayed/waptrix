@@ -1,37 +1,36 @@
 @import "tailwindcss";
 
+/* ── WhatsApp-inspired design system ── */
 @theme {
-  --color-background: #080A0F;
-  --color-surface: #0E1117;
-  --color-card: #161B26;
-  --color-border: #273042;
-  --color-text-primary: #E2E8F0;
-  --color-text-muted: #8896AB;
-  --color-jade: #10B981;
-  --color-jade-hover: #34D399;
-  --color-danger: #F43F5E;
-  --color-warning: #F59E0B;
-  --color-info: #0EA5E9;
+  /* Surfaces */
+  --color-background: #EDE8DE;   /* warm cream — WA page bg */
+  --color-surface:    #FFFFFF;
+  --color-card:       #FFFFFF;
+  --color-border:     #E9EDEF;
 
-  --font-syne: "Syne", sans-serif;
+  /* Text */
+  --color-text-primary: #111B21;
+  --color-text-muted:   #667781;
+
+  /* Brand green (WhatsApp green) */
+  --color-jade:       #25D366;
+  --color-jade-hover: #128C7E;
+  --color-jade-dark:  #075E54;
+  --color-jade-light: #D9FDD3;
+
+  /* Status */
+  --color-danger:  #F43F5E;
+  --color-warning: #F59E0B;
+  --color-info:    #0EA5E9;
+
+  /* Fonts */
+  --font-syne:    "Syne", sans-serif;
   --font-dm-sans: "DM Sans", sans-serif;
 }
 
 :root {
-  --background: #080A0F;
-  --foreground: #E2E8F0;
-}
-
-/* ── Light theme overrides ── */
-html.light {
-  --color-background: #F8FAFC;
-  --color-surface: #FFFFFF;
-  --color-card: #F1F5F9;
-  --color-border: #CBD5E1;
-  --color-text-primary: #0F172A;
-  --color-text-muted: #64748B;
-  --background: #F8FAFC;
-  --foreground: #0F172A;
+  --background: #EDE8DE;
+  --foreground: #111B21;
 }
 
 body {
@@ -41,28 +40,59 @@ body {
 }
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--font-syne);
+  font-family: var(--font-dm-sans);
+  font-weight: 700;
+  color: #111B21;
 }
 
-/* Custom Component Classes */
+/* ── Component classes ── */
 @layer components {
   .btn-primary {
-    @apply bg-jade text-background px-4 py-2 rounded-lg font-semibold transition-all hover:bg-jade-hover hover:shadow-[0_0_20px_rgba(16,185,129,0.4)];
+    @apply bg-[#25D366] text-[#111B21] px-6 py-3 rounded-full font-bold transition-all hover:bg-[#128C7E] hover:text-white text-sm;
   }
-  
+
+  .btn-outline {
+    @apply border-2 border-[#111B21] text-[#111B21] px-6 py-3 rounded-full font-bold transition-all hover:bg-[#111B21] hover:text-white text-sm;
+  }
+
   .btn-secondary {
-    @apply bg-card border border-border text-text-primary px-4 py-2 rounded-lg font-semibold transition-all hover:bg-surface;
+    @apply bg-white border border-[#E9EDEF] text-[#111B21] px-4 py-2 rounded-lg font-semibold transition-all hover:bg-[#EDE8DE];
   }
 
   .glass-card {
-    @apply bg-card/50 backdrop-blur-md border border-border rounded-2xl p-6;
+    @apply bg-white border border-[#E9EDEF] rounded-2xl p-6 shadow-sm;
   }
 
   .input-field {
-    @apply bg-surface border border-border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-jade/50 transition-all;
+    @apply bg-white border border-[#E9EDEF] rounded-lg px-4 py-2.5 text-[#111B21] placeholder:text-[#667781]
+           focus:outline-none focus:ring-2 focus:ring-[#25D366]/40 focus:border-[#25D366]/50 transition-all text-sm;
   }
 
   .badge-jade {
-    @apply bg-jade/10 text-jade px-2 py-0.5 rounded-full text-xs font-semibold border border-jade/20;
+    @apply bg-[#D9FDD3] text-[#075E54] px-2.5 py-0.5 rounded-full text-xs font-semibold border border-[#25D366]/20;
   }
+
+  /* WA-style sidebar nav item */
+  .nav-item {
+    @apply flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-[#667781]
+           hover:bg-[#EDE8DE] hover:text-[#111B21] transition-all;
+  }
+
+  .nav-item-active {
+    @apply bg-[#D9FDD3] text-[#075E54] font-semibold;
+  }
+
+  /* Custom scrollbar */
+  .custom-scrollbar::-webkit-scrollbar       { width: 4px; }
+  .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+  .custom-scrollbar::-webkit-scrollbar-thumb { background: #E9EDEF; border-radius: 2px; }
+}
+
+/* Floating animation for hero bubbles */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-8px); }
+}
+.animate-float {
+  animation: float 3s ease-in-out infinite;
 }

@@ -147,21 +147,21 @@ export default function Sidebar() {
     setExpanded(prev => ({ ...prev, [href]: !prev[href] }));
 
   return (
-    <aside className="w-64 min-h-screen bg-surface border-r border-border flex flex-col">
-      <div className="p-6">
-        <Link href="/" className="flex items-center gap-2 group">
-          <div className="w-8 h-8 bg-jade rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.4)] group-hover:scale-110 transition-transform">
-            <span className="text-background font-bold text-xl">W</span>
+    <aside className="w-64 min-h-screen bg-white border-r border-[#E9EDEF] flex flex-col shadow-sm">
+      <div className="px-5 py-5 border-b border-[#E9EDEF]">
+        <Link href="/" className="flex items-center gap-2.5">
+          <div className="w-9 h-9 bg-[#25D366] rounded-xl flex items-center justify-center flex-shrink-0">
+            <span className="text-white font-extrabold text-lg leading-none" style={{ fontFamily: "Arial, sans-serif" }}>W</span>
           </div>
-          <span className="text-2xl font-bold font-syne tracking-tight text-jade">Waptrix</span>
+          <span className="text-xl font-extrabold text-[#111B21] tracking-tight">Waptrix</span>
         </Link>
       </div>
 
-      <nav className="flex-1 px-4 space-y-0.5 mt-4 overflow-y-auto">
+      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto custom-scrollbar">
         {loading && (
           <div className="space-y-1">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-11 rounded-xl bg-card/50 animate-pulse" />
+              <div key={i} className="h-11 rounded-xl bg-[#EDE8DE] animate-pulse" />
             ))}
           </div>
         )}
@@ -177,41 +177,39 @@ export default function Sidebar() {
           if (hasKids) {
             return (
               <div key={item.href}>
-                {/* Parent row — clicking toggles submenu */}
                 <button
                   onClick={() => toggleExpand(item.href)}
-                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
                     isActive
-                      ? "bg-jade/10 text-jade border border-jade/20"
-                      : "text-text-muted hover:text-text-primary hover:bg-card"
+                      ? "bg-[#D9FDD3] text-[#075E54]"
+                      : "text-[#667781] hover:bg-[#EDE8DE] hover:text-[#111B21]"
                   }`}
                 >
-                  <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-jade" : "group-hover:text-jade transition-colors"}`} />
-                  <span className="font-medium flex-1 text-left">{item.name}</span>
-                  <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""} ${isActive ? "text-jade" : "text-text-muted"}`} />
+                  <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${isActive ? "text-[#25D366]" : ""}`} />
+                  <span className="flex-1 text-left">{item.name}</span>
+                  <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
                 </button>
 
-                {/* Children */}
                 {isOpen && (
-                  <div className="ml-4 mt-0.5 space-y-0.5 border-l border-border/50 pl-3">
+                  <div className="ml-3 mt-0.5 space-y-0.5 border-l-2 border-[#E9EDEF] pl-3">
                     {item.children!.map(child => {
-                      const CIcon      = child.icon;
+                      const CIcon       = child.icon;
                       const childActive = pathname === child.href || pathname.startsWith(child.href + "/");
-                      const isTeamChat = child.href === "/team-chat";
+                      const isTeamChat  = child.href === "/team-chat";
                       return (
                         <Link
                           key={child.href}
                           href={child.href}
-                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all group ${
+                          className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all ${
                             childActive
-                              ? "bg-jade/10 text-jade"
-                              : "text-text-muted hover:text-text-primary hover:bg-card"
+                              ? "bg-[#D9FDD3] text-[#075E54] font-semibold"
+                              : "text-[#667781] hover:bg-[#EDE8DE] hover:text-[#111B21]"
                           }`}
                         >
-                          <CIcon className={`w-4 h-4 flex-shrink-0 ${childActive ? "text-jade" : "group-hover:text-jade transition-colors"}`} />
-                          <span className="font-medium flex-1">{child.name}</span>
+                          <CIcon className={`w-4 h-4 flex-shrink-0 ${childActive ? "text-[#25D366]" : ""}`} />
+                          <span className="flex-1">{child.name}</span>
                           {isTeamChat && teamChatUnread > 0 && (
-                            <span className="w-5 h-5 bg-jade text-background text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                            <span className="w-5 h-5 bg-[#25D366] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                               {teamChatUnread > 9 ? "9+" : teamChatUnread}
                             </span>
                           )}
@@ -229,21 +227,21 @@ export default function Sidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all group ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium ${
                 isActive
-                  ? "bg-jade/10 text-jade border border-jade/20 shadow-[0_0_10px_rgba(16,185,129,0.05)]"
-                  : "text-text-muted hover:text-text-primary hover:bg-card"
+                  ? "bg-[#D9FDD3] text-[#075E54] font-semibold"
+                  : "text-[#667781] hover:bg-[#EDE8DE] hover:text-[#111B21]"
               }`}
             >
-              <Icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-jade" : "group-hover:text-jade transition-colors"}`} />
-              <span className="font-medium flex-1">{item.name}</span>
+              <Icon className={`w-4.5 h-4.5 flex-shrink-0 ${isActive ? "text-[#25D366]" : ""}`} />
+              <span className="flex-1">{item.name}</span>
               {item.badge && unreadCount > 0 && (
-                <span className="w-5 h-5 bg-jade text-background text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                <span className="w-5 h-5 bg-[#25D366] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
               {isTeamChatItem && teamChatUnread > 0 && (
-                <span className="w-5 h-5 bg-jade text-background text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                <span className="w-5 h-5 bg-[#25D366] text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {teamChatUnread > 9 ? "9+" : teamChatUnread}
                 </span>
               )}
@@ -251,12 +249,12 @@ export default function Sidebar() {
           );
         })}
 
-        <div className="pt-4 mt-4 border-t border-border/50">
+        <div className="pt-3 mt-3 border-t border-[#E9EDEF]">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-text-muted hover:text-red-400 hover:bg-red-500/5 group"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium text-[#667781] hover:bg-red-50 hover:text-red-500"
           >
-            <LogOut className="w-5 h-5 group-hover:rotate-12 transition-transform" />
+            <LogOut className="w-4.5 h-4.5" />
             <span className="font-medium">Logout</span>
           </button>
         </div>

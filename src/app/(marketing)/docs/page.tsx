@@ -1,177 +1,76 @@
 import Link from "next/link";
-import { BookOpen, MessageSquare, Send, Users, BarChart3, Bot, Settings, ArrowRight, Zap } from "lucide-react";
+import { BookOpen, MessageSquare, Send, Users, BarChart3, Bot, Settings, ArrowRight } from "lucide-react";
 
 const SECTIONS = [
-  {
-    icon:  Zap,
-    title: "Getting Started",
-    desc:  "Connect your WhatsApp number and send your first message in under 5 minutes.",
-    articles: [
-      "Create your Waptrix account",
-      "Connect your WhatsApp Business number",
-      "Verify your business with Meta",
-      "Send your first test message",
-    ],
-  },
-  {
-    icon:  Send,
-    title: "Campaigns",
-    desc:  "Send bulk messages to thousands of contacts at once.",
-    articles: [
-      "Creating your first campaign",
-      "Importing contacts via CSV",
-      "Scheduling campaigns",
-      "Understanding campaign analytics",
-    ],
-  },
-  {
-    icon:  MessageSquare,
-    title: "Inbox",
-    desc:  "Manage all inbound and outbound conversations in one place.",
-    articles: [
-      "Using the unified inbox",
-      "Adding internal notes",
-      "Assigning conversations to team members",
-      "Using quick replies",
-    ],
-  },
-  {
-    icon:  BookOpen,
-    title: "Templates",
-    desc:  "Create and manage WhatsApp-approved message templates.",
-    articles: [
-      "What are message templates?",
-      "Creating a template",
-      "Adding images and buttons",
-      "Getting template approved by Meta",
-    ],
-  },
-  {
-    icon:  Bot,
-    title: "Automation",
-    desc:  "Set up keyword triggers and auto-reply rules.",
-    articles: [
-      "Creating an automation rule",
-      "Keyword-based auto-replies",
-      "Out-of-hours auto-reply",
-      "Drip message sequences",
-    ],
-  },
-  {
-    icon:  Users,
-    title: "Team",
-    desc:  "Invite your team and manage roles.",
-    articles: [
-      "Inviting team members",
-      "Understanding roles (Owner / Admin / Agent)",
-      "Using team chat",
-      "Removing a team member",
-    ],
-  },
-  {
-    icon:  BarChart3,
-    title: "Analytics",
-    desc:  "Track message delivery, read rates, and campaign performance.",
-    articles: [
-      "Reading the analytics dashboard",
-      "Campaign-level analytics",
-      "Delivery vs read rates explained",
-      "Exporting analytics data",
-    ],
-  },
-  {
-    icon:  Settings,
-    title: "Settings & Billing",
-    desc:  "Manage your account, subscription, and WhatsApp connection.",
-    articles: [
-      "Updating your profile",
-      "Changing your subscription plan",
-      "Managing payment methods",
-      "Disconnecting WhatsApp",
-    ],
-  },
+  { icon: BookOpen,    title: "Getting Started",     desc: "Connect your number and send your first message in 5 minutes.", articles: ["Create your account", "Connect your WhatsApp number", "Verify with Meta", "Send your first message"] },
+  { icon: Send,        title: "Campaigns",            desc: "Send bulk messages to thousands of contacts at once.", articles: ["Create your first campaign", "Import contacts via CSV", "Schedule campaigns", "Campaign analytics"] },
+  { icon: MessageSquare, title: "Inbox",             desc: "Manage all conversations in one place.", articles: ["Using the unified inbox", "Adding internal notes", "Assigning conversations", "Quick replies"] },
+  { icon: BookOpen,    title: "Templates",            desc: "Create and manage WhatsApp-approved templates.", articles: ["What are message templates?", "Creating a template", "Adding images & buttons", "Getting Meta approval"] },
+  { icon: Bot,         title: "Automation",           desc: "Set up keyword triggers and auto-reply rules.", articles: ["Creating automation rules", "Keyword-based replies", "Out-of-hours replies", "Drip sequences"] },
+  { icon: Users,       title: "Team",                 desc: "Invite your team and manage roles.", articles: ["Inviting team members", "Understanding roles", "Using team chat", "Removing a member"] },
+  { icon: BarChart3,   title: "Analytics",            desc: "Track delivery, read rates, and performance.", articles: ["Analytics dashboard", "Campaign analytics", "Delivery vs read rates", "Exporting data"] },
+  { icon: Settings,    title: "Settings & Billing",   desc: "Manage your account and subscription.", articles: ["Updating your profile", "Changing your plan", "Payment methods", "Disconnecting WhatsApp"] },
 ];
 
 export default function DocsPage() {
   return (
-    <section className="py-20 px-4 sm:px-6">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 bg-[#10B981]/10 border border-[#10B981]/30 text-[#10B981] text-xs font-semibold px-3 py-1.5 rounded-full mb-4">
-            <BookOpen className="w-3 h-3" />
-            Documentation
+    <div className="bg-[#EDE8DE]">
+      <section className="py-24 px-6">
+        <div className="max-w-5xl mx-auto">
+          <div className="text-center mb-16">
+            <p className="text-xs font-bold text-[#25D366] uppercase tracking-widest mb-3">Help Centre</p>
+            <h1 className="text-5xl font-extrabold text-[#111B21] tracking-tight mb-4">Waptrix Documentation</h1>
+            <p className="text-[#667781] max-w-lg mx-auto">Step-by-step guides, tutorials, and FAQs to get the most out of Waptrix.</p>
           </div>
-          <h1 className="text-4xl sm:text-5xl font-bold text-white mb-4" style={{ fontFamily: "var(--font-syne)" }}>
-            Waptrix Help Centre
-          </h1>
-          <p className="text-[#8896AB] max-w-xl mx-auto">
-            Everything you need to get the most out of Waptrix — step-by-step guides, tutorials, and FAQs.
-          </p>
-        </div>
 
-        {/* Quick start banner */}
-        <div className="bg-gradient-to-r from-[#10B981]/10 to-transparent border border-[#10B981]/20 rounded-2xl p-6 mb-12 flex items-center justify-between gap-4">
-          <div>
-            <p className="font-semibold text-white mb-1" style={{ fontFamily: "var(--font-syne)" }}>New to Waptrix?</p>
-            <p className="text-sm text-[#8896AB]">Follow our quick-start guide and be sending messages in under 5 minutes.</p>
-          </div>
-          <Link
-            href="/signup"
-            className="flex-shrink-0 flex items-center gap-2 bg-[#10B981] hover:bg-[#34D399] text-[#080A0F] font-bold px-5 py-2.5 rounded-xl text-sm transition-all"
-          >
-            Get started <ArrowRight className="w-4 h-4" />
-          </Link>
-        </div>
-
-        {/* Doc sections grid */}
-        <div className="grid sm:grid-cols-2 lg:grid-cols-2 gap-6">
-          {SECTIONS.map((s) => (
-            <div
-              key={s.title}
-              className="bg-[#0E1117] border border-[#273042] hover:border-[#273042]/60 rounded-2xl p-6 transition-all"
-            >
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-[#10B981]/10 flex items-center justify-center flex-shrink-0">
-                  <s.icon className="w-4 h-4 text-[#10B981]" />
-                </div>
-                <h3 className="font-semibold text-white text-sm" style={{ fontFamily: "var(--font-syne)" }}>{s.title}</h3>
-              </div>
-              <p className="text-xs text-[#8896AB] mb-4 leading-relaxed">{s.desc}</p>
-              <ul className="flex flex-col gap-2">
-                {s.articles.map((a) => (
-                  <li key={a}>
-                    <span className="text-xs text-[#8896AB] hover:text-[#10B981] cursor-pointer transition-colors flex items-center gap-1.5">
-                      <span className="w-1 h-1 rounded-full bg-[#273042] flex-shrink-0" />
-                      {a}
-                    </span>
-                  </li>
-                ))}
-              </ul>
+          {/* Quick start */}
+          <div className="bg-[#075E54] rounded-3xl p-7 mb-10 flex flex-col sm:flex-row items-center justify-between gap-5">
+            <div>
+              <p className="font-extrabold text-white text-lg mb-1">New to Waptrix?</p>
+              <p className="text-sm text-[#D9FDD3]">Follow our quick-start guide and be sending messages in under 5 minutes.</p>
             </div>
-          ))}
-        </div>
-
-        {/* Contact support */}
-        <div className="mt-16 text-center bg-[#0E1117] border border-[#273042] rounded-2xl p-8">
-          <h2 className="text-xl font-bold text-white mb-2" style={{ fontFamily: "var(--font-syne)" }}>Can't find what you're looking for?</h2>
-          <p className="text-sm text-[#8896AB] mb-6">Our support team is available Monday–Saturday, 10am–7pm IST.</p>
-          <div className="flex items-center justify-center gap-4">
-            <Link
-              href="/contact"
-              className="flex items-center gap-2 bg-[#10B981] hover:bg-[#34D399] text-[#080A0F] font-bold px-5 py-2.5 rounded-xl text-sm transition-all"
-            >
-              Contact support
+            <Link href="/signup" className="flex-shrink-0 flex items-center gap-2 bg-[#25D366] text-[#111B21] font-bold px-6 py-3 rounded-full hover:bg-white transition-all text-sm">
+              Get started <ArrowRight className="w-4 h-4" />
             </Link>
-            <a
-              href="mailto:support@waptrix.in"
-              className="text-sm text-[#8896AB] hover:text-white transition-colors"
-            >
-              support@waptrix.in
-            </a>
+          </div>
+
+          {/* Sections */}
+          <div className="grid sm:grid-cols-2 gap-5">
+            {SECTIONS.map((s) => (
+              <div key={s.title} className="bg-white rounded-2xl p-6 border border-[#E9EDEF]">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-9 h-9 rounded-xl bg-[#EDE8DE] flex items-center justify-center flex-shrink-0">
+                    <s.icon className="w-4.5 h-4.5 text-[#25D366]" />
+                  </div>
+                  <h3 className="font-bold text-[#111B21] text-sm">{s.title}</h3>
+                </div>
+                <p className="text-xs text-[#667781] mb-4 leading-relaxed">{s.desc}</p>
+                <ul className="flex flex-col gap-2">
+                  {s.articles.map((a) => (
+                    <li key={a} className="text-xs text-[#667781] hover:text-[#25D366] cursor-pointer transition-colors flex items-center gap-1.5">
+                      <span className="w-1 h-1 rounded-full bg-[#E9EDEF] flex-shrink-0" />{a}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+
+          {/* Support */}
+          <div className="mt-16 text-center bg-white rounded-3xl border border-[#E9EDEF] p-10">
+            <h2 className="text-2xl font-extrabold text-[#111B21] mb-2 tracking-tight">Can't find what you need?</h2>
+            <p className="text-sm text-[#667781] mb-6">Our team is available Monday–Saturday, 10am–7pm IST.</p>
+            <div className="flex items-center justify-center gap-4 flex-wrap">
+              <Link href="/contact" className="flex items-center gap-2 bg-[#25D366] text-[#111B21] font-bold px-6 py-3 rounded-full hover:bg-[#128C7E] hover:text-white transition-all text-sm">
+                Contact support
+              </Link>
+              <a href="mailto:support@waptrix.in" className="text-sm text-[#667781] hover:text-[#25D366] transition-colors font-medium">
+                support@waptrix.in
+              </a>
+            </div>
           </div>
         </div>
-      </div>
-    </section>
+      </section>
+    </div>
   );
 }
