@@ -14,8 +14,11 @@
   - Fixed a styling issue where the global heading selector in `globals.css` overrode Tailwind's utility class on the CTA header, adding inline `style={{ color: 'white' }}` to ensure the text is rendered in pure white.
 - **Favicon Integration**:
   - Replaced the default Next.js favicon in `src/app/favicon.ico` with the newly uploaded brand asset `public/fav.ico`. Explicitly defined the favicon path inside the metadata of the root layout `src/app/layout.tsx`.
-- **App Subdomain Routing Fix**:
-  - Updated subdomain routing configuration in `src/middleware.ts` for hostnames starting with `app.` (e.g., `app.waptrix.in`) to skip the login redirect check for explicitly public paths, and limit the home-to-dashboard redirect to authenticated users.
+- **App Subdomain & Marketing Domain Isolation Routing**:
+  - Fully refactored `src/middleware.ts` to cleanly segregate domain-specific routes between the marketing website (`waptrix.in` only) and the app platform (`app.waptrix.in`).
+  - Added redirects on the root domain (`waptrix.in`) to route all non-marketing paths to the `app.` subdomain.
+  - Added redirects on the `app.` subdomain to route all marketing paths (except `/` itself) back to the root domain.
+  - Set root path `/` on the `app.` subdomain to direct authenticated users to `/dashboard` and unauthenticated users to `/login`.
 - **Trust Cards Integration & Highlights (Testimonials)**:
   - Removed the trust badges from the Hero section in `src/app/(marketing)/page.tsx`. Added them as a 2-column card grid below the customer reviews inside the Testimonials section. Card 1 features the Meta Partner logo (`/meta.png`) and Card 2 features the WhatsApp logo (`/Whatsapp.png`).
   - Highlighted and animated the trust cards to distinguish them from standard testimonials: styled them with a transparent green background tint (`bg-[#D9FDD3]/30`), a brand border (`border-2 border-[#25D366]/30`), and smooth hover lift animations (`hover:-translate-y-1.5 hover:shadow-lg transition-all duration-300`).

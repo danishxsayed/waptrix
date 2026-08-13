@@ -2,36 +2,29 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
-// Public marketing routes — no auth required
-const PUBLIC_PATHS = [
-  '/',
-  '/pricing',
-  '/about',
-  '/contact',
-  '/blog',
-  '/docs',
-  '/login',
-  '/signup',
-  '/accept-invite',
-  '/privacy',
-  '/terms',
-  '/forgot-password',
-  '/reset-password',
-];
+// Routes that belong to the marketing site (waptrix.in only)
+const MARKETING_PATHS = ['/', '/pricing', '/about', '/contact', '/blog', '/docs', '/privacy', '/terms'];
+const MARKETING_PREFIXES = ['/blog/', '/docs/'];
 
-const PUBLIC_PREFIXES = [
+// Routes that are public on app.waptrix.in (no auth needed)
+const APP_PUBLIC_PATHS = ['/login', '/signup', '/accept-invite', '/forgot-password', '/reset-password'];
+const APP_PUBLIC_PREFIXES = [
   '/api/auth/',
   '/api/webhooks/',
-  '/api/payments/',       // Cashfree webhook + order creation
+  '/api/payments/',
   '/api/team/invite',
   '/api/team/create-account',
-  '/blog/',
-  '/docs/',
 ];
 
-function isPublic(pathname: string): boolean {
-  if (PUBLIC_PATHS.includes(pathname)) return true;
-  if (PUBLIC_PREFIXES.some(p => pathname.startsWith(p))) return true;
+function isMarketingPath(pathname: string): boolean {
+  if (MARKETING_PATHS.includes(pathname)) return true;
+  if (MARKETING_PREFIXES.some(p => pathname.startsWith(p))) return true;
+  return false;
+}
+
+function isAppPublic(pathname: string): boolean {
+  if (APP_PUBLIC_PATHS.includes(pathname)) return true;
+  if (APP_PUBLIC_PREFIXES.some(p => pathname.startsWith(p))) return true;
   if (pathname.includes('/process-batch')) return true;
   return false;
 }
@@ -61,26 +54,38 @@ export async function middleware(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   const pathname = request.nextUrl.pathname
   const hostname = request.headers.get('host') || ''
+  const isAppSubdomain = hostname.startsWith('app.')
 
-  // app.waptrix.in → always go to dashboard (or login if not authed)
-  if (hostname.startsWith('app.')) {
-    if (!user && !isPublic(pathname)) {
+  // ── waptrix.in (root domain) ──────────────────────────────────────────────
+  // Any non-marketing path on waptrix.in → redirect to app.waptrix.in
+  if (!isAppSubdomain && !isMarketingPath(pathname)) {
+    const url = request.nextUrl.clone()
+    url.host = 'app.' + hostname  // e.g. app.waptrix.in
+    return NextResponse.redirect(url)
+  }
+
+  // ── app.waptrix.in ────────────────────────────────────────────────────────
+  if (isAppSubdomain) {
+    // Marketing-only pages don't belong on app subdomain → redirect to waptrix.in
+    if (isMarketingPath(pathname) && pathname !== '/') {
+      const url = request.nextUrl.clone()
+      url.host = hostname.replace(/^app\./, '')
+      return NextResponse.redirect(url)
+    }
+
+    // Root on app subdomain → dashboard (if authed) or login
+    if (pathname === '/') {
+      const url = request.nextUrl.clone()
+      url.pathname = user ? '/dashboard' : '/login'
+      return NextResponse.redirect(url)
+    }
+
+    // Protected app route, not logged in → login
+    if (!user && !isAppPublic(pathname)) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }
-    if (user && pathname === '/') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/dashboard'
-      return NextResponse.redirect(url)
-    }
-  }
-
-  // Unauthenticated user visiting a protected route → send to login
-  if (!user && !isPublic(pathname)) {
-    const url = request.nextUrl.clone()
-    url.pathname = '/login'
-    return NextResponse.redirect(url)
   }
 
   return supabaseResponse
