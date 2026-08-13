@@ -251,12 +251,12 @@ export async function POST(
     const normalizedName = template.name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
     let metaTemplateId = template.meta_template_id;
 
-    if (metaTemplateId && template.meta_status === 'APPROVED') {
-      // ── Edit existing approved template ── POST /{template_id} { components }
-      console.log('Updating existing approved template on Meta:', metaTemplateId);
+    if (metaTemplateId) {
+      // ── Template already exists on Meta → update it ──
+      // POST /{meta_template_id} { components } puts it back to PENDING
+      console.log('Updating existing Meta template:', metaTemplateId);
       const updateRes = await metaApi.updateTemplate(submitToken, metaTemplateId, metaComponents);
       console.log('Meta update result:', updateRes);
-      // updateRes may return { success: true } or { id: ... }
     } else {
       // ── Create new template ──
       const metaPayload = {
