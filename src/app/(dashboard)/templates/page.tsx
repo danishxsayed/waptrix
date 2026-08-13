@@ -151,8 +151,7 @@ export default function TemplatesPage() {
       showToast("Template hasn't been submitted to Meta yet.", "error");
       return;
     }
-    setActiveMenu(null);
-    if (!confirm(`Appeal Meta's category change for "${template.name}"?\n\nThis will request Meta to restore the category back to ${template.category}.`)) return;
+    if (!confirm(`Appeal category for "${template.name}"?\n\nThis will request Meta to review the category as ${template.category}. Meta will respond within 24h.`)) return;
     try {
       await axios.post(`/api/templates/${template.id}/appeal`);
       setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, meta_status: 'PENDING' } : t));
@@ -321,27 +320,25 @@ export default function TemplatesPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pt-2">
           {filteredTemplates.map((template) => (
-            <div key={template.id} onClick={() => handleEdit(template)} className="glass-card flex flex-col group cursor-pointer hover:border-jade/30 transition-all">
+            <div key={template.id} className="glass-card flex flex-col hover:border-jade/30 transition-all">
+              {/* Card header */}
               <div className="flex justify-between items-start mb-4">
-                <div className={`p-2 rounded-lg border transition-all ${
-                  template.meta_status === 'APPROVED'
-                    ? 'bg-jade/10 border-jade/20'
-                    : template.meta_status === 'PENDING'
-                    ? 'bg-amber-500/10 border-amber-500/20'
-                    : template.meta_status === 'REJECTED'
-                    ? 'bg-rose-500/10 border-rose-500/20'
-                    : 'bg-surface border-border group-hover:border-jade/20'
+                <div className={`p-2 rounded-lg border ${
+                  template.meta_status === 'APPROVED' ? 'bg-jade/10 border-jade/20'
+                  : template.meta_status === 'PENDING'  ? 'bg-amber-500/10 border-amber-500/20'
+                  : template.meta_status === 'REJECTED' ? 'bg-rose-500/10 border-rose-500/20'
+                  : 'bg-surface border-border'
                 }`}>
                   <FileText className={`w-5 h-5 ${
                     template.meta_status === 'APPROVED' ? 'text-jade'
                     : template.meta_status === 'PENDING' ? 'text-amber-500'
                     : template.meta_status === 'REJECTED' ? 'text-rose-500'
-                    : 'text-text-muted group-hover:text-jade'
-                  } transition-colors`} />
+                    : 'text-text-muted'
+                  }`} />
                 </div>
                 <div className="relative">
                   <button
-                    onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === template.id ? null : template.id); }}
+                    onClick={() => setActiveMenu(activeMenu === template.id ? null : template.id)}
                     className="p-1.5 text-text-muted hover:text-text-primary rounded-lg hover:bg-surface"
                     disabled={syncingId === template.id}
                   >
@@ -351,60 +348,31 @@ export default function TemplatesPage() {
                     }
                   </button>
                   {activeMenu === template.id && (
-                    <div className="absolute right-0 mt-2 w-52 bg-card border border-border rounded-xl shadow-xl z-10 py-1 overflow-hidden animate-in fade-in zoom-in duration-200">
-                      {/* Edit & Resubmit — for approved templates */}
-                      {template.meta_status === 'APPROVED' && (
-                        <>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleEdit(template); setActiveMenu(null); }}
-                            className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-[#111B21] hover:bg-[#EDE8DE] transition-colors"
-                          >
-                            <Pencil className="w-3.5 h-3.5" />
-                            Edit & Resubmit
-                          </button>
-                          <div className="h-px bg-border mx-2" />
-                        </>
-                      )}
-
-                      {/* Appeal Category — when Meta changed the category */}
-                      {template.meta_template_id && template.meta_category && template.meta_category !== template.category && (
-                        <>
-                          <button
-                            onClick={(e) => { e.stopPropagation(); handleAppeal(template); }}
-                            className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-amber-500 hover:bg-amber-500/10 transition-colors"
-                          >
-                            <Flag className="w-3.5 h-3.5" />
-                            Appeal Category
-                          </button>
-                          <div className="h-px bg-border mx-2" />
-                        </>
-                      )}
-
+                    <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-xl shadow-xl z-10 py-1 overflow-hidden">
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleSync(template); }}
+                        onClick={() => { handleSync(template); setActiveMenu(null); }}
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-jade hover:bg-jade/10 transition-colors"
                       >
-                        <RotateCw className="w-3.5 h-3.5" />
-                        Sync from Meta
+                        <RotateCw className="w-3.5 h-3.5" /> Sync from Meta
                       </button>
                       <div className="h-px bg-border mx-2" />
                       <button
-                        onClick={(e) => { e.stopPropagation(); handleDelete(template.id); setActiveMenu(null); }}
+                        onClick={() => { handleDelete(template.id); setActiveMenu(null); }}
                         className="w-full flex items-center gap-2 px-4 py-2.5 text-xs font-semibold text-rose-500 hover:bg-rose-500/10 transition-colors"
                       >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        Delete Template
+                        <Trash2 className="w-3.5 h-3.5" /> Delete Template
                       </button>
                     </div>
                   )}
                 </div>
               </div>
 
+              {/* Body */}
               <div className="flex-1 space-y-3">
-                <h3 className="font-bold font-syne group-hover:text-jade transition-colors">{template.name}</h3>
+                <h3 className="font-bold font-syne">{template.name}</h3>
                 <div className="flex gap-2 flex-wrap">
                   {getStatusBadge(template.meta_status)}
-                  <span className="bg-surface text-text-muted px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border border-border flex items-center">
+                  <span className="bg-surface text-text-muted px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider border border-border">
                     {template.category}
                   </span>
                   {template.meta_category && template.meta_category !== template.category && (
@@ -423,13 +391,33 @@ export default function TemplatesPage() {
                 )}
               </div>
 
-              <div className="mt-6 pt-4 border-t border-border/50 flex items-center justify-between">
-                <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">
-                  {new Date(template.updated_at).toLocaleDateString()}
-                </span>
-                <span className="p-1 px-3 rounded-lg text-jade text-[10px] font-bold uppercase flex items-center gap-1">
-                  Open <ChevronRight className="w-3 h-3" />
-                </span>
+              {/* Footer actions */}
+              <div className="mt-6 pt-4 border-t border-border/50">
+                {template.meta_status === 'APPROVED' ? (
+                  /* Approved: show Edit & Resubmit + Appeal side by side */
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleEdit(template)}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-jade/10 text-jade hover:bg-jade/20 text-xs font-bold transition-colors"
+                    >
+                      <Pencil className="w-3.5 h-3.5" /> Edit & Resubmit
+                    </button>
+                    <button
+                      onClick={() => handleAppeal(template)}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 text-xs font-bold transition-colors"
+                    >
+                      <Flag className="w-3.5 h-3.5" /> Appeal Category
+                    </button>
+                  </div>
+                ) : (
+                  /* Other statuses: open in builder */
+                  <button
+                    onClick={() => handleEdit(template)}
+                    className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg hover:bg-surface text-jade text-xs font-bold transition-colors"
+                  >
+                    Open <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             </div>
           ))}
