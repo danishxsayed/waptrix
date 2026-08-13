@@ -64,12 +64,12 @@ export async function middleware(request: NextRequest) {
 
   // app.waptrix.in → always go to dashboard (or login if not authed)
   if (hostname.startsWith('app.')) {
-    if (!user) {
+    if (!user && !isPublic(pathname)) {
       const url = request.nextUrl.clone()
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }
-    if (pathname === '/') {
+    if (user && pathname === '/') {
       const url = request.nextUrl.clone()
       url.pathname = '/dashboard'
       return NextResponse.redirect(url)
