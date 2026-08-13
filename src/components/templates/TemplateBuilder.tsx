@@ -359,7 +359,9 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
 
   // Track initial form state to detect unsaved changes
   const savedFormRef = useRef(JSON.stringify(formData));
-  const isPostSubmit = metaStatus === "PENDING" || metaStatus === "APPROVED" || metaStatus === "REJECTED";
+  // Only lock fields while Meta is actively reviewing (PENDING).
+  // APPROVED and REJECTED templates can be edited and resubmitted.
+  const isPostSubmit = metaStatus === "PENDING";
   const isDirty = JSON.stringify(formData) !== savedFormRef.current;
 
   const handleClose = () => {
@@ -1191,7 +1193,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                       </button>
                       <button onClick={handleSubmitClick} disabled={isSubmitting} className="btn-primary flex items-center gap-2">
                         {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                        Submit to Meta
+                        {metaStatus === "APPROVED" ? "Resubmit to Meta" : "Submit to Meta"}
                       </button>
                     </div>
                   )}

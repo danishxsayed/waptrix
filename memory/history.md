@@ -19,6 +19,9 @@
   - Added redirects on the root domain (`waptrix.in`) to route all non-marketing paths to the `app.` subdomain.
   - Added redirects on the `app.` subdomain to route all marketing paths (except `/` itself) back to the root domain.
   - Set root path `/` on the `app.` subdomain to direct authenticated users to `/dashboard` and unauthenticated users to `/login`.
+- **Unlocking Templates for Editing**:
+  - Updated `isPostSubmit` condition inside `src/components/templates/TemplateBuilder.tsx` to only lock form fields when the template is in the `PENDING` state under Meta review. Users can now freely edit and resubmit `APPROVED` or `REJECTED` templates.
+  - Dynamically changed the builder's action button text to "Resubmit to Meta" if the template was already approved.
 - **Trust Cards Integration & Highlights (Testimonials)**:
   - Removed the trust badges from the Hero section in `src/app/(marketing)/page.tsx`. Added them as a 2-column card grid below the customer reviews inside the Testimonials section. Card 1 features the Meta Partner logo (`/meta.png`) and Card 2 features the WhatsApp logo (`/Whatsapp.png`).
   - Highlighted and animated the trust cards to distinguish them from standard testimonials: styled them with a transparent green background tint (`bg-[#D9FDD3]/30`), a brand border (`border-2 border-[#25D366]/30`), and smooth hover lift animations (`hover:-translate-y-1.5 hover:shadow-lg transition-all duration-300`).
