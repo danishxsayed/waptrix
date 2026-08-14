@@ -1,17 +1,8 @@
 export const dynamic = "force-dynamic";
 
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { PLANS } from "@/lib/plans";
-
-function serviceDb() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
-  );
-}
 
 const CASHFREE_ENV  = process.env.CASHFREE_ENV || "sandbox";
 const CASHFREE_BASE = CASHFREE_ENV === "production"
@@ -20,16 +11,24 @@ const CASHFREE_BASE = CASHFREE_ENV === "production"
 
 export async function POST(req: Request) {
   try {
-    // ── 1. Authenticate user ──────────────────────────────────────────────────
-    const cookieStore = await cookies();
-    const ssrClient = createServerClient(
+    // ── 1. Verify auth via Bearer token ──────────────────────────────────────
+    const authHeader = req.headers.get("Authorization") || "";
+    const token      = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+
+    if (!token) {
+      return NextResponse.json({ error: "You must be logged in to subscribe." }, { status: 401 });
+    }
+
+    // Use anon client + user token to get authenticated user
+    const anonClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      { cookies: { getAll() { return cookieStore.getAll(); }, setAll() {} } }
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
     );
-    const { data: { user } } = await ssrClient.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: "You must be logged in to start a subscription." }, { status: 401 });
+    const { data: { user }, error: userError } = await anonClient.auth.getUser(token);
+
+    if (userError || !user) {
+      console.error("payments/initiate: auth error", userError?.message);
+      return NextResponse.json({ error: "Session expired. Please log in again." }, { status: 401 });
     }
 
     // ── 2. Parse body ─────────────────────────────────────────────────────────
@@ -39,8 +38,22 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Invalid plan selected." }, { status: 400 });
     }
 
-    // ── 3. Fetch tenant info (name, phone) ────────────────────────────────────
-    const db = serviceDb();
+    // ── 3. Check Cashfree credentials ─────────────────────────────────────────
+    const appId  = process.env.CASHFREE_APP_ID;
+    const secret = process.env.CASHFREE_SECRET_KEY;
+    if (!appId || !secret) {
+      console.error("payments/initiate: Cashfree credentials missing");
+      return NextResponse.json(
+        { error: "Payment gateway not configured. Please contact support." },
+        { status: 500 }
+      );
+    }
+
+    // ── 4. Fetch tenant info (name, email, phone) ─────────────────────────────
+    const db = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_KEY!
+    );
     const { data: tenant } = await db
       .from("tenants")
       .select("name, email, phone")
@@ -49,9 +62,14 @@ export async function POST(req: Request) {
 
     const customerEmail = tenant?.email || user.email || "";
     const customerName  = tenant?.name  || user.user_metadata?.full_name || "Customer";
-    const customerPhone = (tenant?.phone || "9999999999").replace(/\D/g, "").slice(-10) || "9999999999";
+    const rawPhone      = tenant?.phone || "";
+    const customerPhone = rawPhone.replace(/\D/g, "").slice(-10) || "9999999999";
 
-    // ── 4. Create Cashfree order ──────────────────────────────────────────────
+    if (!customerEmail) {
+      return NextResponse.json({ error: "Account email not found. Please contact support." }, { status: 400 });
+    }
+
+    // ── 5. Create Cashfree order ──────────────────────────────────────────────
     const orderId = `WPX_${planId.toUpperCase()}_${user.id.slice(0, 8)}_${Date.now()}`;
 
     const orderPayload = {
@@ -77,19 +95,10 @@ export async function POST(req: Request) {
       },
     };
 
-    const appId  = process.env.CASHFREE_APP_ID;
-    const secret = process.env.CASHFREE_SECRET_KEY;
-
-    if (!appId || !secret) {
-      console.error("Cashfree credentials missing from environment");
-      return NextResponse.json(
-        { error: "Payment gateway not configured. Please contact support." },
-        { status: 500 }
-      );
-    }
+    console.log(`payments/initiate: creating order ${orderId} for ${customerEmail} plan=${planId} env=${CASHFREE_ENV}`);
 
     const cfRes = await fetch(`${CASHFREE_BASE}/orders`, {
-      method: "POST",
+      method:  "POST",
       headers: {
         "Content-Type":    "application/json",
         "x-api-version":   "2023-08-01",
@@ -100,16 +109,16 @@ export async function POST(req: Request) {
     });
 
     const cfData = await cfRes.json();
+    console.log(`payments/initiate: Cashfree response status=${cfRes.status}`, JSON.stringify(cfData).slice(0, 300));
 
     if (!cfRes.ok || !cfData.payment_session_id) {
-      console.error("Cashfree order creation failed:", JSON.stringify(cfData));
       return NextResponse.json(
         { error: cfData?.message || "We couldn't create your payment session. Please try again." },
         { status: 400 }
       );
     }
 
-    // ── 5. Pre-record order as pending in payments table ──────────────────────
+    // ── 6. Pre-record order as pending ────────────────────────────────────────
     await db.from("payments").upsert({
       order_id:       orderId,
       plan_id:        "pro",
@@ -130,7 +139,7 @@ export async function POST(req: Request) {
     });
 
   } catch (err: any) {
-    console.error("payments/initiate error:", err.message, err.stack);
+    console.error("payments/initiate unhandled error:", err.message, err.stack);
     return NextResponse.json(
       { error: "We couldn't create your payment session. Please try again." },
       { status: 500 }

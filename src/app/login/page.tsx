@@ -59,10 +59,14 @@ export default function LoginPage() {
       // If a plan was selected before login → initiate payment directly
       if (planParam) {
         setStatusMsg("Logged in! Creating your payment session…");
+        const { data: { session: newSession } } = await supabase.auth.getSession();
         const res = await fetch("/api/payments/initiate", {
           method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ planId: planParam }),
+          headers: {
+            "Content-Type":  "application/json",
+            "Authorization": `Bearer ${newSession?.access_token || ""}`,
+          },
+          body: JSON.stringify({ planId: planParam }),
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "We couldn't create your payment session. Please try again.");

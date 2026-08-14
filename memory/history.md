@@ -8,7 +8,8 @@
 - **Conversion Checkout Funnel (Preserved Plan parameters)**:
   - Updated the pricing page (`src/app/(marketing)/pricing/page.tsx`) to check for sessions; unauthenticated users are redirected to login with their plan selected (`/login?plan=pro_monthly`).
   - Modified the login and signup routes (`src/app/login/page.tsx` and `src/app/signup/page.tsx`) to catch the `plan` parameter, display status banners, and immediately fire up Cashfree checkout sessions on completion.
-  - Implemented `/api/payments/initiate` endpoint (`src/app/api/payments/initiate/route.ts`) to authenticate user sessions, retrieve tenant metadata (name, email, normalized 10-digit phone), pre-record order state as `pending` in the database, and request Cashfree payment sessions.
+  - Implemented `/api/payments/initiate` endpoint (`src/app/api/payments/initiate/route.ts`) to verify auth via Bearer access tokens (passed via the `Authorization` header) to avoid client cookie race conditions. It retrieves tenant metadata (name, email, normalized 10-digit phone), pre-records the pending order in the database, and requests Cashfree checkout sessions.
+  - Updated the pricing, login, and signup client pages to retrieve and forward the Supabase session access token in the initiate request.
 - **Robust Webhook Handlers & Auditing**:
   - Rewrote the Cashfree webhook route (`src/app/api/payments/webhook/route.ts`) to handle `PAYMENT_SUCCESS_WEBHOOK`, `PAYMENT_FAILED_WEBHOOK`, and `PAYMENT_PENDING_WEBHOOK` states idempotently by validating against already-paid orders.
   - Sends customized notification emails for pending, failed, or successful payments, and updates target tenant plan durations and trial properties.

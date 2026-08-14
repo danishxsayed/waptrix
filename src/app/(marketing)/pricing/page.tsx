@@ -131,10 +131,18 @@ function PricingContent() {
     // Logged in → create order then open Cashfree checkout
     setPaying(true);
     try {
+      // Get fresh access token to send as Authorization header
+      const supabase   = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const token = session?.access_token || "";
+
       const res = await fetch("/api/payments/initiate", {
         method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify({ planId: pricing.planId }),
+        headers: {
+          "Content-Type":  "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify({ planId: pricing.planId }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "We couldn't create your payment session. Please try again.");

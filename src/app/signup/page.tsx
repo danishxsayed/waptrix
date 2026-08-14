@@ -55,10 +55,14 @@ export default function SignupPage() {
       // If a plan was pre-selected, log in & initiate payment immediately
       if (planParam && responseData.session) {
         setStatusMsg("Account created! Setting up your payment…");
+        const accessToken = responseData.session?.access_token || "";
         const payRes = await fetch("/api/payments/initiate", {
           method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body:    JSON.stringify({ planId: planParam }),
+          headers: {
+            "Content-Type":  "application/json",
+            "Authorization": `Bearer ${accessToken}`,
+          },
+          body: JSON.stringify({ planId: planParam }),
         });
         const payData = await payRes.json();
         if (!payRes.ok) throw new Error(payData.error || "We couldn't create your payment session. Please try again.");
