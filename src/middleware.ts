@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 
 // Routes that belong to the marketing site (waptrix.in only)
 const MARKETING_PATHS = ['/', '/pricing', '/about', '/contact', '/blog', '/docs', '/privacy', '/terms'];
-const MARKETING_PREFIXES = ['/blog/', '/docs/'];
+const MARKETING_PREFIXES = ['/blog/', '/docs/', '/api/'];
 
 // Routes that are public on app.waptrix.in (no auth needed)
 const APP_PUBLIC_PATHS = ['/login', '/signup', '/accept-invite', '/forgot-password', '/reset-password'];

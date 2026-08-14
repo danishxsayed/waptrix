@@ -71,7 +71,7 @@ function PaymentBanner() {
   }
 
   if (!status) return null;
-  return status === "SUCCESS" ? (
+  return (status === "SUCCESS" || status === "PAID") ? (
     <div className="bg-[#D9FDD3] border border-[#25D366]/30 rounded-2xl px-5 py-4 flex items-center gap-3 mb-10">
       <CheckCircle className="w-5 h-5 text-[#075E54] flex-shrink-0" />
       <div>
