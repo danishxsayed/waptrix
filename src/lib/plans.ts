@@ -7,7 +7,7 @@ export const PLANS: Record<string, {
 }> = {
   pro_monthly: {
     name:         "Waptrix Pro — Monthly",
-    amount:       1999,
+    amount:       2,
     billingCycle: "monthly",
     durationDays: 31,
     description:  "Waptrix Pro Plan billed monthly",
