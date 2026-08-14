@@ -1,6 +1,8 @@
 # Implementation History
 
 ## [2026-08-14] - End-to-End Checkout Funnel & Webhook Idempotency
+- **Unified Pricing Plans Configuration**:
+  - Created a centralized plans definition configuration file [plans.ts](file:///Users/danishsayed/Desktop/Waptrix/src/lib/plans.ts) and refactored `/api/payments/create-order` and `/api/payments/initiate` route handlers to import it directly, removing code redundancy.
 - **User Session Navbar Dropdown**:
   - Implemented dynamic user session checking in the marketing layout navbar (`src/app/(marketing)/layout.tsx`), showing a dashboard link and sign-out option in a profile dropdown for logged-in users instead of generic "Log In" / "Get Started" buttons.
 - **Conversion Checkout Funnel (Preserved Plan parameters)**:

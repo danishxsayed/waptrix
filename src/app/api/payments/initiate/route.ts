@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
-import { PLANS } from "@/app/api/payments/create-order/route";
+import { PLANS } from "@/lib/plans";
 
 function serviceDb() {
   return createClient(

@@ -1,43 +1,14 @@
 export const dynamic = 'force-dynamic';
 
 import { NextResponse } from 'next/server';
+import { PLANS } from '@/lib/plans';
 
-const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID!;
-const CASHFREE_SECRET = process.env.CASHFREE_SECRET_KEY!;
+const CASHFREE_APP_ID = process.env.CASHFREE_APP_ID;
+const CASHFREE_SECRET = process.env.CASHFREE_SECRET_KEY;
 const CASHFREE_ENV    = process.env.CASHFREE_ENV || 'sandbox';
 const CASHFREE_BASE   = CASHFREE_ENV === 'production'
   ? 'https://api.cashfree.com/pg'
   : 'https://sandbox.cashfree.com/pg';
-
-export const PLANS: Record<string, {
-  name: string;
-  amount: number;       // in rupees
-  billingCycle: 'monthly' | 'quarterly' | 'yearly';
-  durationDays: number;
-  description: string;
-}> = {
-  pro_monthly: {
-    name:         'Waptrix Pro — Monthly',
-    amount:       1999,
-    billingCycle: 'monthly',
-    durationDays: 31,
-    description:  'Waptrix Pro Plan billed monthly',
-  },
-  pro_quarterly: {
-    name:         'Waptrix Pro — Quarterly',
-    amount:       4999,
-    billingCycle: 'quarterly',
-    durationDays: 92,
-    description:  'Waptrix Pro Plan billed quarterly (save 17%)',
-  },
-  pro_yearly: {
-    name:         'Waptrix Pro — Yearly',
-    amount:       17999,
-    billingCycle: 'yearly',
-    durationDays: 365,
-    description:  'Waptrix Pro Plan billed yearly (save 25%)',
-  },
-};
 
 export async function POST(req: Request) {
   try {
@@ -46,6 +17,11 @@ export async function POST(req: Request) {
     const plan = PLANS[planId];
     if (!plan) {
       return NextResponse.json({ error: 'Invalid plan' }, { status: 400 });
+    }
+
+    if (!CASHFREE_APP_ID || !CASHFREE_SECRET) {
+      console.error('Cashfree credentials not configured');
+      return NextResponse.json({ error: 'Payment gateway not configured. Please contact support.' }, { status: 500 });
     }
 
     const orderId = `WPX_${planId.toUpperCase()}_${Date.now()}`;
