@@ -144,6 +144,63 @@ async function sendAutoReply(
 }
 
 /**
+ * Campaign auto-reply: when a contact replies to a campaign message, check if the
+ * campaign has auto_reply rules enabled and fire the matching response.
+ */
+async function maybeFirCampaignAutoReply(
+  db: SupabaseClient,
+  tenantId: string,
+  senderPhone: string,
+  inboundText: string
+) {
+  try {
+    // Normalise phone — message_logs stores without leading +
+    const phoneNorm = senderPhone.replace(/^\+/, '');
+
+    // Find the most recent campaign message sent to this phone in last 7 days
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { data: logRow } = await db
+      .from('message_logs')
+      .select('campaign_id')
+      .eq('tenant_id', tenantId)
+      .or(`phone.eq.${phoneNorm},phone.eq.+${phoneNorm}`)
+      .not('campaign_id', 'is', null)
+      .gte('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (!logRow?.campaign_id) return;
+
+    // Fetch campaign auto_replies config
+    const { data: campaign } = await db
+      .from('campaigns')
+      .select('id, auto_replies')
+      .eq('id', logRow.campaign_id)
+      .maybeSingle();
+
+    if (!campaign?.auto_replies?.enabled) return;
+    const rules: { keywords: string[]; response: string }[] = campaign.auto_replies.rules || [];
+    if (rules.length === 0) return;
+
+    const textLower = inboundText.toLowerCase().trim();
+
+    for (const rule of rules) {
+      if (!rule.keywords || !rule.response) continue;
+      const matched = rule.keywords.some((kw: string) => textLower.includes(kw.toLowerCase()));
+      if (matched) {
+        setTimeout(() => {
+          sendAutoReply(db, tenantId, senderPhone, rule.response);
+        }, 1200);
+        break; // only fire the first matching rule
+      }
+    }
+  } catch (err: any) {
+    console.error('Campaign auto-reply check failed:', err.message);
+  }
+}
+
+/**
  * Check and fire applicable automations (greeting / OOO) for an inbound message.
  * - greeting fires on the FIRST ever message from a contact (new conversation)
  * - ooo fires when current server time is within the configured OOO window
@@ -454,6 +511,11 @@ async function handleMessages(db: SupabaseClient, value: any) {
 
     // Fire automations (greeting for new conversations, OOO if outside hours)
     maybeFireAutomations(db, tenantId, senderPhone, isNewConversation);
+
+    // Check campaign auto-reply rules for text messages
+    if (type === 'text' && content && !isOptOut(content) && !isOptIn(content)) {
+      maybeFirCampaignAutoReply(db, tenantId, senderPhone, content);
+    }
   }
 }
 

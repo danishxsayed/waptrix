@@ -30,11 +30,16 @@ export async function POST(request: Request) {
         process.env.SUPABASE_SERVICE_KEY!
       );
 
+      const trialEndsAt = new Date();
+      trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
       const { error: tenantError } = await serviceClient.from('tenants').insert({
         id: authData.user.id,
         name,
         email,
         company,
+        plan: 'trial',
+        trial_ends_at: trialEndsAt.toISOString(),
       });
 
       if (tenantError) return NextResponse.json({ error: tenantError.message }, { status: 400 });
@@ -46,7 +51,7 @@ export async function POST(request: Request) {
           to: email,
           subject: "Welcome to Waptrix!",
           title: "Setup Successful!",
-          message: `Hi ${name}, welcome to Waptrix! Your professional WhatsApp marketing platform is ready for use. Start by connecting your WhatsApp account in the dashboard.`,
+          message: `Hi ${name}, welcome to Waptrix! 🎉 Your 7-day free trial has started. You have full access to all Pro features — bulk campaigns, automation, analytics, and more. No credit card needed during the trial.\n\nStart by connecting your WhatsApp Business account in the dashboard. Your trial ends on ${trialEndsAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.`,
           buttonText: "Go to Dashboard",
           buttonUrl: `${process.env.NEXT_PUBLIC_APP_URL}/connect`
         });

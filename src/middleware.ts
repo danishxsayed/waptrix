@@ -86,6 +86,49 @@ export async function middleware(request: NextRequest) {
       url.pathname = '/login'
       return NextResponse.redirect(url)
     }
+
+    // Trial / plan enforcement — cache result in cookie to avoid DB hit on every request
+    if (user && !isAppPublic(pathname) && pathname !== '/pricing' && !pathname.startsWith('/api/')) {
+      const planCookie  = request.cookies.get('waptrix_plan_ok')
+      const cacheValid  = planCookie?.value === user.id   // cookie stores user.id as the check token
+
+      if (!cacheValid) {
+        // Only hit DB when no valid cookie exists (first visit or cookie expired)
+        const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+        const serviceDb = createServiceClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_KEY!
+        )
+        const { data: tenant } = await serviceDb
+          .from('tenants')
+          .select('plan, trial_ends_at, plan_expires_at')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        if (tenant) {
+          const now      = new Date()
+          const isPro    = tenant.plan === 'pro' && tenant.plan_expires_at && new Date(tenant.plan_expires_at) > now
+          const inTrial  = tenant.plan === 'trial' && tenant.trial_ends_at && new Date(tenant.trial_ends_at) > now
+          const hasAccess = isPro || inTrial
+
+          if (!hasAccess) {
+            const url = request.nextUrl.clone()
+            url.host = hostname.replace(/^app\./, '')
+            url.pathname = '/pricing'
+            url.searchParams.set('expired', '1')
+            return NextResponse.redirect(url)
+          }
+
+          // Set cookie so we skip DB for next 5 minutes
+          supabaseResponse.cookies.set('waptrix_plan_ok', user.id, {
+            httpOnly: true,
+            maxAge:   300, // 5 minutes
+            path:     '/',
+            sameSite: 'lax',
+          })
+        }
+      }
+    }
   }
 
   return supabaseResponse

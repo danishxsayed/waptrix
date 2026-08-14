@@ -1,5 +1,25 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { BookOpen, MessageSquare, Send, Users, BarChart3, Bot, Settings, ArrowRight } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Documentation | Waptrix — WhatsApp Business API Guides",
+  description:
+    "Everything you need to connect your WhatsApp number, send campaigns, manage templates, set up automation, and grow your team on Waptrix. Step-by-step guides and API references.",
+  alternates: { canonical: "https://waptrix.in/docs" },
+  openGraph: {
+    title: "Documentation | Waptrix — WhatsApp Business API Guides",
+    description:
+      "Step-by-step guides for campaigns, inbox management, templates, automation, and team management on Waptrix.",
+    url: "https://waptrix.in/docs",
+    images: [{ url: "/featured.png", width: 1200, height: 630, alt: "Waptrix Documentation" }],
+  },
+  twitter: {
+    title: "Documentation | Waptrix — WhatsApp Business API Guides",
+    description: "Step-by-step guides for campaigns, inbox management, templates, automation, and team management on Waptrix.",
+    images: ["/featured.png"],
+  },
+};
 
 const SECTIONS = [
   { icon: BookOpen,    title: "Getting Started",     desc: "Connect your number and send your first message in 5 minutes.", articles: ["Create your account", "Connect your WhatsApp number", "Verify with Meta", "Send your first message"] },

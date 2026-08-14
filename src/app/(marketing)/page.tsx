@@ -1,8 +1,28 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import {
   Send, MessageSquare, Users, BarChart3, Bot, Shield,
   CheckCircle, ArrowRight, Inbox, FileText, Zap
 } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Waptrix | WhatsApp Business Marketing Platform for India",
+  description:
+    "Send bulk WhatsApp campaigns, manage conversations, automate replies, and track every message — all in one platform. Built for Indian businesses on the official WhatsApp Business API.",
+  alternates: { canonical: "https://waptrix.in" },
+  openGraph: {
+    title: "Waptrix | WhatsApp Business Marketing Platform",
+    description:
+      "Send bulk WhatsApp campaigns, manage conversations, automate replies, and track every message — all in one platform.",
+    url: "https://waptrix.in",
+    images: [{ url: "/featured.png", width: 1200, height: 630, alt: "Waptrix — WhatsApp Business Marketing Platform" }],
+  },
+  twitter: {
+    title: "Waptrix | WhatsApp Business Marketing Platform",
+    description: "Send bulk WhatsApp campaigns, manage conversations, automate replies — all in one platform.",
+    images: ["/featured.png"],
+  },
+};
 
 /* ── Hero ── full-width campaign-style section like WA.com ─────────────────── */
 function Hero() {
@@ -462,9 +482,59 @@ function CTA() {
 }
 
 /* ── Page ─────────────────────────────────────────────────────────────────────── */
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "SoftwareApplication",
+      "@id": "https://waptrix.in/#software",
+      name: "Waptrix",
+      url: "https://waptrix.in",
+      applicationCategory: "BusinessApplication",
+      operatingSystem: "Web",
+      offers: {
+        "@type": "Offer",
+        price: "1999",
+        priceCurrency: "INR",
+        priceValidUntil: "2027-12-31",
+        availability: "https://schema.org/InStock",
+      },
+      description:
+        "WhatsApp Business Marketing Platform for India — send bulk campaigns, manage conversations, and automate replies using the official WhatsApp Business API.",
+      screenshot: "https://waptrix.in/featured.png",
+      featureList: [
+        "Bulk WhatsApp Campaigns",
+        "Unified Inbox",
+        "Message Templates",
+        "Contact Management",
+        "Auto-Reply Automation",
+        "Analytics & Reports",
+      ],
+    },
+    {
+      "@type": "Organization",
+      "@id": "https://waptrix.in/#org",
+      name: "Waptrix",
+      url: "https://waptrix.in",
+      logo: "https://waptrix.in/favicon.ico",
+      sameAs: [],
+      contactPoint: {
+        "@type": "ContactPoint",
+        contactType: "customer support",
+        availableLanguage: ["English", "Hindi"],
+        url: "https://waptrix.in/contact",
+      },
+    },
+  ],
+};
+
 export default function LandingPage() {
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <Hero />
       <Stats />
       <FloatingTextSection />

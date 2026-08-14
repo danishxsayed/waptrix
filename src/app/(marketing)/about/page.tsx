@@ -1,5 +1,26 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { Shield, Zap, Heart, MessageSquare, ArrowRight } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "About Waptrix | WhatsApp Marketing Platform Built for India",
+  description:
+    "Learn how Waptrix helps Indian businesses reach customers on WhatsApp with bulk campaigns, smart automation, and a unified inbox — powered by the official WhatsApp Business API.",
+  alternates: { canonical: "https://waptrix.in/about" },
+  openGraph: {
+    title: "About Waptrix | WhatsApp Marketing Platform Built for India",
+    description:
+      "Learn how Waptrix helps Indian businesses reach customers on WhatsApp with bulk campaigns, smart automation, and a unified inbox.",
+    url: "https://waptrix.in/about",
+    images: [{ url: "/featured.png", width: 1200, height: 630, alt: "About Waptrix" }],
+  },
+  twitter: {
+    title: "About Waptrix | WhatsApp Marketing Platform Built for India",
+    description:
+      "Learn how Waptrix helps Indian businesses reach customers on WhatsApp with bulk campaigns, smart automation, and a unified inbox.",
+    images: ["/featured.png"],
+  },
+};
 
 export default function AboutPage() {
   return (

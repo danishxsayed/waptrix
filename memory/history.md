@@ -1,5 +1,22 @@
 # Implementation History
 
+## [2026-08-14] - Pricing Plans Overhaul, Cashfree Subscriptions & Campaign Auto-Replies
+- **Trial & Plan Management**:
+  - Implemented database migrations (`supabase/add-trial-columns.sql`) adding plan status (`plan`), `trial_ends_at`, and `plan_expires_at` to the `tenants` table, default-backfilling all tenants to a 7-day trial.
+  - Refactored `src/app/api/payments/create-order/route.ts` to replace legacy plans with a new tier list: `pro_monthly` (₹1,999), `pro_quarterly` (₹4,999), and `pro_yearly` (₹17,999), passing along customer email, billing cycle, and expiration length as order tags.
+  - Redesigned the `/pricing` page to display the new Pro plans, support checkout sessions, and render custom pricing layouts.
+- **Cashfree Webhook Upgrades & Subscription Activation**:
+  - Updated the Cashfree webhook route `src/app/api/payments/webhook/route.ts` to automatically resolve tenant ids from customer emails, transition paying tenants to the `pro` plan with correct expiration timestamps, and send purchase success emails via Resend.
+  - Applied database changes (`supabase/update-payments-table.sql`) adding `billing_cycle`, `expires_at`, and `tenant_id` columns to the `payments` table.
+- **Campaign Auto-Replies & Meta Message Tracking**:
+  - Created migration `supabase/add-campaign-auto-replies.sql` to support custom campaign descriptions and automatic reply rule-sets (`auto_replies` JSONB).
+  - Linked message log entries to parent campaigns by adding a `campaign_id` foreign key with performance-optimized search indexes.
+- **Next.js Build & Router Cache Tuning**:
+  - Tuned `next.config.ts` to compress responses, disable powered-by-header exposure, configure AVIF/WebP image formats, and define aggressive router stale cache times (`staleTimes`) for dynamic and static pages to accelerate loading speeds.
+  - Added skeleton loaders (`loading.tsx`) for dashboard pages (Analytics, Campaigns, Connect, Contacts, Inbox, Settings, Team, Templates) to improve UI state transition smoothness.
+- **Dev Server Startup**:
+  - Started the Next.js development server on port 3001 using `npm run dev` to facilitate local development.
+
 ## [2026-08-12] - Cashfree Payments Integration & Marketing Routing Setup
 - **Dev Server Management**:
   - Started the Next.js development server on port 3001 using `npm run dev` to facilitate local development.

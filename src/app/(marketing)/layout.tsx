@@ -1,8 +1,68 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import Image from "next/image";
+import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+
+function OfferPopup() {
+  const [visible, setVisible] = useState(false);
+  const [animating, setAnimating] = useState(false);
+
+  useEffect(() => {
+    // Show popup after 1.2s on every page visit (not just first)
+    const timer = setTimeout(() => {
+      setVisible(true);
+      setAnimating(true);
+    }, 1200);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const close = () => {
+    setAnimating(false);
+    setTimeout(() => setVisible(false), 300);
+  };
+
+  if (!visible) return null;
+
+  return (
+    <div
+      className="fixed inset-0 z-[999] flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
+      onClick={close}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          transition: "opacity 0.3s ease, transform 0.3s cubic-bezier(.34,1.56,.64,1)",
+          opacity: animating ? 1 : 0,
+          transform: animating ? "scale(1) translateY(0)" : "scale(0.88) translateY(20px)",
+        }}
+        className="relative max-w-sm w-full"
+      >
+        {/* Close button */}
+        <button
+          onClick={close}
+          className="absolute -top-3 -right-3 z-10 bg-white text-[#111B21] rounded-full w-8 h-8 flex items-center justify-center shadow-lg hover:bg-[#EDE8DE] transition-colors"
+        >
+          <X className="w-4 h-4" />
+        </button>
+
+        {/* Offer image */}
+        <Link href="/pricing" onClick={close}>
+          <Image
+            src="/popup-offer.png"
+            alt="Independence Day Offer"
+            width={480}
+            height={600}
+            className="w-full rounded-2xl shadow-2xl cursor-pointer"
+            priority
+          />
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 const NAV_LINKS = [
   { label: "Features",  href: "/#features" },
@@ -149,6 +209,7 @@ function Footer() {
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#EDE8DE] flex flex-col">
+      <OfferPopup />
       <Navbar />
       <main className="flex-1 pt-[68px]">{children}</main>
       <Footer />

@@ -1,5 +1,25 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, Clock } from "lucide-react";
+
+export const metadata: Metadata = {
+  title: "Blog | WhatsApp Marketing Tips & Guides — Waptrix",
+  description:
+    "Actionable WhatsApp marketing guides, bulk messaging tips, and Business API tutorials for Indian businesses. Learn how to grow with WhatsApp from the Waptrix team.",
+  alternates: { canonical: "https://waptrix.in/blog" },
+  openGraph: {
+    title: "Blog | WhatsApp Marketing Tips & Guides — Waptrix",
+    description:
+      "Actionable WhatsApp marketing guides, bulk messaging tips, and Business API tutorials for Indian businesses.",
+    url: "https://waptrix.in/blog",
+    images: [{ url: "/featured.png", width: 1200, height: 630, alt: "Waptrix Blog" }],
+  },
+  twitter: {
+    title: "Blog | WhatsApp Marketing Tips & Guides — Waptrix",
+    description: "Actionable WhatsApp marketing guides, bulk messaging tips, and Business API tutorials for Indian businesses.",
+    images: ["/featured.png"],
+  },
+};
 
 const POSTS = [
   { slug: "whatsapp-marketing-tips-2024", title: "10 WhatsApp Marketing Tips That Actually Work in 2024", excerpt: "Most businesses use WhatsApp the wrong way. Here are 10 proven strategies that drive real results.", date: "August 5, 2026", readTime: "5 min", tag: "Strategy" },

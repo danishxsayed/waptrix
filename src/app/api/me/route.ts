@@ -42,7 +42,10 @@ export async function GET() {
       .eq('id', tenantId)
       .single();
 
-    return NextResponse.json({ role, tenant, isStaff });
+    return NextResponse.json(
+      { role, tenant, isStaff },
+      { headers: { 'Cache-Control': 'private, max-age=20, stale-while-revalidate=60' } }
+    );
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

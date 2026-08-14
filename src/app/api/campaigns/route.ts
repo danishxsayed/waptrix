@@ -91,9 +91,11 @@ export async function POST(req: Request) {
     try { body = await req.json(); }
     catch { return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }); }
 
-    const name       = body.name;
-    const templateId = body.templateId || body.template_id;
-    const segmentId  = body.segmentId  || body.segment_id;
+    const name        = body.name;
+    const templateId  = body.templateId || body.template_id;
+    const segmentId   = body.segmentId  || body.segment_id;
+    const description = body.description || null;
+    const autoReplies = body.auto_replies || { enabled: false, rules: [] };
 
     if (!name)       return NextResponse.json({ error: 'Campaign name is required' },    { status: 400 });
     if (!templateId) return NextResponse.json({ error: 'Template is required' },         { status: 400 });
@@ -113,11 +115,13 @@ export async function POST(req: Request) {
       .insert({
         tenant_id:        user.id,
         name,
+        description,
         template_id:      templateId,
         segment_id:       segmentId,
         variable_mapping: variable_mapping || {},
         scheduled_at:     finalScheduledAt,
         status:           finalStatus,
+        auto_replies:     autoReplies,
       })
       .select()
       .single();

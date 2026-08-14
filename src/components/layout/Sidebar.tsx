@@ -104,7 +104,7 @@ export default function Sidebar() {
       } catch (_) {}
     }
     fetchUnread();
-    const iv = setInterval(fetchUnread, 30_000);
+    const iv = setInterval(fetchUnread, 60_000); // reduced from 30s → 60s
     return () => clearInterval(iv);
   }, []);
 
@@ -127,7 +127,7 @@ export default function Sidebar() {
       } catch (_) {}
     }
     fetchTeamChatUnread();
-    const iv = setInterval(fetchTeamChatUnread, 20_000);
+    const iv = setInterval(fetchTeamChatUnread, 40_000); // reduced from 20s → 40s
     return () => clearInterval(iv);
   }, [pathname]);
 
