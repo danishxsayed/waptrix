@@ -4,7 +4,7 @@ import type { NextRequest } from 'next/server'
 
 // Routes that belong to the marketing site (waptrix.in only)
 const MARKETING_PATHS = ['/', '/pricing', '/about', '/contact', '/blog', '/docs', '/privacy', '/terms'];
-const MARKETING_PREFIXES = ['/blog/', '/docs/', '/api/'];
+const MARKETING_PREFIXES = ['/blog/', '/docs/'];
 
 // Routes that are public on app.waptrix.in (no auth needed)
 const APP_PUBLIC_PATHS = ['/login', '/signup', '/accept-invite', '/forgot-password', '/reset-password'];
@@ -58,7 +58,7 @@ export async function middleware(request: NextRequest) {
 
   // ── waptrix.in (root domain) ──────────────────────────────────────────────
   // Any non-marketing path on waptrix.in → redirect to app.waptrix.in
-  if (!isAppSubdomain && !isMarketingPath(pathname)) {
+  if (!isAppSubdomain && !isMarketingPath(pathname) && !pathname.startsWith('/api/')) {
     const url = request.nextUrl.clone()
     url.host = 'app.' + hostname  // e.g. app.waptrix.in
     return NextResponse.redirect(url)
