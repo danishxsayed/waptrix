@@ -3,7 +3,8 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 function OfferPopup() {
   const [visible, setVisible] = useState(false);
@@ -96,6 +97,32 @@ function WaptrixLogo() {
 
 function Navbar() {
   const [open, setOpen] = useState(false);
+  const [sessionUser, setSessionUser] = useState<{ name: string; email: string } | null>(null);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const name =
+          session.user.user_metadata?.full_name ||
+          session.user.user_metadata?.name ||
+          session.user.email?.split("@")[0] ||
+          "User";
+        setSessionUser({ name, email: session.user.email || "" });
+      }
+      setSessionLoaded(true);
+    });
+  }, []);
+
+  const handleSignOut = async () => {
+    const supabase = createClient();
+    await supabase.auth.signOut();
+    setSessionUser(null);
+    setUserMenuOpen(false);
+    window.location.href = "/";
+  };
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E9EDEF]">
@@ -121,18 +148,66 @@ function Navbar() {
 
         {/* CTAs */}
         <div className="hidden md:flex items-center gap-3 flex-shrink-0">
-          <Link
-            href="/login"
-            className="flex items-center gap-1 border-2 border-[#111B21] text-[#111B21] text-sm font-bold px-5 py-2 rounded-full hover:bg-[#111B21] hover:text-white transition-all"
-          >
-            Log In <span className="text-xs">›</span>
-          </Link>
-          <Link
-            href="/pricing"
-            className="flex items-center gap-1 bg-[#25D366] text-[#111B21] text-sm font-bold px-5 py-2 rounded-full hover:bg-[#128C7E] hover:text-white transition-all"
-          >
-            Get Started <span className="text-xs">›</span>
-          </Link>
+          {sessionLoaded && sessionUser ? (
+            /* ── Logged-in state ── */
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen((v) => !v)}
+                className="flex items-center gap-2 px-4 py-2 bg-[#EDE8DE] border border-[#E9EDEF] rounded-full hover:bg-[#D9FDD3] transition-all text-sm font-bold text-[#111B21]"
+              >
+                <div className="w-6 h-6 bg-[#25D366] rounded-full flex items-center justify-center text-white text-xs font-bold">
+                  {sessionUser.name[0].toUpperCase()}
+                </div>
+                {sessionUser.name.split(" ")[0]}
+                <ChevronDown className={`w-3.5 h-3.5 text-[#667781] transition-transform ${userMenuOpen ? "rotate-180" : ""}`} />
+              </button>
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-2 w-48 bg-white border border-[#E9EDEF] rounded-2xl shadow-xl overflow-hidden z-50">
+                  <div className="px-4 py-3 border-b border-[#E9EDEF]">
+                    <p className="text-xs font-bold text-[#111B21] truncate">{sessionUser.name}</p>
+                    <p className="text-[10px] text-[#667781] truncate">{sessionUser.email}</p>
+                  </div>
+                  <Link
+                    href="/dashboard"
+                    onClick={() => setUserMenuOpen(false)}
+                    className="flex items-center gap-2.5 px-4 py-3 text-sm text-[#111B21] hover:bg-[#D9FDD3] transition-colors"
+                  >
+                    <LayoutDashboard className="w-4 h-4 text-[#25D366]" />
+                    Go to Dashboard
+                  </Link>
+                  <button
+                    onClick={handleSignOut}
+                    className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-[#667781] hover:bg-[#EDE8DE] transition-colors"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sign Out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : sessionLoaded ? (
+            /* ── Logged-out state ── */
+            <>
+              <Link
+                href="/login"
+                className="flex items-center gap-1 border-2 border-[#111B21] text-[#111B21] text-sm font-bold px-5 py-2 rounded-full hover:bg-[#111B21] hover:text-white transition-all"
+              >
+                Log In <span className="text-xs">›</span>
+              </Link>
+              <Link
+                href="/pricing"
+                className="flex items-center gap-1 bg-[#25D366] text-[#111B21] text-sm font-bold px-5 py-2 rounded-full hover:bg-[#128C7E] hover:text-white transition-all"
+              >
+                Get Started <span className="text-xs">›</span>
+              </Link>
+            </>
+          ) : (
+            /* ── Loading skeleton ── */
+            <div className="flex items-center gap-3">
+              <div className="w-20 h-9 bg-[#EDE8DE] rounded-full animate-pulse" />
+              <div className="w-28 h-9 bg-[#EDE8DE] rounded-full animate-pulse" />
+            </div>
+          )}
         </div>
 
         {/* Mobile */}
@@ -154,8 +229,17 @@ function Navbar() {
             </Link>
           ))}
           <div className="flex flex-col gap-2 pt-4">
-            <Link href="/login" className="text-center border-2 border-[#111B21] text-[#111B21] font-bold py-2.5 rounded-full text-sm">Log In</Link>
-            <Link href="/pricing" className="text-center bg-[#25D366] text-[#111B21] font-bold py-2.5 rounded-full text-sm">Get Started</Link>
+            {sessionUser ? (
+              <>
+                <Link href="/dashboard" onClick={() => setOpen(false)} className="text-center bg-[#25D366] text-[#111B21] font-bold py-2.5 rounded-full text-sm">Go to Dashboard</Link>
+                <button onClick={handleSignOut} className="text-center border-2 border-[#667781] text-[#667781] font-bold py-2.5 rounded-full text-sm">Sign Out</button>
+              </>
+            ) : (
+              <>
+                <Link href="/login" onClick={() => setOpen(false)} className="text-center border-2 border-[#111B21] text-[#111B21] font-bold py-2.5 rounded-full text-sm">Log In</Link>
+                <Link href="/pricing" onClick={() => setOpen(false)} className="text-center bg-[#25D366] text-[#111B21] font-bold py-2.5 rounded-full text-sm">Get Started</Link>
+              </>
+            )}
           </div>
         </div>
       )}

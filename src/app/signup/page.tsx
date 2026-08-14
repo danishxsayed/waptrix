@@ -1,22 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Mail, Lock, ArrowRight, User, Building, ShieldCheck, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, ArrowRight, User, Building, ShieldCheck, Eye, EyeOff, CheckCircle, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from '@/lib/supabase/client';
 
-export default function SignupPage() {
-  const [formData, setFormData] = useState({ 
-    name: "", 
-    company: "",
-    email: "", 
-    password: "" 
+function loadCashfree(): Promise<any> {
+  const mode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox";
+  if ((window as any).Cashfree) return Promise.resolve((window as any).Cashfree({ mode }));
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+    s.onload  = () => resolve((window as any).Cashfree({ mode }));
+    s.onerror = reject;
+    document.head.appendChild(s);
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+}
+
+export default function SignupPage() {
+  const [formData, setFormData] = useState({ name: "", company: "", email: "", password: "" });
+  const [showPassword, setShowPassword]   = useState(false);
+  const [isLoading, setIsLoading]         = useState(false);
+  const [statusMsg, setStatusMsg]         = useState<string | null>(null);
+  const [error, setError]                 = useState<string | null>(null);
   const router = useRouter();
+
+  const planParam = typeof window !== "undefined"
+    ? new URLSearchParams(window.location.search).get("plan")
+    : null;
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,21 +36,41 @@ export default function SignupPage() {
     setError(null);
 
     try {
-      const { data: responseData } = await import('axios').then(m => m.default.post('/api/auth/signup', {
-        email: formData.email,
-        password: formData.password,
-        name: formData.name,
-        company: formData.company
-      }));
-
-      if (responseData.error) {
-        setError(responseData.error);
+      const res = await fetch("/api/auth/signup", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          email:    formData.email,
+          password: formData.password,
+          name:     formData.name,
+          company:  formData.company,
+        }),
+      });
+      const responseData = await res.json();
+      if (!res.ok || responseData.error) {
+        setError(responseData.error || "Signup failed. Please try again.");
         return;
       }
 
-      router.push("/login?message=Signup successful. Please check your email.");
+      // If a plan was pre-selected, log in & initiate payment immediately
+      if (planParam && responseData.session) {
+        setStatusMsg("Account created! Setting up your payment…");
+        const payRes = await fetch("/api/payments/initiate", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ planId: planParam }),
+        });
+        const payData = await payRes.json();
+        if (!payRes.ok) throw new Error(payData.error || "We couldn't create your payment session. Please try again.");
+        const cashfree = await loadCashfree();
+        cashfree.checkout({ paymentSessionId: payData.paymentSessionId, redirectTarget: "_self" });
+        return;
+      }
+
+      // No plan — go to connect (normal trial flow)
+      router.push("/connect");
     } catch (err: any) {
-      setError(err.response?.data?.error || err.message || "Something went wrong");
+      setError(err.message || "Something went wrong");
     } finally {
       setIsLoading(false);
     }
@@ -57,8 +89,24 @@ export default function SignupPage() {
               <span className="text-3xl font-bold font-syne tracking-tight text-jade">Waptrix</span>
             </Link>
             <h1 className="text-4xl font-bold font-syne tracking-tight text-text-primary">Start Growing</h1>
-            <p className="text-text-muted mt-3 font-medium">Create your professional WhatsApp platform in minutes.</p>
+            <p className="text-text-muted mt-3 font-medium">
+              {planParam ? "Create your account to complete your subscription." : "Create your professional WhatsApp platform in minutes."}
+            </p>
           </div>
+
+          {planParam && (
+            <div className="bg-jade/10 border border-jade/20 text-jade p-4 rounded-xl text-sm font-medium flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              Plan selected — create your account to proceed to payment.
+            </div>
+          )}
+
+          {statusMsg && !error && (
+            <div className="bg-jade/10 border border-jade/20 text-jade p-4 rounded-xl text-sm font-medium flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+              {statusMsg}
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl text-sm font-medium">

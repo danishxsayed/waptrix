@@ -4,34 +4,48 @@ export const dynamic = 'force-dynamic';
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Mail, Lock, ArrowRight, CheckCircle, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, ArrowRight, CheckCircle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { createClient } from '@/lib/supabase/client';
 
+function loadCashfree(): Promise<any> {
+  const mode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox";
+  if ((window as any).Cashfree) return Promise.resolve((window as any).Cashfree({ mode }));
+  return new Promise((resolve, reject) => {
+    const s = document.createElement("script");
+    s.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
+    s.onload  = () => resolve((window as any).Cashfree({ mode }));
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
 export default function LoginPage() {
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const [formData, setFormData]   = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState<string | null>(null);
+  const [error, setError]         = useState<string | null>(null);
   const router = useRouter();
+
+  // Read incoming params once on mount
+  const planParam  = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("plan")    : null;
+  const msgParam   = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("message") : null;
 
   // If an invite token is in the URL, redirect to the accept-invite page
   useEffect(() => {
     const token = new URLSearchParams(window.location.search).get("token");
-    if (token) {
-      router.replace(`/accept-invite?token=${encodeURIComponent(token)}`);
-    }
-  }, [router]);
+    if (token) router.replace(`/accept-invite?token=${encodeURIComponent(token)}`);
+    if (msgParam) setStatusMsg(msgParam);
+  }, [router]); // eslint-disable-line
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
-    
+
     try {
-      // Initialize inside handler to avoid prerender issues (Fix 5)
       const supabase = createClient();
-      
       const { error: authError } = await supabase.auth.signInWithPassword({
         email: formData.email,
         password: formData.password,
@@ -42,9 +56,23 @@ export default function LoginPage() {
         return;
       }
 
-      // Use full page reload/redirection to ensure browser cookies are completely
-      // registered and passed to server middleware, avoiding Next.js client-side cookie race conditions.
-      window.location.href = "/";
+      // If a plan was selected before login → initiate payment directly
+      if (planParam) {
+        setStatusMsg("Logged in! Creating your payment session…");
+        const res = await fetch("/api/payments/initiate", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ planId: planParam }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "We couldn't create your payment session. Please try again.");
+        const cashfree = await loadCashfree();
+        cashfree.checkout({ paymentSessionId: data.paymentSessionId, redirectTarget: "_self" });
+        return;
+      }
+
+      // No plan → go to dashboard
+      window.location.href = "/dashboard";
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {
@@ -65,8 +93,24 @@ export default function LoginPage() {
               <span className="text-3xl font-bold font-syne tracking-tight text-jade">Waptrix</span>
             </Link>
             <h1 className="text-4xl font-bold font-syne tracking-tight text-text-primary">Welcome Back</h1>
-            <p className="text-text-muted mt-3 font-medium">Power up your WhatsApp marketing machine.</p>
+            <p className="text-text-muted mt-3 font-medium">
+              {planParam ? "Log in to continue to your selected plan." : "Power up your WhatsApp marketing machine."}
+            </p>
           </div>
+
+          {planParam && (
+            <div className="bg-jade/10 border border-jade/20 text-jade p-4 rounded-xl text-sm font-medium flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              Plan selected — log in to complete your subscription.
+            </div>
+          )}
+
+          {statusMsg && !error && (
+            <div className="bg-jade/10 border border-jade/20 text-jade p-4 rounded-xl text-sm font-medium flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+              {statusMsg}
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-500/10 border border-red-500/20 text-red-500 p-4 rounded-xl text-sm font-medium">

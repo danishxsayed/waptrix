@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { CheckCircle, X, ArrowRight, Zap, BadgePercent } from "lucide-react";
+import { CheckCircle, X, ArrowRight, Zap, Loader2 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 type Cycle = "monthly" | "quarterly" | "yearly";
 
@@ -14,24 +15,9 @@ const CYCLES: { id: Cycle; label: string; badge?: string }[] = [
 ];
 
 const PRICING: Record<Cycle, { planId: string; price: number; perMonth: number; billed: string }> = {
-  monthly: {
-    planId:   "pro_monthly",
-    price:    1999,
-    perMonth: 1999,
-    billed:   "Billed every month",
-  },
-  quarterly: {
-    planId:   "pro_quarterly",
-    price:    4999,
-    perMonth: 1666,
-    billed:   "₹4,999 billed every 3 months",
-  },
-  yearly: {
-    planId:   "pro_yearly",
-    price:    17999,
-    perMonth: 1499,
-    billed:   "₹17,999 billed every year",
-  },
+  monthly:   { planId: "pro_monthly",   price: 1999,  perMonth: 1999, billed: "Billed every month" },
+  quarterly: { planId: "pro_quarterly", price: 4999,  perMonth: 1666, billed: "₹4,999 billed every 3 months" },
+  yearly:    { planId: "pro_yearly",    price: 17999, perMonth: 1499, billed: "₹17,999 billed every year" },
 };
 
 const FEATURES = [
@@ -49,148 +35,24 @@ const FEATURES = [
   "Onboarding assistance",
 ];
 
+// ─── Cashfree SDK loader ──────────────────────────────────────────────────────
 function loadCashfree(): Promise<any> {
+  const mode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox";
   if ((window as any).Cashfree) {
-    return Promise.resolve(
-      (window as any).Cashfree({
-        mode: process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox",
-      })
-    );
+    return Promise.resolve((window as any).Cashfree({ mode }));
   }
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
     s.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
-    s.onload = () =>
-      resolve(
-        (window as any).Cashfree({
-          mode: process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox",
-        })
-      );
+    s.onload  = () => resolve((window as any).Cashfree({ mode }));
     s.onerror = reject;
     document.head.appendChild(s);
   });
 }
 
-function CheckoutModal({
-  cycle,
-  onClose,
-}: {
-  cycle: Cycle;
-  onClose: () => void;
-}) {
-  const pricing = PRICING[cycle];
-  const [form, setForm]     = useState({ name: "", email: "", phone: "" });
-  const [loading, setLoading] = useState(false);
-  const [error, setError]   = useState("");
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/payments/create-order", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          planId:        pricing.planId,
-          customerName:  form.name,
-          customerEmail: form.email,
-          customerPhone: form.phone,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Order creation failed");
-
-      const cashfree = await loadCashfree();
-      cashfree.checkout({ paymentSessionId: data.paymentSessionId, redirectTarget: "_self" });
-    } catch (err: any) {
-      setError(err.message);
-      setLoading(false);
-    }
-  };
-
-  const cycleLabel: Record<Cycle, string> = {
-    monthly:   "Monthly",
-    quarterly: "Quarterly",
-    yearly:    "Yearly",
-  };
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div className="bg-white rounded-3xl w-full max-w-md p-7 shadow-2xl relative border border-[#E9EDEF]">
-        <button onClick={onClose} className="absolute top-5 right-5 text-[#667781] hover:text-[#111B21]">
-          <X className="w-5 h-5" />
-        </button>
-
-        <div className="mb-6">
-          <h3 className="text-xl font-extrabold text-[#111B21] mb-1">
-            Waptrix Pro — {cycleLabel[cycle]}
-          </h3>
-          <p className="text-[#667781] text-sm">{pricing.billed}</p>
-          <div className="mt-3 flex items-end gap-1">
-            <span className="text-3xl font-extrabold text-[#111B21]">
-              ₹{pricing.perMonth.toLocaleString("en-IN")}
-            </span>
-            <span className="text-[#667781] text-sm mb-0.5">/month</span>
-            {cycle !== "monthly" && (
-              <span className="ml-2 text-xs font-bold text-[#25D366] bg-[#D9FDD3] px-2 py-0.5 rounded-full mb-0.5">
-                {cycle === "quarterly" ? "Save 17%" : "Save 25%"}
-              </span>
-            )}
-          </div>
-        </div>
-
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {[
-            { label: "Full Name",        key: "name",  type: "text",  placeholder: "Ravi Mehta" },
-            { label: "Email Address",    key: "email", type: "email", placeholder: "ravi@example.com" },
-            { label: "Mobile Number",    key: "phone", type: "tel",   placeholder: "9876543210" },
-          ].map((f) => (
-            <div key={f.key}>
-              <label className="text-xs font-semibold text-[#667781] mb-1.5 block">{f.label}</label>
-              <input
-                required
-                type={f.type}
-                placeholder={f.placeholder}
-                value={(form as any)[f.key]}
-                onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                className="w-full bg-[#EDE8DE] border border-[#E9EDEF] rounded-xl px-4 py-2.5 text-sm text-[#111B21] placeholder:text-[#667781] focus:outline-none focus:ring-2 focus:ring-[#25D366]/40"
-              />
-            </div>
-          ))}
-
-          {error && (
-            <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2">{error}</p>
-          )}
-
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-60 text-[#111B21] hover:text-white font-bold py-3 rounded-full text-sm transition-all flex items-center justify-center gap-2"
-          >
-            {loading ? (
-              <>
-                <div className="w-4 h-4 border-2 border-current/30 border-t-current rounded-full animate-spin" />
-                Processing…
-              </>
-            ) : (
-              <>
-                Pay ₹{pricing.price.toLocaleString("en-IN")} <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
-
-          <p className="text-xs text-[#667781] text-center">
-            Secured by Cashfree · UPI, cards &amp; net banking · +18% GST
-          </p>
-        </form>
-      </div>
-    </div>
-  );
-}
-
+// ─── Payment banner ───────────────────────────────────────────────────────────
 function PaymentBanner() {
-  const params = useSearchParams();
+  const params  = useSearchParams();
   const status  = params.get("order_status");
   const expired = params.get("expired");
 
@@ -213,10 +75,10 @@ function PaymentBanner() {
     <div className="bg-[#D9FDD3] border border-[#25D366]/30 rounded-2xl px-5 py-4 flex items-center gap-3 mb-10">
       <CheckCircle className="w-5 h-5 text-[#075E54] flex-shrink-0" />
       <div>
-        <p className="text-sm font-bold text-[#075E54]">Payment successful!</p>
-        <p className="text-xs text-[#128C7E]">
-          Your Waptrix Pro subscription is active. Check your email for confirmation.{" "}
-          <Link href="/login" className="underline font-semibold">Sign in →</Link>
+        <p className="text-sm font-bold text-[#075E54]">Payment successful — your subscription is active!</p>
+        <p className="text-xs text-[#128C7E] mt-0.5">
+          Check your email for the confirmation.{" "}
+          <Link href="/dashboard" className="underline font-semibold">Go to Dashboard →</Link>
         </p>
       </div>
     </div>
@@ -224,17 +86,66 @@ function PaymentBanner() {
     <div className="bg-red-50 border border-red-200 rounded-2xl px-5 py-4 flex items-center gap-3 mb-10">
       <X className="w-5 h-5 text-red-500 flex-shrink-0" />
       <p className="text-sm text-red-600">
-        Payment not completed.{" "}
-        <Link href="/contact" className="underline">Contact support</Link>
+        Payment was not completed. Please try again or{" "}
+        <Link href="/contact" className="underline font-semibold">contact support</Link>.
       </p>
     </div>
   );
 }
 
+// ─── Main content ─────────────────────────────────────────────────────────────
 function PricingContent() {
-  const [cycle, setCycle]     = useState<Cycle>("monthly");
-  const [checkout, setCheckout] = useState(false);
+  const router  = useRouter();
+  const [cycle, setCycle]         = useState<Cycle>("monthly");
+  const [paying, setPaying]       = useState(false);
+  const [payError, setPayError]   = useState("");
+  const [sessionUser, setSessionUser] = useState<{ id: string; email: string; name: string } | null>(null);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+
   const pricing = PRICING[cycle];
+
+  // Detect session
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setSessionUser({
+          id:    session.user.id,
+          email: session.user.email || "",
+          name:  session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
+        });
+      }
+      setSessionLoaded(true);
+    });
+  }, []);
+
+  const handleSubscribe = async () => {
+    setPayError("");
+
+    // Not logged in → send to login with plan preserved
+    if (!sessionUser) {
+      router.push(`/login?plan=${pricing.planId}`);
+      return;
+    }
+
+    // Logged in → create order then open Cashfree checkout
+    setPaying(true);
+    try {
+      const res = await fetch("/api/payments/initiate", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({ planId: pricing.planId }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "We couldn't create your payment session. Please try again.");
+
+      const cashfree = await loadCashfree();
+      cashfree.checkout({ paymentSessionId: data.paymentSessionId, redirectTarget: "_self" });
+    } catch (err: any) {
+      setPayError(err.message);
+      setPaying(false);
+    }
+  };
 
   return (
     <section className="py-20 px-6 bg-[#EDE8DE] min-h-screen">
@@ -280,7 +191,7 @@ function PricingContent() {
             {CYCLES.map((c) => (
               <button
                 key={c.id}
-                onClick={() => setCycle(c.id)}
+                onClick={() => { setCycle(c.id); setPayError(""); }}
                 className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
                   cycle === c.id
                     ? "bg-[#25D366] text-[#111B21] shadow-md"
@@ -339,24 +250,53 @@ function PricingContent() {
               ))}
             </div>
 
+            {/* Trial CTA — always visible */}
             <Link
-              href="/signup"
+              href={sessionUser ? "/dashboard" : "/signup"}
               className="w-full bg-[#25D366] hover:bg-[#128C7E] text-[#111B21] hover:text-white font-extrabold py-4 rounded-2xl text-base transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#25D366]/20"
             >
-              🎉 Start 7-Day Free Trial
+              {sessionUser ? "Go to Dashboard" : "🎉 Start 7-Day Free Trial"}
               <ArrowRight className="w-5 h-5" />
             </Link>
             <p className="text-center text-xs text-[#667781] mt-3">
               No card required · After trial, pay ₹{pricing.perMonth.toLocaleString("en-IN")}/mo · +18% GST
             </p>
 
+            {/* Subscribe / pay directly */}
             <div className="mt-4 border-t border-[#E9EDEF] pt-4">
-              <p className="text-center text-xs text-[#667781] mb-2">Already tried? Subscribe now</p>
+              {sessionUser ? (
+                <p className="text-center text-xs text-[#667781] mb-2">
+                  Logged in as <span className="font-semibold text-[#111B21]">{sessionUser.name}</span> — subscribe directly
+                </p>
+              ) : (
+                <p className="text-center text-xs text-[#667781] mb-2">Already have an account? Subscribe now</p>
+              )}
+
+              {payError && (
+                <p className="text-xs text-red-500 bg-red-50 rounded-xl px-3 py-2 mb-3 text-center">
+                  {payError}
+                </p>
+              )}
+
               <button
-                onClick={() => setCheckout(true)}
-                className="w-full border-2 border-[#25D366] text-[#075E54] font-bold py-3 rounded-2xl text-sm transition-all hover:bg-[#25D366] hover:text-[#111B21] flex items-center justify-center gap-2"
+                onClick={handleSubscribe}
+                disabled={paying || !sessionLoaded}
+                className="w-full border-2 border-[#25D366] text-[#075E54] font-bold py-3 rounded-2xl text-sm transition-all hover:bg-[#25D366] hover:text-[#111B21] disabled:opacity-60 flex items-center justify-center gap-2"
               >
-                Subscribe — ₹{pricing.perMonth.toLocaleString("en-IN")}/mo <ArrowRight className="w-4 h-4" />
+                {paying ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Creating payment…
+                  </>
+                ) : (
+                  <>
+                    {sessionUser
+                      ? `Subscribe — ₹${pricing.price.toLocaleString("en-IN")}`
+                      : `Log in & Subscribe — ₹${pricing.price.toLocaleString("en-IN")}`
+                    }
+                    <ArrowRight className="w-4 h-4" />
+                  </>
+                )}
               </button>
             </div>
           </div>
@@ -383,11 +323,11 @@ function PricingContent() {
           </h2>
           <div className="grid md:grid-cols-2 gap-4">
             {[
-              ["Can I switch billing cycles?", "Yes — upgrade from monthly to quarterly or yearly anytime. The remaining days of your current plan will be credited."],
-              ["What payment methods are accepted?", "UPI (GPay, PhonePe, Paytm), debit/credit cards, and net banking — all via Cashfree."],
-              ["Is GST included in the price?", "Prices shown are exclusive of GST. 18% GST applies at checkout for Indian customers."],
-              ["When will I get my invoice?", "A receipt is emailed instantly after payment. GST invoices are available on request."],
-              ["What happens when my plan expires?", "You'll get a reminder 7 days before expiry. After expiry, sending is paused until you renew."],
+              ["Can I switch billing cycles?",           "Yes — upgrade from monthly to quarterly or yearly anytime. The remaining days of your current plan will be credited."],
+              ["What payment methods are accepted?",     "UPI (GPay, PhonePe, Paytm), debit/credit cards, and net banking — all via Cashfree."],
+              ["Is GST included in the price?",          "Prices shown are exclusive of GST. 18% GST applies at checkout for Indian customers."],
+              ["When will I get my invoice?",            "A receipt is emailed instantly after payment. GST invoices are available on request."],
+              ["What happens when my plan expires?",     "You'll get a reminder 7 days before expiry. After expiry, sending is paused until you renew."],
               ["Is the WhatsApp Business API included?", "Yes — Waptrix runs on the official Meta WhatsApp Business API. You connect your own number."],
             ].map(([q, a]) => (
               <div key={q} className="bg-white rounded-2xl p-5 border border-[#E9EDEF]">
@@ -399,8 +339,6 @@ function PricingContent() {
         </div>
 
       </div>
-
-      {checkout && <CheckoutModal cycle={cycle} onClose={() => setCheckout(false)} />}
     </section>
   );
 }

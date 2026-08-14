@@ -1,5 +1,17 @@
 # Implementation History
 
+## [2026-08-14] - End-to-End Checkout Funnel & Webhook Idempotency
+- **User Session Navbar Dropdown**:
+  - Implemented dynamic user session checking in the marketing layout navbar (`src/app/(marketing)/layout.tsx`), showing a dashboard link and sign-out option in a profile dropdown for logged-in users instead of generic "Log In" / "Get Started" buttons.
+- **Conversion Checkout Funnel (Preserved Plan parameters)**:
+  - Updated the pricing page (`src/app/(marketing)/pricing/page.tsx`) to check for sessions; unauthenticated users are redirected to login with their plan selected (`/login?plan=pro_monthly`).
+  - Modified the login and signup routes (`src/app/login/page.tsx` and `src/app/signup/page.tsx`) to catch the `plan` parameter, display status banners, and immediately fire up Cashfree checkout sessions on completion.
+  - Implemented `/api/payments/initiate` endpoint (`src/app/api/payments/initiate/route.ts`) to authenticate user sessions, retrieve tenant metadata (name, email, normalized 10-digit phone), pre-record order state as `pending` in the database, and request Cashfree payment sessions.
+- **Robust Webhook Handlers & Auditing**:
+  - Rewrote the Cashfree webhook route (`src/app/api/payments/webhook/route.ts`) to handle `PAYMENT_SUCCESS_WEBHOOK`, `PAYMENT_FAILED_WEBHOOK`, and `PAYMENT_PENDING_WEBHOOK` states idempotently by validating against already-paid orders.
+  - Sends customized notification emails for pending, failed, or successful payments, and updates target tenant plan durations and trial properties.
+  - Implemented database migrations (`supabase/add-payment-events.sql`) creating a `payment_events` audit table with a unique index on `(order_id, event_type)` for duplicate guardrails, adding `phone` to `tenants`, and idempotent email sent columns to `payments`.
+
 ## [2026-08-14] - Pricing Plans Overhaul, Cashfree Subscriptions & Campaign Auto-Replies
 - **Trial & Plan Management**:
   - Implemented database migrations (`supabase/add-trial-columns.sql`) adding plan status (`plan`), `trial_ends_at`, and `plan_expires_at` to the `tenants` table, default-backfilling all tenants to a 7-day trial.
