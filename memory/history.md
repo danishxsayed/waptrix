@@ -2,7 +2,7 @@
 
 ## [2026-08-14] - End-to-End Checkout Funnel & Webhook Idempotency
 - **Testing Price Adjustment**:
-  - Adjusted `pro_monthly` price parameter to ₹2 in the pricing page and plans configuration library for sandbox payment testing.
+  - Adjusted `pro_monthly` price parameter to ₹10 in the pricing page and plans configuration library for sandbox payment testing.
 - **Unified Pricing Plans Configuration**:
   - Created a centralized plans definition configuration file [plans.ts](file:///Users/danishsayed/Desktop/Waptrix/src/lib/plans.ts) and refactored `/api/payments/create-order` and `/api/payments/initiate` route handlers to import it directly, removing code redundancy.
 - **User Session Navbar Dropdown**:
