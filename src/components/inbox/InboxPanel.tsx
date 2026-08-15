@@ -1338,13 +1338,11 @@ export default function InboxPanel({
           setMessages((prev) => prev.find((m) => m.id === newMsg.id) ? prev : [...prev, newMsg]);
         }
 
-        // Update conversation sidebar for inbound messages
         if (newMsg.direction === "inbound") {
           playNotificationSound();
           setConversations((prev) => {
             const exists = prev.find((c) => c.id === newMsg.conversation_id);
             if (!exists) {
-              // Unknown conversation — re-fetch the full list
               fetchConversations();
               return prev;
             }
@@ -1357,6 +1355,31 @@ export default function InboxPanel({
               } : c)
               .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
           });
+
+          // ── Smart re-fetch: auto-replies fire ~1s after inbound message.
+          // Schedule a messages re-fetch after 3s to catch any auto-reply that
+          // Supabase Realtime might miss due to serverless timing.
+          setTimeout(() => {
+            const conv = activeConvRef.current;
+            if (conv && conv.id === newMsg.conversation_id) {
+              fetch(`/api/conversations/${conv.id}/messages`)
+                .then(r => r.ok ? r.json() : null)
+                .then(data => { if (Array.isArray(data)) setMessages(data); })
+                .catch(() => {});
+            }
+          }, 3000);
+
+        } else if (newMsg.direction === "outbound") {
+          // Auto-replies and sent messages — update sidebar preview too
+          setConversations((prev) =>
+            prev
+              .map((c) => c.id === newMsg.conversation_id ? {
+                ...c,
+                last_message: newMsg.content,
+                last_message_at: newMsg.created_at,
+              } : c)
+              .sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime())
+          );
         }
       })
       // Message status updates (sent → delivered → read)
