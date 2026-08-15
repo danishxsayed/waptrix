@@ -15,10 +15,10 @@ import {
   Calendar,
   ChevronDown,
 } from "lucide-react";
-import dynamic from "next/dynamic";
+import nextDynamic from "next/dynamic";
 
 // Lazy-load recharts — reduces initial bundle by ~80KB
-const MessageChart = dynamic(() => import("./MessageChart"), {
+const MessageChart = nextDynamic(() => import("./MessageChart"), {
   ssr: false,
   loading: () => <div className="h-72 w-full rounded-xl bg-surface animate-pulse" />,
 });
