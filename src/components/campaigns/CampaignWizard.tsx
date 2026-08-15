@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import {
   X, ChevronRight, ChevronLeft, Send, Users, FileText,
   Calendar, CheckCircle2, AlertCircle, Loader2, Plus, Trash2,
-  Zap, Eye, MessageSquare, Clock, Info,
+  Zap, Eye, MessageSquare, Clock, Info, ImageIcon, Video, UploadCloud,
 } from "lucide-react";
 import axios from "axios";
 
@@ -21,6 +21,7 @@ interface FormData {
   template_id: string;
   segment_id: string;
   variable_mapping: Record<string, string>;
+  header_media_url: string;
   send_now: boolean;
   scheduled_at: string;
   timezone: string;
@@ -81,7 +82,14 @@ function uid() {
 }
 
 // ─── WhatsApp preview bubble ─────────────────────────────────────────────────
-function WaPreview({ body, mapping }: { body: string; mapping: Record<string, string> }) {
+function WaPreview({
+  body, mapping, headerType, headerMediaUrl,
+}: {
+  body: string;
+  mapping: Record<string, string>;
+  headerType?: string;
+  headerMediaUrl?: string;
+}) {
   const fieldLabels: Record<string, string> = {
     name: "Contact Name", phone: "Phone Number", email: "Email",
     custom1: "User ID", custom2: "Tags", custom3: "Appt/Location",
@@ -92,6 +100,8 @@ function WaPreview({ body, mapping }: { body: string; mapping: Record<string, st
     return field ? `[${fieldLabels[field] || field}]` : match;
   });
 
+  const ht = headerType?.toUpperCase();
+
   return (
     <div className="bg-[#EDE8DE] rounded-2xl p-4 font-sans">
       <div className="flex items-center gap-2 mb-3">
@@ -100,14 +110,130 @@ function WaPreview({ body, mapping }: { body: string; mapping: Record<string, st
         </div>
         <span className="text-xs font-bold text-[#075E54]">WhatsApp Preview</span>
       </div>
-      <div className="bg-[#D9FDD3] rounded-xl rounded-tl-none p-3 max-w-xs shadow-sm">
-        <p className="text-xs text-[#111B21] whitespace-pre-wrap leading-relaxed">{rendered}</p>
-        <p className="text-[9px] text-[#667781] text-right mt-1.5 flex items-center justify-end gap-0.5">
-          {new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
-          <CheckCircle2 className="w-2.5 h-2.5 text-[#25D366]" />
-          <CheckCircle2 className="w-2.5 h-2.5 text-[#25D366] -ml-1.5" />
-        </p>
+      <div className="bg-[#D9FDD3] rounded-xl rounded-tl-none shadow-sm overflow-hidden max-w-xs">
+        {/* Header media preview */}
+        {ht === 'IMAGE' && headerMediaUrl && (
+          <img src={headerMediaUrl} alt="Header" className="w-full max-h-36 object-cover" />
+        )}
+        {ht === 'IMAGE' && !headerMediaUrl && (
+          <div className="w-full h-24 bg-[#b7ebc3] flex items-center justify-center">
+            <ImageIcon className="w-8 h-8 text-[#075E54]/40" />
+          </div>
+        )}
+        {ht === 'VIDEO' && (
+          <div className="w-full h-24 bg-[#b7ebc3] flex items-center justify-center gap-2">
+            <Video className="w-8 h-8 text-[#075E54]/40" />
+            {headerMediaUrl && <span className="text-[10px] text-[#075E54]/60 font-bold">Video attached</span>}
+          </div>
+        )}
+        {ht === 'DOCUMENT' && (
+          <div className="w-full h-14 bg-[#b7ebc3] flex items-center justify-center gap-2 px-3">
+            <FileText className="w-6 h-6 text-[#075E54]/60" />
+            <span className="text-[10px] text-[#075E54]/60 font-bold truncate">
+              {headerMediaUrl ? headerMediaUrl.split('/').pop() : 'Document'}
+            </span>
+          </div>
+        )}
+        <div className="p-3">
+          <p className="text-xs text-[#111B21] whitespace-pre-wrap leading-relaxed">{rendered}</p>
+          <p className="text-[9px] text-[#667781] text-right mt-1.5 flex items-center justify-end gap-0.5">
+            {new Date().toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })}
+            <CheckCircle2 className="w-2.5 h-2.5 text-[#25D366]" />
+            <CheckCircle2 className="w-2.5 h-2.5 text-[#25D366] -ml-1.5" />
+          </p>
+        </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Header media upload ─────────────────────────────────────────────────────
+function HeaderMediaUpload({
+  headerType, value, onChange,
+}: {
+  headerType: string;
+  value: string;
+  onChange: (url: string) => void;
+}) {
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState("");
+
+  const accept =
+    headerType === "VIDEO"    ? "video/mp4,video/3gpp" :
+    headerType === "DOCUMENT" ? ".pdf,.doc,.docx,application/pdf" :
+    "image/jpeg,image/png,image/webp";
+
+  const TypeIcon =
+    headerType === "VIDEO"    ? Video :
+    headerType === "DOCUMENT" ? FileText :
+    ImageIcon;
+
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadError("");
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Upload failed");
+      onChange(data.url);
+    } catch (err: any) {
+      setUploadError(err.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3 pt-4 border-t border-border">
+      <div className="flex items-center gap-2">
+        <TypeIcon className="w-3.5 h-3.5 text-jade" />
+        <p className="text-xs font-bold text-text-muted uppercase tracking-wider">{headerType} Header</p>
+      </div>
+
+      {value ? (
+        <>
+          {/* Already have a URL — show it, offer to replace */}
+          {headerType === "IMAGE" && (
+            <img src={value} alt="Header" className="w-full max-h-36 object-cover rounded-xl border border-jade/20" />
+          )}
+          <div className="flex items-center justify-between bg-jade/5 border border-jade/20 rounded-xl px-3 py-2">
+            <div className="flex items-center gap-2 min-w-0">
+              <CheckCircle2 className="w-4 h-4 text-jade shrink-0" />
+              <span className="text-xs text-jade font-semibold truncate">
+                {headerType === "IMAGE" ? "Image from template" : value.split("/").pop()}
+              </span>
+            </div>
+            <label className="text-[10px] font-bold text-text-muted hover:text-jade cursor-pointer ml-2 shrink-0 transition-colors">
+              {uploading ? <Loader2 className="w-3 h-3 animate-spin" /> : "Replace"}
+              <input type="file" accept={accept} className="hidden" onChange={handleFile} disabled={uploading} />
+            </label>
+          </div>
+        </>
+      ) : (
+        <>
+          {/* No URL yet — show upload */}
+          <p className="text-[11px] text-text-muted">
+            No media stored for this template. Upload a {headerType.toLowerCase()} to send with this campaign.
+          </p>
+          <label className={`flex items-center justify-center gap-2 cursor-pointer rounded-xl px-4 py-3 border-2 border-dashed transition-all ${
+            uploading ? "opacity-50 cursor-not-allowed" : "hover:border-jade hover:bg-jade/5 border-border"
+          }`}>
+            {uploading ? <Loader2 className="w-4 h-4 text-jade animate-spin" /> : <UploadCloud className="w-4 h-4 text-jade" />}
+            <span className="text-sm font-bold text-jade">
+              {uploading ? "Uploading…" : `Upload ${headerType.toLowerCase()}`}
+            </span>
+            <input type="file" accept={accept} className="hidden" onChange={handleFile} disabled={uploading} />
+          </label>
+        </>
+      )}
+
+      {uploadError && (
+        <p className="text-xs text-red-500 bg-red-50 rounded-lg px-3 py-2">{uploadError}</p>
+      )}
     </div>
   );
 }
@@ -169,6 +295,7 @@ export default function CampaignWizard({
     template_id: "",
     segment_id: initialSegmentId || "",
     variable_mapping: {},
+    header_media_url: "",
     send_now: true,
     scheduled_at: "",
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "Asia/Kolkata",
@@ -248,6 +375,14 @@ export default function CampaignWizard({
       if (!payload.send_now && payload.scheduled_at) {
         payload.scheduled_at = wallClockToUTC(payload.scheduled_at, payload.timezone);
       }
+      // Embed header media URL inside variable_mapping with a reserved key
+      if (payload.header_media_url) {
+        payload.variable_mapping = {
+          ...payload.variable_mapping,
+          _header_media_url: payload.header_media_url,
+        };
+      }
+      delete payload.header_media_url;
       // Clean up auto_replies — strip ids from rules before sending
       payload.auto_replies = {
         enabled: payload.auto_replies.enabled,
@@ -399,7 +534,15 @@ export default function CampaignWizard({
                       {templates.map(t => (
                         <button
                           key={t.id}
-                          onClick={() => setFormData(p => ({ ...p, template_id: t.id, variable_mapping: {} }))}
+                          onClick={() => setFormData(p => ({
+                            ...p,
+                            template_id: t.id,
+                            variable_mapping: {},
+                            // Auto-populate header URL from template if it has stored media
+                            header_media_url: (['IMAGE','VIDEO','DOCUMENT'].includes(t.header_type?.toUpperCase()))
+                              ? (t.header_text?.startsWith('https://') ? t.header_text : "")
+                              : "",
+                          }))}
                           className={`w-full p-4 rounded-2xl border text-left transition-all ${
                             formData.template_id === t.id
                               ? "bg-jade/5 border-jade"
@@ -445,6 +588,15 @@ export default function CampaignWizard({
                     </div>
                   )}
 
+                  {/* Header media upload — shown only when template needs it */}
+                  {selectedTemplate && ['IMAGE','VIDEO','DOCUMENT'].includes(selectedTemplate.header_type?.toUpperCase()) && (
+                    <HeaderMediaUpload
+                      headerType={selectedTemplate.header_type.toUpperCase()}
+                      value={formData.header_media_url}
+                      onChange={(url) => setFormData(p => ({ ...p, header_media_url: url }))}
+                    />
+                  )}
+
                   {/* WhatsApp preview */}
                   {selectedTemplate && (
                     <div className="space-y-2 pt-4 border-t border-border">
@@ -452,7 +604,12 @@ export default function CampaignWizard({
                         <Eye className="w-3.5 h-3.5 text-jade" />
                         <p className="text-xs font-bold text-text-muted uppercase tracking-wider">Preview</p>
                       </div>
-                      <WaPreview body={selectedTemplate.body} mapping={formData.variable_mapping} />
+                      <WaPreview
+                        body={selectedTemplate.body}
+                        mapping={formData.variable_mapping}
+                        headerType={selectedTemplate.header_type}
+                        headerMediaUrl={formData.header_media_url}
+                      />
                     </div>
                   )}
                 </div>

@@ -19,6 +19,9 @@ import {
   Bot,
   MessageSquareText,
   ChevronDown,
+  CreditCard,
+  Settings2,
+  Receipt,
 } from "lucide-react";
 import { useTenant } from "@/context/TenantContext";
 import { createClient } from "@/lib/supabase/client";
@@ -54,9 +57,20 @@ const ALL_NAV_ITEMS: NavItem[] = [
       { name: "Team Chat", href: "/team-chat",  icon: MessageSquareText },
     ],
   },
-  { name: "Automations",   href: "/automations", icon: Bot,    minRole: "owner" },
-  { name: "Connect",       href: "/connect",     icon: Link2,  minRole: "owner" },
+  { name: "Automations",   href: "/automations", icon: Bot,      minRole: "owner" },
+  { name: "Connect",       href: "/connect",     icon: Link2,    minRole: "owner" },
   { name: "Settings",      href: "/settings",    icon: Settings, minRole: "owner" },
+  {
+    name: "Billing",
+    href: "/billing",
+    icon: CreditCard,
+    minRole: "owner",
+    children: [
+      { name: "Billing Details",     href: "/billing/details",      icon: Settings2 },
+      { name: "Manage Subscription", href: "/billing/subscription",  icon: CreditCard },
+      { name: "Invoices",            href: "/billing/invoices",      icon: Receipt },
+    ],
+  },
 ];
 
 // For agents, Team Chat is a top-level item (they can't see Team Members parent)

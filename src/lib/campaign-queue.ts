@@ -146,10 +146,15 @@ export async function enqueueCampaignBatches(campaignId: string): Promise<void> 
     ]);
 
     const mediaTypes = ['IMAGE', 'VIDEO', 'DOCUMENT'];
+    // Prefer per-campaign media URL (set in wizard) over template's stored URL
+    const campaignMediaUrl: string =
+      campaign.variable_mapping?._header_media_url ||
+      (template?.header_text?.startsWith('https://') ? template.header_text : '');
+
     if (
       template?.header_type &&
       mediaTypes.includes(template.header_type.toUpperCase()) &&
-      template.header_text?.startsWith('https://') &&
+      campaignMediaUrl &&
       waConn?.access_token &&
       waConn?.phone_number_id
     ) {
@@ -157,7 +162,7 @@ export async function enqueueCampaignBatches(campaignId: string): Promise<void> 
       headerMediaId = await uploadMediaToMeta(
         uploadToken,
         waConn.phone_number_id,
-        template.header_text,
+        campaignMediaUrl,
         template.header_type
       );
     }
