@@ -7,7 +7,7 @@ import {
   Clock, FileText, Mic, X, Loader2, Download, Play, Plus, Phone, AlertCircle,
   SlidersHorizontal, ChevronRight, ArrowUpDown, Trash2, CheckSquare, Square,
   Smile, User, Tag, PenLine, ChevronDown, ChevronUp, Info, ExternalLink,
-  StickyNote
+  StickyNote, CheckCircle2, Zap, Activity
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 
@@ -20,6 +20,15 @@ interface Conversation {
   last_message: string;
   last_message_at: string;
   unread_count: number;
+  status: string;
+  assigned_to?: string | null;
+  assigned_name?: string | null;
+}
+
+interface TeamMember {
+  id: string;
+  email: string;
+  role: string;
   status: string;
 }
 
@@ -837,6 +846,71 @@ export default function InboxPanel({
   const [noteText, setNoteText] = useState('');
   const [isSendingNote, setIsSendingNote] = useState(false);
 
+  // ── Quick replies
+  interface QuickReply { id: string; title: string; body: string; }
+  const [quickReplies, setQuickReplies] = useState<QuickReply[]>([]);
+  const [showQrPanel, setShowQrPanel] = useState(false);
+  const [showQrForm, setShowQrForm] = useState(false);
+  const [qrTitle, setQrTitle] = useState("");
+  const [qrBody, setQrBody] = useState("");
+  const qrPanelRef = useRef<HTMLDivElement>(null);
+
+  // Load/save quick replies from localStorage
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem('waptrix_quick_replies');
+      if (stored) setQuickReplies(JSON.parse(stored));
+    } catch { }
+  }, []);
+
+  const persistQr = (list: QuickReply[]) => {
+    setQuickReplies(list);
+    localStorage.setItem('waptrix_quick_replies', JSON.stringify(list));
+  };
+
+  const addQuickReply = () => {
+    if (!qrTitle.trim() || !qrBody.trim()) return;
+    const next: QuickReply[] = [...quickReplies, { id: Date.now().toString(), title: qrTitle.trim(), body: qrBody.trim() }];
+    persistQr(next);
+    setQrTitle(""); setQrBody(""); setShowQrForm(false);
+  };
+
+  const deleteQuickReply = (id: string) => persistQr(quickReplies.filter(r => r.id !== id));
+
+  // Close QR panel on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (qrPanelRef.current && !qrPanelRef.current.contains(e.target as Node)) {
+        setShowQrPanel(false);
+        setShowQrForm(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // ── Contact Activity Timeline
+  const [activityData, setActivityData] = useState<{ chatMessages: any[]; campaignLogs: any[] } | null>(null);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [showActivity, setShowActivity] = useState(false);
+
+  const fetchActivity = async (contactId: string) => {
+    setActivityLoading(true);
+    setActivityData(null);
+    try {
+      const res = await fetch(`/api/contacts/${contactId}/activity`);
+      if (res.ok) {
+        const data = await res.json();
+        setActivityData({ chatMessages: data.chatMessages || [], campaignLogs: data.campaignLogs || [] });
+      }
+    } catch { }
+    finally { setActivityLoading(false); }
+  };
+
+  // ── Assignment
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [assigning, setAssigning] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -994,6 +1068,25 @@ export default function InboxPanel({
     }
   };
 
+  const assignConversation = async (memberId: string | null, memberEmail: string | null) => {
+    if (!activeConv) return;
+    setAssigning(true);
+    try {
+      const res = await fetch(`/api/conversations/${activeConv.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_to: memberId, assigned_name: memberEmail }),
+      });
+      if (res.ok) {
+        const updated = await res.json();
+        setActiveConv(prev => prev ? { ...prev, assigned_to: updated.assigned_to, assigned_name: updated.assigned_name } : prev);
+        setConversations(prev => prev.map(c => c.id === activeConv.id ? { ...c, assigned_to: updated.assigned_to, assigned_name: updated.assigned_name } : c));
+      }
+    } catch { /* silent */ } finally {
+      setAssigning(false);
+    }
+  };
+
   const playNotificationSound = useCallback(() => {
     try {
       const AC = window.AudioContext || (window as any).webkitAudioContext;
@@ -1078,6 +1171,10 @@ export default function InboxPanel({
   useEffect(() => {
     fetchConversations();
     fetchTemplates();
+    // Fetch team members for assignment dropdown
+    fetch('/api/team').then(r => r.json()).then(d => {
+      if (Array.isArray(d)) setTeamMembers(d.filter((m: TeamMember) => m.status === 'active'));
+    }).catch(() => {});
     // Fetch segments + contacts to build phone→segmentName map for Tags filter
     Promise.all([
       fetch('/api/contacts/segments').then(r => r.json()).catch(() => []),
@@ -1221,6 +1318,9 @@ export default function InboxPanel({
     } else {
       setContactInfo(null);
     }
+    // Reset activity when switching conversations
+    setActivityData(null);
+    setShowActivity(false);
   }, [activeConv?.id]); // eslint-disable-line
 
   // ── Supabase Realtime — single stable subscription (no re-mount on conv change)
@@ -2179,6 +2279,86 @@ export default function InboxPanel({
                       )}
                     </button>
                   </div>
+
+                  {/* Quick Replies row */}
+                  <div className="relative" ref={qrPanelRef}>
+                    <button
+                      type="button"
+                      onClick={() => { setShowQrPanel(v => !v); setShowQrForm(false); }}
+                      className="flex items-center gap-1 text-[11px] font-semibold text-text-muted hover:text-jade transition-colors"
+                    >
+                      <Zap className="w-3 h-3" /> Quick Replies
+                      {quickReplies.length > 0 && (
+                        <span className="ml-0.5 bg-jade/15 text-jade text-[10px] font-bold px-1.5 py-0.5 rounded-full">{quickReplies.length}</span>
+                      )}
+                    </button>
+
+                    {/* Quick replies panel */}
+                    {showQrPanel && (
+                      <div className="absolute bottom-full left-0 mb-2 w-72 bg-card border border-border rounded-2xl shadow-xl z-20 overflow-hidden">
+                        <div className="flex items-center justify-between px-3 py-2.5 border-b border-border">
+                          <span className="text-xs font-bold text-text-primary flex items-center gap-1.5"><Zap className="w-3 h-3 text-jade" /> Quick Replies</span>
+                          <button
+                            onClick={() => { setShowQrForm(v => !v); setQrTitle(""); setQrBody(""); }}
+                            className="text-[11px] text-jade font-bold hover:underline flex items-center gap-0.5"
+                          >
+                            <Plus className="w-3 h-3" /> Add
+                          </button>
+                        </div>
+
+                        {/* Add form */}
+                        {showQrForm && (
+                          <div className="p-3 border-b border-border space-y-2 bg-surface/50">
+                            <input
+                              value={qrTitle}
+                              onChange={e => setQrTitle(e.target.value)}
+                              placeholder="Title (e.g. Greeting)"
+                              className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-jade/50"
+                            />
+                            <textarea
+                              value={qrBody}
+                              onChange={e => setQrBody(e.target.value)}
+                              rows={3}
+                              placeholder="Reply text…"
+                              className="w-full bg-surface border border-border rounded-lg px-2.5 py-1.5 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-jade/50 resize-none"
+                            />
+                            <button
+                              onClick={addQuickReply}
+                              disabled={!qrTitle.trim() || !qrBody.trim()}
+                              className="w-full py-1.5 bg-jade text-background text-xs font-bold rounded-lg hover:bg-jade/90 transition-colors disabled:opacity-50"
+                            >
+                              Save Reply
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Reply list */}
+                        <div className="max-h-52 overflow-y-auto">
+                          {quickReplies.length === 0 && !showQrForm && (
+                            <p className="text-xs text-text-muted text-center py-6">No quick replies yet.<br/>Click Add to create one.</p>
+                          )}
+                          {quickReplies.map(qr => (
+                            <div
+                              key={qr.id}
+                              className="group flex items-start gap-2 px-3 py-2.5 hover:bg-surface/60 cursor-pointer border-b border-border/40 last:border-b-0"
+                              onClick={() => { setReplyText(qr.body); setShowQrPanel(false); }}
+                            >
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-text-primary truncate">{qr.title}</p>
+                                <p className="text-[11px] text-text-muted truncate mt-0.5">{qr.body}</p>
+                              </div>
+                              <button
+                                onClick={e => { e.stopPropagation(); deleteQuickReply(qr.id); }}
+                                className="opacity-0 group-hover:opacity-100 text-danger/60 hover:text-danger transition-all shrink-0 mt-0.5"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -2517,6 +2697,38 @@ export default function InboxPanel({
 
                   <div className="h-px bg-border" />
 
+                  {/* Assigned To */}
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1">
+                      <User className="w-3 h-3" /> Assigned To
+                    </p>
+                    <select
+                      value={activeConv?.assigned_to || ""}
+                      disabled={assigning}
+                      onChange={e => {
+                        const val = e.target.value;
+                        const member = teamMembers.find(m => m.id === val);
+                        assignConversation(val || null, member?.email || null);
+                      }}
+                      className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-jade/50 disabled:opacity-60"
+                    >
+                      <option value="">— Unassigned —</option>
+                      {teamMembers.map(m => (
+                        <option key={m.id} value={m.id}>{m.email} ({m.role})</option>
+                      ))}
+                    </select>
+                    {activeConv?.assigned_name && (
+                      <p className="text-[10px] text-jade mt-1 flex items-center gap-1">
+                        <CheckCircle2 className="w-3 h-3" /> Assigned to {activeConv.assigned_name}
+                      </p>
+                    )}
+                    {teamMembers.length === 0 && (
+                      <p className="text-[10px] text-text-muted mt-1">No team members yet. Invite staff from the Team page.</p>
+                    )}
+                  </div>
+
+                  <div className="h-px bg-border" />
+
                   {/* Notes */}
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1">
@@ -2537,6 +2749,77 @@ export default function InboxPanel({
                     >
                       {savingContactNote ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving…</> : 'Save Note'}
                     </button>
+                  </div>
+
+                  <div className="h-px bg-border" />
+
+                  {/* Activity Timeline */}
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newVal = !showActivity;
+                        setShowActivity(newVal);
+                        if (newVal && !activityData && contactInfo?.id) {
+                          fetchActivity(contactInfo.id);
+                        }
+                      }}
+                      className="w-full text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1 hover:text-jade transition-colors"
+                    >
+                      <Activity className="w-3 h-3" /> Activity Timeline
+                      {showActivity ? <ChevronUp className="w-3 h-3 ml-auto" /> : <ChevronDown className="w-3 h-3 ml-auto" />}
+                    </button>
+
+                    {showActivity && (
+                      <div className="space-y-2">
+                        {activityLoading && (
+                          <div className="flex items-center gap-2 text-xs text-text-muted py-2">
+                            <Loader2 className="w-3 h-3 animate-spin" /> Loading activity…
+                          </div>
+                        )}
+                        {!activityLoading && activityData && (() => {
+                          // Merge and sort all events
+                          const events: { time: string; label: string; sub?: string; type: 'chat' | 'campaign' }[] = [
+                            ...(activityData.chatMessages || []).map((m: any) => ({
+                              time: m.created_at,
+                              label: m.direction === 'inbound' ? 'Sent you a message' : 'You replied',
+                              sub: m.content?.slice(0, 60) || (m.type === 'template' ? '📋 Template sent' : '📎 Media'),
+                              type: 'chat' as const,
+                            })),
+                            ...(activityData.campaignLogs || []).map((l: any) => ({
+                              time: l.created_at,
+                              label: `Campaign: ${l.campaign_name || 'Broadcast'}`,
+                              sub: `Status: ${l.status || 'sent'}`,
+                              type: 'campaign' as const,
+                            })),
+                          ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
+
+                          if (events.length === 0) return (
+                            <p className="text-[11px] text-text-muted py-2 text-center">No activity recorded yet.</p>
+                          );
+
+                          return (
+                            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+                              {events.map((ev, i) => (
+                                <div key={i} className="flex gap-2.5 items-start">
+                                  <div className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${ev.type === 'campaign' ? 'bg-amber-400' : 'bg-jade'}`} />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-semibold text-text-primary">{ev.label}</p>
+                                    {ev.sub && <p className="text-[10px] text-text-muted truncate">{ev.sub}</p>}
+                                    <p className="text-[10px] text-text-muted opacity-60">
+                                      {format(new Date(ev.time), 'dd MMM yyyy · HH:mm')}
+                                    </p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          );
+                        })()}
+                        {!activityLoading && !activityData && !contactInfo?.id && (
+                          <p className="text-[11px] text-text-muted">Save the contact first to view activity.</p>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   {/* No contact record warning */}

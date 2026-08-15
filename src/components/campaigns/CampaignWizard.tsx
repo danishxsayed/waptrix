@@ -196,10 +196,7 @@ function HeaderMediaUpload({
 
       {value ? (
         <>
-          {/* Already have a URL — show it, offer to replace */}
-          {headerType === "IMAGE" && (
-            <img src={value} alt="Header" className="w-full max-h-36 object-cover rounded-xl border border-jade/20" />
-          )}
+          {/* Already have a URL — show compact status row only (preview visible in WaPreview below) */}
           <div className="flex items-center justify-between bg-jade/5 border border-jade/20 rounded-xl px-3 py-2">
             <div className="flex items-center gap-2 min-w-0">
               <CheckCircle2 className="w-4 h-4 text-jade shrink-0" />

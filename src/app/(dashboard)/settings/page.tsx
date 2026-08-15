@@ -71,6 +71,13 @@ export default function SettingsPage() {
   const [picPreview, setPicPreview] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Password change
+  const [pwCurrent, setPwCurrent] = useState("");
+  const [pwNew, setPwNew] = useState("");
+  const [pwConfirm, setPwConfirm] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwMessage, setPwMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
   // Real usage stats
   const [usageStats, setUsageStats] = useState<{ totalSent: number; totalContacts: number; activeTemplates: number } | null>(null);
 
@@ -165,6 +172,33 @@ export default function SettingsPage() {
       setMessage({ type: 'error', text: err.response?.data?.error || 'Failed to update profile' });
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handlePasswordChange = async () => {
+    if (!pwNew || !pwConfirm) {
+      setPwMessage({ type: 'error', text: 'Please fill in all password fields.' });
+      return;
+    }
+    if (pwNew.length < 8) {
+      setPwMessage({ type: 'error', text: 'New password must be at least 8 characters.' });
+      return;
+    }
+    if (pwNew !== pwConfirm) {
+      setPwMessage({ type: 'error', text: 'Passwords do not match.' });
+      return;
+    }
+    setPwSaving(true);
+    setPwMessage(null);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: pwNew });
+      if (error) throw error;
+      setPwMessage({ type: 'success', text: 'Password updated successfully!' });
+      setPwCurrent(""); setPwNew(""); setPwConfirm("");
+    } catch (err: any) {
+      setPwMessage({ type: 'error', text: err.message || 'Failed to update password.' });
+    } finally {
+      setPwSaving(false);
     }
   };
 
@@ -740,6 +774,56 @@ export default function SettingsPage() {
         </div>
       </section>
 
+
+      {/* Change Password */}
+      <section className="pt-8 border-t border-border">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-8 h-8 rounded-lg bg-jade/10 flex items-center justify-center">
+            <ShieldCheck className="w-4 h-4 text-jade" />
+          </div>
+          <h2 className="text-lg font-bold font-syne">Change Password</h2>
+        </div>
+        <div className="glass-card p-6 space-y-4 max-w-md">
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-text-muted uppercase tracking-wider">New Password</label>
+            <input
+              type="password"
+              value={pwNew}
+              onChange={(e) => setPwNew(e.target.value)}
+              placeholder="At least 8 characters"
+              className="input-field w-full text-sm"
+            />
+          </div>
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Confirm New Password</label>
+            <input
+              type="password"
+              value={pwConfirm}
+              onChange={(e) => setPwConfirm(e.target.value)}
+              placeholder="Repeat new password"
+              className="input-field w-full text-sm"
+            />
+          </div>
+          {pwMessage && (
+            <div className={`flex items-center gap-2 text-sm px-3 py-2 rounded-xl ${
+              pwMessage.type === 'success' ? 'bg-jade/10 text-jade' : 'bg-danger/10 text-danger'
+            }`}>
+              {pwMessage.type === 'success'
+                ? <CheckCircle2 className="w-4 h-4 shrink-0" />
+                : <AlertCircle className="w-4 h-4 shrink-0" />}
+              {pwMessage.text}
+            </div>
+          )}
+          <button
+            onClick={handlePasswordChange}
+            disabled={pwSaving || !pwNew || !pwConfirm}
+            className="btn-primary flex items-center gap-2 text-sm disabled:opacity-50"
+          >
+            {pwSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
+            {pwSaving ? 'Updating…' : 'Update Password'}
+          </button>
+        </div>
+      </section>
 
       {/* Danger Zone */}
       <section className="pt-8 border-t border-border">

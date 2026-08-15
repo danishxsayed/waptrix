@@ -90,7 +90,7 @@ export default function ManageSubscriptionPage() {
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="space-y-6">
       <div className="mb-2">
         <h1 className="text-2xl font-extrabold font-syne text-text-primary">Manage Subscription</h1>
         <p className="text-sm text-text-muted mt-1">View and manage your Waptrix Pro plan.</p>

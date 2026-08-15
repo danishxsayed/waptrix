@@ -66,7 +66,7 @@ export default function BillingDetailsPage() {
   }
 
   return (
-    <div className="max-w-2xl">
+    <div>
       <div className="mb-8">
         <h1 className="text-2xl font-extrabold font-syne text-text-primary">Billing Details</h1>
         <p className="text-sm text-text-muted mt-1">Used on your invoices and GST receipts.</p>

@@ -38,12 +38,12 @@ export async function GET() {
     // Load the effective tenant's data
     const { data: tenant } = await db
       .from('tenants')
-      .select('id, name, plan, messages_used, messages_limit, company')
+      .select('id, name, plan, messages_used, messages_limit, company, plan_expires_at, trial_ends_at')
       .eq('id', tenantId)
       .single();
 
     return NextResponse.json(
-      { role, tenant, isStaff },
+      { role, tenant: tenant ? { ...tenant, email: user.email } : null, isStaff },
       { headers: { 'Cache-Control': 'private, max-age=20, stale-while-revalidate=60' } }
     );
   } catch (err: any) {

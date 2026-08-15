@@ -1,18 +1,31 @@
 "use client";
 import { useState } from "react";
-import { Mail, MessageSquare, Phone, CheckCircle } from "lucide-react";
+import { Mail, MessageSquare, Phone, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function ContactPage() {
   const [form, setForm] = useState({ name: "", email: "", phone: "", message: "" });
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    await new Promise(r => setTimeout(r, 800)); // simulate
-    setSent(true);
-    setLoading(false);
+    setError("");
+    try {
+      const res = await fetch("/api/contact", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to send.");
+      setSent(true);
+    } catch (err: any) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -83,6 +96,12 @@ export default function ContactPage() {
                     <textarea required rows={5} placeholder="Tell us about your business and what you need…" value={form.message} onChange={e => setForm({...form, message: e.target.value})}
                       className="w-full bg-[#EDE8DE] border border-[#E9EDEF] rounded-xl px-3 py-2.5 text-sm text-[#111B21] placeholder:text-[#667781] focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 resize-none" />
                   </div>
+                  {error && (
+                    <div className="flex items-center gap-2 text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      {error}
+                    </div>
+                  )}
                   <button type="submit" disabled={loading}
                     className="w-full bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-60 text-[#111B21] hover:text-white font-bold py-3 rounded-full text-sm transition-all">
                     {loading ? "Sending…" : "Send message"}

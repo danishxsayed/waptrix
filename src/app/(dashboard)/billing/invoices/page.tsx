@@ -48,12 +48,14 @@ export default function InvoicesPage() {
     ? new Date(d).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
     : "—";
 
+  const q = search.trim().toLowerCase();
   const filtered = invoices.filter(inv => {
     const matchSearch =
-      !search ||
-      inv.invoice_number.toLowerCase().includes(search.toLowerCase()) ||
-      inv.order_id.toLowerCase().includes(search.toLowerCase()) ||
-      (inv.cf_payment_id || "").toLowerCase().includes(search.toLowerCase());
+      !q ||
+      inv.invoice_number.toLowerCase().includes(q) ||
+      inv.order_id.toLowerCase().includes(q) ||
+      (inv.cf_payment_id || "").toLowerCase().includes(q) ||
+      (inv.billing_cycle || "").toLowerCase().includes(q);
     const matchFilter = filter === "all" || inv.status === filter;
     return matchSearch && matchFilter;
   });

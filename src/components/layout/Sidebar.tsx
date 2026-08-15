@@ -145,11 +145,6 @@ export default function Sidebar() {
     return () => clearInterval(iv);
   }, [pathname]);
 
-  const getProgress = () => {
-    if (!tenant) return 0;
-    return (tenant.messages_used / tenant.messages_limit) * 100;
-  };
-
   const handleLogout = async () => {
     const supabase = createClient();
     await supabase.auth.signOut();
@@ -276,27 +271,20 @@ export default function Sidebar() {
 
       <div className="p-4 mt-auto">
         <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex items-center gap-2 mb-1">
             {loading ? (
               <Loader2 className="w-4 h-4 text-jade animate-spin" />
             ) : (
               <ShieldCheck className="w-4 h-4 text-jade" />
             )}
             <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-              Plan: {loading ? "..." : tenant?.plan || "Starter"}
+              {loading ? "..." : tenant?.plan === "pro" ? "Pro Plan" : tenant?.plan === "trial" ? "Free Trial" : (tenant?.plan || "Free")}
             </span>
           </div>
-          <div className="w-full bg-surface rounded-full h-1.5 mb-2">
-            <div
-              className="bg-jade h-full rounded-full transition-all duration-1000 shadow-[0_0_8px_rgba(16,185,129,0.4)]"
-              style={{ width: `${loading ? 0 : getProgress()}%` }}
-            />
+          <div className="flex items-center gap-1.5 mt-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-jade animate-pulse" />
+            <span className="text-[11px] text-jade font-semibold">Unlimited Messages</span>
           </div>
-          <span className="text-[10px] text-text-muted">
-            {loading
-              ? "Loading usage..."
-              : `${tenant?.messages_used.toLocaleString()} / ${tenant?.messages_limit.toLocaleString()} messages used`}
-          </span>
         </div>
       </div>
     </aside>

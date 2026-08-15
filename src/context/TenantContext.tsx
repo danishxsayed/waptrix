@@ -5,10 +5,13 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 interface TenantData {
   id: string;
   name: string;
+  email?: string;
   plan: string;
   messages_used: number;
   messages_limit: number;
   company: string;
+  plan_expires_at?: string | null;
+  trial_ends_at?: string | null;
 }
 
 type UserRole = 'owner' | 'admin' | 'agent';

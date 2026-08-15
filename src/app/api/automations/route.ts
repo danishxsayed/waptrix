@@ -6,7 +6,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { getEffectiveTenantId } from '@/lib/tenant';
 
-const TYPES = ['greeting', 'ooo'] as const;
+const TYPES = ['greeting', 'ooo', 'keyword_rules'] as const;
 
 const DEFAULTS: Record<string, object> = {
   greeting: {
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
     const { type, enabled, message, ooo_start, ooo_end, timezone } = body;
 
     if (!TYPES.includes(type)) {
-      return NextResponse.json({ error: 'type must be greeting or ooo' }, { status: 400 });
+      return NextResponse.json({ error: 'Invalid automation type' }, { status: 400 });
     }
 
     const db = serviceDb();

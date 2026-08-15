@@ -14,7 +14,7 @@ export default function BillingLayout({ children }: { children: React.ReactNode 
   const pathname = usePathname();
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
+    <div className="p-8 max-w-3xl mx-auto">
       {/* Sub-nav tabs */}
       <div className="flex gap-1 mb-8 bg-card border border-border rounded-2xl p-1.5">
         {TABS.map(t => {

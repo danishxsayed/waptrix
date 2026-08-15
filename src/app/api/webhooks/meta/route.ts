@@ -210,7 +210,8 @@ async function maybeFireAutomations(
   db: SupabaseClient,
   tenantId: string,
   toPhone: string,
-  isNewConversation: boolean
+  isNewConversation: boolean,
+  messageText?: string
 ) {
   try {
     const { data: automations } = await db
@@ -262,6 +263,27 @@ async function maybeFireAutomations(
         setTimeout(() => {
           sendAutoReply(db, tenantId, toPhone, auto.message);
         }, 1500);
+
+      } else if (auto.type === 'keyword_rules' && messageText && auto.message) {
+        // Parse the JSON rules array and match against messageText
+        try {
+          const rules: { id: string; keywords: string[]; response: string }[] = JSON.parse(auto.message);
+          const textLower = messageText.toLowerCase().trim();
+          for (const rule of rules) {
+            if (!rule.keywords?.length || !rule.response) continue;
+            const matched = rule.keywords.some(kw =>
+              kw.trim() && textLower.includes(kw.trim().toLowerCase())
+            );
+            if (matched) {
+              setTimeout(() => {
+                sendAutoReply(db, tenantId, toPhone, rule.response);
+              }, 1000);
+              break; // first match wins
+            }
+          }
+        } catch {
+          // message field is not valid JSON — skip
+        }
       }
     }
   } catch (err: any) {
@@ -509,8 +531,8 @@ async function handleMessages(db: SupabaseClient, value: any) {
       console.error('chat_messages insert error:', insertErr.message, insertErr.code);
     }
 
-    // Fire automations (greeting for new conversations, OOO if outside hours)
-    maybeFireAutomations(db, tenantId, senderPhone, isNewConversation);
+    // Fire automations (greeting for new conversations, OOO, keyword rules)
+    maybeFireAutomations(db, tenantId, senderPhone, isNewConversation, type === 'text' ? content : undefined);
 
     // Check campaign auto-reply rules for text messages
     if (type === 'text' && content && !isOptOut(content) && !isOptIn(content)) {
