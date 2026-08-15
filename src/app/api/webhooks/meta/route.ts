@@ -112,11 +112,14 @@ async function sendAutoReply(
     const now = new Date().toISOString();
 
     // Find the conversation so we can save the message and update last_message
+    // Match both "+919..." and "919..." since conversations may be stored with or without +
+    const phoneWithPlus = toPhone.startsWith('+') ? toPhone : `+${toPhone}`;
+    const phoneNoPlus = toPhone.startsWith('+') ? toPhone.slice(1) : toPhone;
     const { data: conv } = await db
       .from('conversations')
       .select('id')
       .eq('tenant_id', tenantId)
-      .eq('contact_phone', toPhone)
+      .or(`contact_phone.eq.${phoneWithPlus},contact_phone.eq.${phoneNoPlus}`)
       .maybeSingle();
 
     if (conv?.id) {
