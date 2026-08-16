@@ -227,10 +227,7 @@ async function maybeFireAutomations(
 
     for (const auto of automations) {
       if (auto.type === 'greeting' && isNewConversation && auto.message) {
-        // Small delay so the greeting arrives after the contact's message
-        setTimeout(() => {
-          sendAutoReply(db, tenantId, toPhone, auto.message);
-        }, 1500);
+        await sendAutoReply(db, tenantId, toPhone, auto.message);
 
       } else if (auto.type === 'ooo' && auto.message) {
         // Check if current time is within OOO window
@@ -263,9 +260,7 @@ async function maybeFireAutomations(
 
         if (recentOoo && recentOoo.length > 0) continue; // already sent recently
 
-        setTimeout(() => {
-          sendAutoReply(db, tenantId, toPhone, auto.message);
-        }, 1500);
+        await sendAutoReply(db, tenantId, toPhone, auto.message);
 
       } else if (auto.type === 'keyword_rules' && messageText && auto.message) {
         // Parse the JSON rules array and match against messageText
@@ -278,9 +273,7 @@ async function maybeFireAutomations(
               kw.trim() && textLower.includes(kw.trim().toLowerCase())
             );
             if (matched) {
-              setTimeout(() => {
-                sendAutoReply(db, tenantId, toPhone, rule.response);
-              }, 1000);
+              await sendAutoReply(db, tenantId, toPhone, rule.response);
               break; // first match wins
             }
           }
@@ -535,11 +528,13 @@ async function handleMessages(db: SupabaseClient, value: any) {
     }
 
     // Fire automations (greeting for new conversations, OOO, keyword rules)
-    maybeFireAutomations(db, tenantId, senderPhone, isNewConversation, type === 'text' ? content : undefined);
+    // Must be awaited — setTimeout fire-and-forget is NOT reliable on serverless (Vercel kills
+    // the function after the response is sent, before macrotasks can execute).
+    await maybeFireAutomations(db, tenantId, senderPhone, isNewConversation, type === 'text' ? content : undefined);
 
     // Check campaign auto-reply rules for text messages
     if (type === 'text' && content && !isOptOut(content) && !isOptIn(content)) {
-      maybeFirCampaignAutoReply(db, tenantId, senderPhone, content);
+      await maybeFirCampaignAutoReply(db, tenantId, senderPhone, content);
     }
   }
 }
