@@ -952,11 +952,11 @@ export default function InboxPanel({
     setContactLoading(true);
     setContactInfo(null);
     try {
-      const res = await fetch(`/api/contacts/by-phone?phone=${encodeURIComponent(phone)}`);
+      const res = await fetch(`/api/contacts/by-phone?phone=${encodeURIComponent(phone)}`, { cache: 'no-store' });
       const data = await res.json();
       setContactInfo(data);
       // notes are stored in the dedicated `notes` column (not custom3)
-      setContactNoteText(data?.notes || '');
+      setContactNoteText(data?.notes ?? '');
     } catch { /* silent */ } finally {
       setContactLoading(false);
     }
@@ -1068,6 +1068,7 @@ export default function InboxPanel({
       if (res.ok) {
         const updated = await res.json();
         setContactInfo(updated);
+        setContactNoteText(updated.notes ?? '');
         setContactNoteMsg({ type: 'success', text: 'Note saved!' });
         setTimeout(() => setContactNoteMsg(null), 3000);
       } else {
