@@ -831,6 +831,7 @@ export default function InboxPanel({
   const [contactLoading, setContactLoading] = useState(false);
   const [contactNoteText, setContactNoteText] = useState('');
   const [savingContactNote, setSavingContactNote] = useState(false);
+  const [contactNoteMsg, setContactNoteMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editingTags, setEditingTags] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
   const [contactShowMore, setContactShowMore] = useState(false);
@@ -1051,8 +1052,13 @@ export default function InboxPanel({
   // Save contact note (dedicated notes column)
   const saveContactNote = async () => {
     setSavingContactNote(true);
+    setContactNoteMsg(null);
     const id = await ensureContact();
-    if (!id) { setSavingContactNote(false); return; }
+    if (!id) {
+      setSavingContactNote(false);
+      setContactNoteMsg({ type: 'error', text: 'Could not find or create contact.' });
+      return;
+    }
     try {
       const res = await fetch(`/api/contacts/${id}`, {
         method: 'PATCH',
@@ -1062,8 +1068,15 @@ export default function InboxPanel({
       if (res.ok) {
         const updated = await res.json();
         setContactInfo(updated);
+        setContactNoteMsg({ type: 'success', text: 'Note saved!' });
+        setTimeout(() => setContactNoteMsg(null), 3000);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        setContactNoteMsg({ type: 'error', text: errData.error || `Save failed (${res.status})` });
       }
-    } catch { /* silent */ } finally {
+    } catch (err: any) {
+      setContactNoteMsg({ type: 'error', text: err.message || 'Network error' });
+    } finally {
       setSavingContactNote(false);
     }
   };
@@ -2000,7 +2013,7 @@ export default function InboxPanel({
                                   <StickyNote className="w-3 h-3 text-amber-400 flex-shrink-0" />
                                   <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Internal Note</span>
                                 </div>
-                                <ReadMoreText text={msg.content} className="text-amber-100" noteStyle />
+                                <ReadMoreText text={msg.content} className="text-amber-800" noteStyle />
                                 <p className="text-[10px] text-amber-400/60 mt-1 text-right">{formatMsgTime(msg.created_at)}</p>
                               </div>
                             </div>
@@ -2772,6 +2785,11 @@ export default function InboxPanel({
                     >
                       {savingContactNote ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving…</> : 'Save Note'}
                     </button>
+                    {contactNoteMsg && (
+                      <p className={`text-xs mt-1.5 text-center ${contactNoteMsg.type === 'success' ? 'text-jade' : 'text-red-500'}`}>
+                        {contactNoteMsg.text}
+                      </p>
+                    )}
                   </div>
 
                   <div className="h-px bg-border" />
