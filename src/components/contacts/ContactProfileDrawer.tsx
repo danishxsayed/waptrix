@@ -291,6 +291,7 @@ export default function ContactProfileDrawer({
               <button onClick={fetchActivity} className="btn-secondary text-xs font-bold">Retry</button>
             </div>
           ) : activeTab === "details" ? (
+            <>
             <form onSubmit={handleSave} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {/* Full Name */}
@@ -495,6 +496,7 @@ export default function ContactProfileDrawer({
                   : <><PenLine className="w-3.5 h-3.5" /> Save Note</>}
               </button>
             </div>
+            </>
           ) : activeTab === "chat" ? (
             <div className="flex flex-col h-[60vh] bg-surface/20 border border-border/60 rounded-2xl overflow-hidden">
               <div className="flex-1 overflow-y-auto p-4 space-y-4 custom-scrollbar bg-background/40">
