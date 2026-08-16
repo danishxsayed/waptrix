@@ -7,7 +7,7 @@ import { NextResponse } from 'next/server';
 
 /** PATCH /api/contacts/[id]
  *  Update contact fields. Accepts any subset of:
- *    { name, email, notes (stored in custom3), tags (stored in custom2 as CSV), opted_in }
+ *    { name, email, notes (dedicated notes column), tags (stored in custom2 as CSV), opted_in }
  */
 export async function PATCH(
   req: Request,
@@ -37,8 +37,8 @@ export async function PATCH(
     if (body.opted_in !== undefined) updates.opted_in = body.opted_in;
     // tags → stored as CSV in custom2
     if (body.tags !== undefined)    updates.custom2 = Array.isArray(body.tags) ? body.tags.join(', ') : body.tags;
-    // notes → stored in custom3
-    if (body.notes !== undefined)   updates.custom3 = body.notes;
+    // notes → dedicated notes column (custom3 is reserved for appointment/location)
+    if (body.notes !== undefined)   updates.notes = body.notes;
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 });

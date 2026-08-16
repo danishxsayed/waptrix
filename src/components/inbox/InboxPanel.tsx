@@ -954,8 +954,8 @@ export default function InboxPanel({
       const res = await fetch(`/api/contacts/by-phone?phone=${encodeURIComponent(phone)}`);
       const data = await res.json();
       setContactInfo(data);
-      if (data?.custom3) setContactNoteText(data.custom3);
-      else setContactNoteText('');
+      // notes are stored in the dedicated `notes` column (not custom3)
+      setContactNoteText(data?.notes || '');
     } catch { /* silent */ } finally {
       setContactLoading(false);
     }
@@ -1048,7 +1048,7 @@ export default function InboxPanel({
     } catch { /* silent */ }
   };
 
-  // Save contact note (custom3)
+  // Save contact note (dedicated notes column)
   const saveContactNote = async () => {
     setSavingContactNote(true);
     const id = await ensureContact();
