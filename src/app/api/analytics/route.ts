@@ -93,16 +93,24 @@ export async function GET(req: Request) {
       serviceClient.from('templates').select('*', { count: 'exact', head: true }).eq('tenant_id', user.id),
     ]);
 
-    // ── 3. Message logs for the selected date range ──────────────
-    // Use sent_at for sent; fall back to created_at if sent_at is null (older records)
-    const { data: logs } = await serviceClient
-      .from('message_logs')
-      .select('sent_at, created_at, status, read_at')
-      .eq('tenant_id', user.id)
-      .in('status', ['sent', 'delivered', 'read'])
-      // Use created_at as the outer bound (most reliable non-null field)
-      .gte('created_at', fromISO)
-      .lte('created_at', toISO);
+    // ── 3. Message logs + outbound chat messages for the selected date range ──
+    const [{ data: logs }, { data: chatMsgs }] = await Promise.all([
+      serviceClient
+        .from('message_logs')
+        .select('sent_at, created_at, status, read_at')
+        .eq('tenant_id', user.id)
+        .in('status', ['sent', 'delivered', 'read'])
+        .gte('created_at', fromISO)
+        .lte('created_at', toISO),
+      serviceClient
+        .from('chat_messages')
+        .select('created_at')
+        .eq('tenant_id', user.id)
+        .eq('direction', 'outbound')
+        .neq('type', 'note')
+        .gte('created_at', fromISO)
+        .lte('created_at', toISO),
+    ]);
 
     // Build per-day buckets
     const dates = dateRange(fromDate, toDate);
@@ -110,17 +118,21 @@ export async function GET(req: Request) {
     dates.forEach(d => { buckets[d] = { sent: 0, read: 0 }; });
 
     (logs ?? []).forEach(log => {
-      // For sent count: prefer sent_at, fall back to created_at
       const sentTs = log.sent_at ?? log.created_at;
       if (sentTs) {
         const day = toUTCDate(sentTs);
         if (buckets[day]) buckets[day].sent += 1;
       }
-      // For read count: use read_at (webhook-populated)
       if (log.read_at) {
         const day = toUTCDate(log.read_at);
         if (buckets[day]) buckets[day].read += 1;
       }
+    });
+
+    // Also count outbound inbox messages (not already in message_logs)
+    (chatMsgs ?? []).forEach(msg => {
+      const day = toUTCDate(msg.created_at);
+      if (buckets[day]) buckets[day].sent += 1;
     });
 
     const chartData = dates.map(d => ({

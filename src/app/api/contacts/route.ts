@@ -67,14 +67,15 @@ export async function POST(request: Request) {
     const phoneWithoutPlus = rawDigits;
 
     // Duplicate check — reject if the phone already exists under this tenant
+    // Use separate .eq() calls to avoid PostgREST + sign parsing issues in .or()
     if (rawDigits) {
-      const { data: existing } = await serviceClient
-        .from('contacts')
-        .select('id, phone')
-        .eq('tenant_id', user.id)
-        .or(`phone.eq.${phoneWithPlus},phone.eq.${phoneWithoutPlus}`)
-        .maybeSingle();
-
+      let existing: { id: string; phone: string } | null = null;
+      const { data: e1 } = await serviceClient.from('contacts').select('id, phone').eq('tenant_id', user.id).eq('phone', phoneWithPlus).maybeSingle();
+      if (e1) { existing = e1; }
+      else {
+        const { data: e2 } = await serviceClient.from('contacts').select('id, phone').eq('tenant_id', user.id).eq('phone', phoneWithoutPlus).maybeSingle();
+        if (e2) existing = e2;
+      }
       if (existing) {
         return NextResponse.json(
           { error: 'A contact with this phone number already exists.', existing_id: existing.id },

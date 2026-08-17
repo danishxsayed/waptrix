@@ -7,7 +7,7 @@ import {
   Clock, FileText, Mic, X, Loader2, Download, Play, Plus, Phone, AlertCircle,
   SlidersHorizontal, ChevronRight, ArrowUpDown, Trash2, CheckSquare, Square,
   Smile, User, Tag, PenLine, ChevronDown, ChevronUp, Info, ExternalLink,
-  StickyNote, CheckCircle2, Zap, Activity
+  StickyNote, CheckCircle2, Zap, Activity, Pencil
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 
@@ -801,6 +801,8 @@ export default function InboxPanel({
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   // phone (normalized, no +) → segment name — built from contacts+segments fetch
   const [phoneTagMap, setPhoneTagMap] = useState<Record<string, string>>({});
+  // phone (normalized) → custom2 tags array — for contact-panel tags filter
+  const [phoneCustomTagMap, setPhoneCustomTagMap] = useState<Record<string, string[]>>({});
 
   // ── Sort state
   type SortMode = 'newest' | 'oldest' | 'shortest_window' | 'longest_window';
@@ -829,9 +831,6 @@ export default function InboxPanel({
   const [showContactPanel, setShowContactPanel] = useState(false);
   const [contactInfo, setContactInfo] = useState<any | null>(null);
   const [contactLoading, setContactLoading] = useState(false);
-  const [contactNoteText, setContactNoteText] = useState('');
-  const [savingContactNote, setSavingContactNote] = useState(false);
-  const [contactNoteMsg, setContactNoteMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [editingTags, setEditingTags] = useState(false);
   const [newTagInput, setNewTagInput] = useState('');
   const [contactShowMore, setContactShowMore] = useState(false);
@@ -846,6 +845,8 @@ export default function InboxPanel({
   const [showNoteArea, setShowNoteArea] = useState(false);
   const [noteText, setNoteText] = useState('');
   const [isSendingNote, setIsSendingNote] = useState(false);
+  const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
+  const [editingNoteText, setEditingNoteText] = useState('');
 
   // ── Quick replies
   interface QuickReply { id: string; title: string; body: string; }
@@ -953,10 +954,9 @@ export default function InboxPanel({
     setContactInfo(null);
     try {
       const res = await fetch(`/api/contacts/by-phone?phone=${encodeURIComponent(phone)}`, { cache: 'no-store' });
+      if (!res.ok) { setContactInfo(null); return; }
       const data = await res.json();
-      setContactInfo(data);
-      // notes are stored in the dedicated `notes` column (not custom3)
-      setContactNoteText(data?.notes ?? '');
+      setContactInfo(data ?? null);
     } catch { /* silent */ } finally {
       setContactLoading(false);
     }
@@ -1009,6 +1009,26 @@ export default function InboxPanel({
     }
   };
 
+  const deleteNote = async (msgId: string) => {
+    if (!activeConv) return;
+    const res = await fetch(`/api/conversations/${activeConv.id}/messages/${msgId}`, { method: 'DELETE' });
+    if (res.ok) setMessages(prev => prev.filter(m => m.id !== msgId));
+  };
+
+  const saveNoteEdit = async (msgId: string) => {
+    if (!activeConv || !editingNoteText.trim()) return;
+    const res = await fetch(`/api/conversations/${activeConv.id}/messages/${msgId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: editingNoteText.trim() }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, content: updated.content } : m));
+      setEditingNoteId(null);
+    }
+  };
+
   // Ensure a contact record exists — creates one if not found, returns the id
   const ensureContact = async (): Promise<string | null> => {
     if (contactInfo?.id) return contactInfo.id;
@@ -1028,7 +1048,22 @@ export default function InboxPanel({
         setContactInfo(created);
         return created.id;
       }
-    } catch { /* silent */ }
+      // 409 = contact already exists (duplicate phone) — re-fetch it by phone
+      if (res.status === 409) {
+        const errData = await res.json().catch(() => ({}));
+        if (errData.existing_id) return errData.existing_id;
+        // fallback: re-fetch via by-phone
+        if (activeConv.contact_phone) {
+          const byPhone = await fetch(`/api/contacts/by-phone?phone=${encodeURIComponent(activeConv.contact_phone)}`, { cache: 'no-store' });
+          if (byPhone.ok) {
+            const c = await byPhone.json();
+            if (c?.id) { setContactInfo(c); return c.id; }
+          }
+        }
+      }
+    } catch (err: any) {
+      console.error('[ensureContact] error:', err.message);
+    }
     return null;
   };
 
@@ -1049,38 +1084,6 @@ export default function InboxPanel({
     } catch { /* silent */ }
   };
 
-  // Save contact note (dedicated notes column)
-  const saveContactNote = async () => {
-    setSavingContactNote(true);
-    setContactNoteMsg(null);
-    const id = await ensureContact();
-    if (!id) {
-      setSavingContactNote(false);
-      setContactNoteMsg({ type: 'error', text: 'Could not find or create contact.' });
-      return;
-    }
-    try {
-      const res = await fetch(`/api/contacts/${id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ notes: contactNoteText }),
-      });
-      if (res.ok) {
-        const updated = await res.json();
-        setContactInfo(updated);
-        setContactNoteText(updated.notes ?? '');
-        setContactNoteMsg({ type: 'success', text: 'Note saved!' });
-        setTimeout(() => setContactNoteMsg(null), 3000);
-      } else {
-        const errData = await res.json().catch(() => ({}));
-        setContactNoteMsg({ type: 'error', text: errData.error || `Save failed (${res.status})` });
-      }
-    } catch (err: any) {
-      setContactNoteMsg({ type: 'error', text: err.message || 'Network error' });
-    } finally {
-      setSavingContactNote(false);
-    }
-  };
 
   const assignConversation = async (memberId: string | null, memberEmail: string | null) => {
     if (!activeConv) return;
@@ -1169,6 +1172,8 @@ export default function InboxPanel({
     if (res.ok) {
       const data: ChatMessage[] = await res.json();
       setMessages(data);
+      // Always scroll to bottom (most recent) when loading a conversation
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'instant' }), 50);
     }
     setLoadingMsgs(false);
   }, []);
@@ -1194,22 +1199,29 @@ export default function InboxPanel({
       fetch('/api/contacts/segments').then(r => r.json()).catch(() => []),
       fetch('/api/contacts').then(r => r.json()).catch(() => []),
     ]).then(([segments, contacts]) => {
+      const segMap: Record<string, string> = {};
+      const segTagNames: string[] = [];
       if (Array.isArray(segments)) {
-        setAvailableTags(segments.map((s: any) => s.name).filter(Boolean));
-        if (Array.isArray(contacts)) {
-          const segMap: Record<string, string> = {};
-          segments.forEach((s: any) => { segMap[s.id] = s.name; });
-          const pMap: Record<string, string> = {};
-          contacts.forEach((c: any) => {
-            if (c.phone && c.segment_id && segMap[c.segment_id]) {
-              // normalise: strip leading +/spaces
-              const norm = (c.phone as string).replace(/^\+/, '').replace(/\s/g, '');
-              pMap[norm] = segMap[c.segment_id];
-            }
-          });
-          setPhoneTagMap(pMap);
-        }
+        segments.forEach((s: any) => { if (s.name) { segMap[s.id] = s.name; segTagNames.push(s.name); } });
       }
+      const pMap: Record<string, string> = {};
+      const cTagMap: Record<string, string[]> = {};
+      const customTagSet = new Set<string>();
+      if (Array.isArray(contacts)) {
+        contacts.forEach((c: any) => {
+          if (!c.phone) return;
+          const norm = (c.phone as string).replace(/^\+/, '').replace(/\s/g, '');
+          if (c.segment_id && segMap[c.segment_id]) pMap[norm] = segMap[c.segment_id];
+          if (c.custom2) {
+            const tags = (c.custom2 as string).split(',').map((t: string) => t.trim()).filter(Boolean);
+            cTagMap[norm] = tags;
+            tags.forEach(t => customTagSet.add(t));
+          }
+        });
+      }
+      setPhoneTagMap(pMap);
+      setPhoneCustomTagMap(cTagMap);
+      setAvailableTags([...new Set([...segTagNames, ...Array.from(customTagSet)])]);
     });
   }, [fetchConversations, fetchTemplates]);
 
@@ -1325,7 +1337,7 @@ export default function InboxPanel({
     }
   }, [messages]);
 
-  // ── Fetch contact when conversation changes
+  // ── Fetch contact + load conversation note when conversation changes
   useEffect(() => {
     if (activeConv?.contact_phone) {
       fetchContact(activeConv.contact_phone);
@@ -1655,11 +1667,13 @@ export default function InboxPanel({
     if (appliedFilters.replyStatus === 'unreplied' && (c.unread_count || 0) === 0) return false;
     if (appliedFilters.replyStatus === 'replied' && (c.unread_count || 0) > 0) return false;
 
-    // Tags — match contact by phone number to their segment name
+    // Tags — check both segment-based tags and custom2 contact tags
     if (appliedFilters.tags.length > 0) {
       const norm = c.contact_phone.replace(/^\+/, '').replace(/\s/g, '');
-      const contactTag = phoneTagMap[norm];
-      if (!contactTag || !appliedFilters.tags.includes(contactTag)) return false;
+      const segTag = phoneTagMap[norm];
+      const customTags = phoneCustomTagMap[norm] || [];
+      const hasMatch = appliedFilters.tags.some(t => t === segTag || customTags.includes(t));
+      if (!hasMatch) return false;
     }
 
     // Last Message Time — date range on last_message_at
@@ -2009,7 +2023,7 @@ export default function InboxPanel({
                             <div key={msg.id} id={`msg-${msg.id}`}
                               className={`flex justify-center transition-all duration-300 ${highlightedMsgId === msg.id ? 'rounded-xl ring-2 ring-amber-400/40' : ''}`}
                             >
-                              <div className="max-w-[75%] bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-2.5">
+                              <div className="max-w-[70%] bg-amber-500/10 border border-amber-500/20 rounded-2xl px-4 py-2.5">
                                 <div className="flex items-center gap-1.5 mb-1">
                                   <StickyNote className="w-3 h-3 text-amber-400 flex-shrink-0" />
                                   <span className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">Internal Note</span>
@@ -2766,30 +2780,63 @@ export default function InboxPanel({
 
                   <div className="h-px bg-border" />
 
-                  {/* Notes */}
+                  {/* Internal Notes — read-only display of notes from the chat */}
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-2 flex items-center gap-1">
-                      <PenLine className="w-3 h-3" /> Notes
+                      <PenLine className="w-3 h-3" /> Internal Notes
                     </p>
-                    <textarea
-                      rows={4}
-                      value={contactNoteText}
-                      onChange={e => setContactNoteText(e.target.value)}
-                      placeholder="Add notes about this contact…"
-                      className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-jade/50 resize-none"
-                    />
-                    <button
-                      type="button"
-                      onClick={saveContactNote}
-                      disabled={savingContactNote}
-                      className="mt-1.5 w-full py-1.5 bg-jade text-background text-xs font-bold rounded-lg hover:bg-jade/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-1"
-                    >
-                      {savingContactNote ? <><Loader2 className="w-3 h-3 animate-spin" /> Saving…</> : 'Save Note'}
-                    </button>
-                    {contactNoteMsg && (
-                      <p className={`text-xs mt-1.5 text-center ${contactNoteMsg.type === 'success' ? 'text-jade' : 'text-red-500'}`}>
-                        {contactNoteMsg.text}
-                      </p>
+                    {messages.filter(m => m.type === 'note').length === 0 ? (
+                      <p className="text-[11px] text-text-muted italic">No internal notes yet. Use the Note tab in the chat to add one.</p>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {messages.filter(m => m.type === 'note').map(m => {
+                          const isEditing = editingNoteId === m.id;
+                          return (
+                            <div key={m.id} className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-3 py-2">
+                              {isEditing ? (
+                                <div className="flex flex-col gap-1.5">
+                                  <textarea
+                                    rows={3}
+                                    value={editingNoteText}
+                                    onChange={e => setEditingNoteText(e.target.value)}
+                                    className="w-full bg-amber-500/10 border border-amber-500/30 rounded-lg px-2 py-1.5 text-xs text-amber-800 focus:outline-none resize-none"
+                                    autoFocus
+                                  />
+                                  <div className="flex gap-1.5">
+                                    <button onClick={() => saveNoteEdit(m.id)}
+                                      className="flex-1 py-1 bg-amber-500 text-white text-xs font-semibold rounded-lg hover:bg-amber-400 transition-colors">
+                                      Save
+                                    </button>
+                                    <button onClick={() => setEditingNoteId(null)}
+                                      className="flex-1 py-1 bg-surface border border-border text-xs rounded-lg hover:bg-card transition-colors">
+                                      Cancel
+                                    </button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <>
+                                  <div className="flex items-start justify-between gap-1">
+                                    <p className="text-xs text-amber-800 whitespace-pre-wrap flex-1">{m.content}</p>
+                                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                                      <button onClick={() => { setEditingNoteId(m.id); setEditingNoteText(m.content); }}
+                                        className="p-1 rounded hover:bg-amber-500/20 text-amber-400 transition-colors" title="Edit">
+                                        <Pencil className="w-3 h-3" />
+                                      </button>
+                                      <button onClick={() => deleteNote(m.id)}
+                                        className="p-1 rounded hover:bg-red-500/20 text-amber-400 hover:text-red-500 transition-colors" title="Delete">
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                  <p className="text-[10px] text-amber-500/70 mt-1 text-right">
+                                    {new Date(m.created_at).toLocaleString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                                  </p>
+                                </>
+                              )}
+                            </div>
+                          );
+                        })}
+                      </div>
                     )}
                   </div>
 
@@ -2822,7 +2869,7 @@ export default function InboxPanel({
                         {!activityLoading && activityData && (() => {
                           // Merge and sort all events
                           const events: { time: string; label: string; sub?: string; type: 'chat' | 'campaign' }[] = [
-                            ...(activityData.chatMessages || []).map((m: any) => ({
+                            ...(activityData.chatMessages || []).filter((m: any) => m.type !== 'note').map((m: any) => ({
                               time: m.created_at,
                               label: m.direction === 'inbound' ? 'Sent you a message' : 'You replied',
                               sub: m.content?.slice(0, 60) || (m.type === 'template' ? '📋 Template sent' : '📎 Media'),

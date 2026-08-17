@@ -494,6 +494,31 @@ async function handleMessages(db: SupabaseClient, value: any) {
       isNewConversation = true;
     }
 
+    // Upsert contact record so the inbox contact panel always has a row to work with
+    try {
+      const phoneWithPlus = '+' + senderPhone;
+      // Use separate .eq() calls to avoid PostgREST + sign parsing issues in .or()
+      let existingContact: { id: string } | null = null;
+      const { data: c1 } = await db.from('contacts').select('id').eq('tenant_id', tenantId).eq('phone', phoneWithPlus).maybeSingle();
+      if (c1) { existingContact = c1; }
+      else {
+        const { data: c2 } = await db.from('contacts').select('id').eq('tenant_id', tenantId).eq('phone', senderPhone).maybeSingle();
+        if (c2) existingContact = c2;
+      }
+      if (!existingContact) {
+        await db.from('contacts').insert({
+          tenant_id: tenantId,
+          name: contactName || phoneWithPlus,
+          phone: phoneWithPlus,
+          opted_in: true,
+        });
+      } else if (contactName && existingContact.id) {
+        await db.from('contacts').update({ name: contactName }).eq('id', existingContact.id);
+      }
+    } catch (contactErr: any) {
+      console.error('[webhook] Failed to upsert contact:', contactErr.message);
+    }
+
     // Check for duplicate before inserting (partial unique index only covers non-null meta_message_id)
     if (metaMessageId) {
       const { data: existing } = await db

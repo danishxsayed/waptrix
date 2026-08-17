@@ -99,6 +99,11 @@ export default function OnboardingChecklist({ stats }: Props) {
   const currentStep    = steps.find(s => !s.done);
   const progressPct    = (completedCount / steps.length) * 100;
 
+  const handleDismiss = () => {
+    setDismissed(true);
+    try { localStorage.setItem(DISMISSED_KEY, "1"); } catch {}
+  };
+
   // Auto-dismiss when all steps complete (after brief delay so user sees it)
   useEffect(() => {
     if (allDone) {
@@ -114,11 +119,6 @@ export default function OnboardingChecklist({ stats }: Props) {
 
   // Don't render if dismissed
   if (dismissed) return null;
-
-  const handleDismiss = () => {
-    setDismissed(true);
-    try { localStorage.setItem(DISMISSED_KEY, "1"); } catch {}
-  };
 
   return (
     <div className="glass-card border border-jade/20 relative overflow-hidden mb-2">

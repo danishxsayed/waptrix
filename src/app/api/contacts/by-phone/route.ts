@@ -27,19 +27,29 @@ export async function GET(req: Request) {
       process.env.SUPABASE_SERVICE_KEY!
     );
 
-    // Try both formats: +91XXX and 91XXX
+    // Try both formats: +91XXX and 91XXX (two separate .eq() calls to avoid PostgREST + parsing issues)
     const digits = rawPhone.replace(/\D/g, '');
     const withPlus = `+${digits}`;
 
-    const { data, error } = await db
+    // First try with + prefix
+    const { data: dataPlus, error: errPlus } = await db
       .from('contacts')
       .select('*')
       .eq('tenant_id', user.id)
-      .or(`phone.eq.${withPlus},phone.eq.${digits}`)
+      .eq('phone', withPlus)
       .maybeSingle();
+    if (errPlus) return NextResponse.json({ error: errPlus.message }, { status: 500 });
+    if (dataPlus) return NextResponse.json(dataPlus);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data ?? null);
+    // Fallback: try without + prefix
+    const { data: dataRaw, error: errRaw } = await db
+      .from('contacts')
+      .select('*')
+      .eq('tenant_id', user.id)
+      .eq('phone', digits)
+      .maybeSingle();
+    if (errRaw) return NextResponse.json({ error: errRaw.message }, { status: 500 });
+    return NextResponse.json(dataRaw ?? null);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
