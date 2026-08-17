@@ -1,6 +1,21 @@
 # Implementation History
 
-## [2026-08-14] - End-to-End Checkout Funnel & Webhook Idempotency
+## [2026-08-17] - Conversation Assignment, Inbox Improvements & API Updates
+- **Conversation Assignment**:
+  - Added `supabase/add-conversation-assignment.sql` migration for conversation assignment schema support.
+  - Updated `src/app/api/conversations/[id]/route.ts` to support assigning conversations to team members.
+- **New Message Operations Endpoint**:
+  - Created `src/app/api/conversations/[id]/messages/[msgId]/route.ts` for per-message operations (reactions, edits, and updates).
+- **InboxPanel Improvements**:
+  - Significant update to `src/components/inbox/InboxPanel.tsx` with enhanced UI and conversation handling logic (209 insertions).
+- **API Route Updates**:
+  - Updated `src/app/api/analytics/route.ts` with revised aggregation logic.
+  - Improved `src/app/api/contacts/by-phone/route.ts` and `src/app/api/contacts/route.ts`.
+  - Enhanced `src/app/api/webhooks/meta/route.ts` with additional webhook event handling.
+  - Updated `src/components/onboarding/OnboardingChecklist.tsx`.
+- **Version Control**: Committed and pushed all changes to `main` branch (commit `658ada9`, 8 files changed, 288 insertions, 111 deletions).
+
+
 - **Testing Price Adjustment**:
   - Adjusted `pro_monthly` price parameter to ₹10 in the pricing page and plans configuration library for sandbox payment testing.
 - **Unified Pricing Plans Configuration**:

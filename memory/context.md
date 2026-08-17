@@ -116,6 +116,16 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Built an interactive Checkout Modal inside the `/pricing` marketing page (`src/app/(marketing)/pricing/page.tsx`) utilizing the Cashfree JS SDK to collect customer details, process payments, and display order success/failure feedback banners.
 
 ## Recent Session Progress
+- **Conversation Assignment & Inbox Improvements (2026-08-17)**:
+  - Updated `InboxPanel.tsx` with significant enhancements to conversation handling and UI.
+  - Added conversation assignment support in `src/app/api/conversations/[id]/route.ts`.
+  - Added new `src/app/api/conversations/[id]/messages/[msgId]/route.ts` endpoint for per-message operations (e.g. reactions/updates).
+  - Updated `src/app/api/analytics/route.ts` with revised aggregation logic.
+  - Updated `src/app/api/contacts/by-phone/route.ts` and `src/app/api/contacts/route.ts` with improvements.
+  - Enhanced `src/app/api/webhooks/meta/route.ts` with additional webhook event handling.
+  - Updated `src/components/onboarding/OnboardingChecklist.tsx` with minor refinements.
+  - Added Supabase migration `supabase/add-conversation-assignment.sql` for conversation assignment schema.
+  - Committed and pushed all changes to `main` branch (commit `658ada9`).
 - **Sandbox Price Adjustments (2026-08-14)**: Set the monthly Pro plan subscription parameter to ₹2 in the pricing view and plans config files for transaction testing.
 - **Pricing Configuration Unification (2026-08-14)**: Extracted all payment subscription configurations into a centralized `@/lib/plans` file to serve both client-side references and api endpoints (/api/payments/create-order, /api/payments/initiate), reducing redundant plan mappings.
 - **Purchase Funnel Conversion Flow (2026-08-14)**: Optimized checkout routing by carrying over selected `plan` IDs into `LoginPage` and `SignupPage`. Successfully implemented `/api/payments/initiate` to handle automated Cashfree checkout starts upon successful auth registration or login, employing Bearer access tokens via `Authorization` headers to prevent client cookie race conditions. Added user profile dropdowns and signout management in the marketing navbar layout.
