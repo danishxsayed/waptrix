@@ -389,10 +389,16 @@ export async function POST(
   );
 
   // Bulk insert message_logs + chat_messages in parallel
-  await Promise.all([
-    logInserts.length > 0 ? db.from('message_logs').insert(logInserts) : Promise.resolve(),
-    msgInserts.length > 0 ? db.from('chat_messages').insert(msgInserts) : Promise.resolve(),
+  const [logsResult, msgsResult] = await Promise.all([
+    logInserts.length > 0 ? db.from('message_logs').insert(logInserts) : Promise.resolve({ error: null }),
+    msgInserts.length > 0 ? db.from('chat_messages').insert(msgInserts) : Promise.resolve({ error: null }),
   ]);
+  if ((logsResult as any)?.error) {
+    console.error('[process-batch] message_logs insert error:', (logsResult as any).error);
+  }
+  if ((msgsResult as any)?.error) {
+    console.error('[process-batch] chat_messages insert error:', (msgsResult as any).error);
+  }
 
   // ── 7. Atomic campaign counters in Redis ─────────────────────
   const [totalSent, totalFailed] = await Promise.all([
