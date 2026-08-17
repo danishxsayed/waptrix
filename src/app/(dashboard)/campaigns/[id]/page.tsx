@@ -80,6 +80,7 @@ export default function CampaignDetailPage() {
   const [logSearch, setLogSearch] = useState("");
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [logsError, setLogsError] = useState("");
 
   const fetchCampaign = useCallback(async () => {
     try {
@@ -93,11 +94,14 @@ export default function CampaignDetailPage() {
   }, [id]);
 
   const fetchLogs = useCallback(async () => {
+    setLogsError("");
     try {
       const res = await axios.get(`/api/campaigns/${id}/logs`);
-      setLogs(res.data || []);
-    } catch (err) {
-      console.error("Failed to fetch logs", err);
+      setLogs(Array.isArray(res.data) ? res.data : []);
+    } catch (err: any) {
+      const msg = err?.response?.data?.error || err?.message || "Failed to fetch logs";
+      setLogsError(msg);
+      console.error("Failed to fetch logs", msg);
     } finally {
       setIsLoadingLogs(false);
     }
@@ -465,6 +469,13 @@ export default function CampaignDetailPage() {
             </button>
           ))}
         </div>
+
+        {/* Logs error */}
+        {logsError && (
+          <div className="bg-rose-500/10 border border-rose-500/20 rounded-xl px-4 py-3 text-xs text-rose-400 font-mono">
+            ⚠ {logsError}
+          </div>
+        )}
 
         {/* Table */}
         {isLoadingLogs ? (
