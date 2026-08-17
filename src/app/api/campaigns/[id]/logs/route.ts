@@ -28,12 +28,23 @@ export async function GET(
     const tenantId = await getEffectiveTenantId(user.id);
     const db = serviceDb();
 
-    // Fetch logs directly — filter by campaign_id + tenant_id for security
+    // Verify campaign belongs to this tenant first
+    const { data: campaign, error: campaignErr } = await db
+      .from('campaigns')
+      .select('id')
+      .eq('id', id)
+      .eq('tenant_id', tenantId)
+      .single();
+
+    if (campaignErr || !campaign) {
+      return NextResponse.json({ error: 'Campaign not found or unauthorized' }, { status: 404 });
+    }
+
+    // Fetch logs by campaign_id only — tenant security already checked above
     const { data, error } = await db
       .from('message_logs')
       .select('*')
       .eq('campaign_id', id)
-      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(1000);
 
