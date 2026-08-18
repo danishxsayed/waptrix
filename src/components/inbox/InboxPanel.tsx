@@ -1656,16 +1656,20 @@ export default function InboxPanel({
     const q = searchQuery.toLowerCase();
     if (q && !c.contact_name.toLowerCase().includes(q) && !c.contact_phone.includes(q)) return false;
 
-    // Chat Status — matches `status` column ('open' | 'closed')
-    if (appliedFilters.chatStatus !== 'all' && c.status !== appliedFilters.chatStatus) return false;
+    // Chat Status — null/undefined status treated as 'open' (default)
+    if (appliedFilters.chatStatus !== 'all') {
+      const convStatus = c.status || 'open';
+      if (convStatus !== appliedFilters.chatStatus) return false;
+    }
 
     // Read/Unread — unread_count > 0 means the contact sent messages we haven't read yet
-    if (appliedFilters.readStatus === 'read' && (c.unread_count || 0) > 0) return false;
-    if (appliedFilters.readStatus === 'unread' && (c.unread_count || 0) === 0) return false;
+    const unread = Number(c.unread_count) || 0;
+    if (appliedFilters.readStatus === 'read'   && unread > 0) return false;
+    if (appliedFilters.readStatus === 'unread' && unread === 0) return false;
 
-    // Reply Status — "Unreplied" = has unread messages from contact; "Replied" = none
-    if (appliedFilters.replyStatus === 'unreplied' && (c.unread_count || 0) === 0) return false;
-    if (appliedFilters.replyStatus === 'replied' && (c.unread_count || 0) > 0) return false;
+    // Reply Status — "Unreplied" = has unread; "Replied" = all read
+    if (appliedFilters.replyStatus === 'unreplied' && unread === 0) return false;
+    if (appliedFilters.replyStatus === 'replied'   && unread > 0)  return false;
 
     // Tags — check both segment-based tags and custom2 contact tags
     if (appliedFilters.tags.length > 0) {
