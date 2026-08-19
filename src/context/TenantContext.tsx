@@ -19,6 +19,7 @@ type UserRole = 'owner' | 'admin' | 'agent';
 interface TenantContextProps {
   tenant: TenantData | null;
   role: UserRole;
+  userId: string | null;
   isStaff: boolean;
   loading: boolean;
   refresh: () => Promise<void>;
@@ -27,6 +28,7 @@ interface TenantContextProps {
 const TenantContext = createContext<TenantContextProps>({
   tenant: null,
   role: 'owner',
+  userId: null,
   isStaff: false,
   loading: true,
   refresh: async () => {},
@@ -37,6 +39,7 @@ export const useTenant = () => useContext(TenantContext);
 export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [tenant, setTenant]   = useState<TenantData | null>(null);
   const [role, setRole]       = useState<UserRole>('owner');
+  const [userId, setUserId]   = useState<string | null>(null);
   const [isStaff, setIsStaff] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -45,8 +48,9 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch('/api/me');
       if (!res.ok) return;
       const data = await res.json();
-      if (data.tenant) setTenant(data.tenant);
-      if (data.role)   setRole(data.role);
+      if (data.tenant)  setTenant(data.tenant);
+      if (data.role)    setRole(data.role);
+      if (data.userId)  setUserId(data.userId);
       setIsStaff(!!data.isStaff);
     } catch (err) {
       console.error('Error fetching tenant data:', err);
@@ -60,7 +64,7 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <TenantContext.Provider value={{ tenant, role, isStaff, loading, refresh: fetchTenantData }}>
+    <TenantContext.Provider value={{ tenant, role, userId, isStaff, loading, refresh: fetchTenantData }}>
       {children}
     </TenantContext.Provider>
   );

@@ -43,7 +43,7 @@ export async function GET() {
       .single();
 
     return NextResponse.json(
-      { role, tenant: tenant ? { ...tenant, email: user.email } : null, isStaff },
+      { role, userId: user.id, tenant: tenant ? { ...tenant, email: user.email } : null, isStaff },
       { headers: { 'Cache-Control': 'private, max-age=20, stale-while-revalidate=60' } }
     );
   } catch (err: any) {

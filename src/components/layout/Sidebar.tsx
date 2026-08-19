@@ -22,6 +22,7 @@ import {
   CreditCard,
   Settings2,
   Receipt,
+  UserCircle,
 } from "lucide-react";
 import { useTenant } from "@/context/TenantContext";
 import { createClient } from "@/lib/supabase/client";
@@ -45,7 +46,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
   { name: "Campaigns",     href: "/campaigns",   icon: Send,            minRole: "admin" },
   { name: "Templates",     href: "/templates",   icon: FileText,        minRole: "admin" },
   { name: "Media Library", href: "/media",       icon: Images,          minRole: "admin" },
-  { name: "Contacts",      href: "/contacts",    icon: Users,           minRole: "admin" },
+  { name: "Contacts",      href: "/contacts",    icon: Users,           minRole: "agent" },
   { name: "Analytics",     href: "/analytics",   icon: BarChart3,       minRole: "admin" },
   {
     name: "Team Members",
@@ -73,10 +74,13 @@ const ALL_NAV_ITEMS: NavItem[] = [
   },
 ];
 
-// For agents, Team Chat is a top-level item (they can't see Team Members parent)
+// For agents/admins: Team Chat as top-level item (they can't see Team Members parent)
 const AGENT_EXTRA: NavItem[] = [
   { name: "Team Chat", href: "/team-chat", icon: MessageSquareText, minRole: "agent" },
 ];
+
+// Profile page — only for agents (owners/admins have settings)
+const AGENT_PROFILE: NavItem = { name: "Profile", href: "/profile", icon: UserCircle, minRole: "agent" };
 
 function navItemsForRole(role: string): NavItem[] {
   const base = ALL_NAV_ITEMS.filter(item => ROLE_RANK[role] >= ROLE_RANK[item.minRole]);
@@ -84,6 +88,10 @@ function navItemsForRole(role: string): NavItem[] {
     // Insert Team Chat after Inbox for non-owners
     const inboxIdx = base.findIndex(i => i.href === "/inbox");
     base.splice(inboxIdx + 1, 0, ...AGENT_EXTRA);
+  }
+  // Add Profile at end for agents only
+  if (role === "agent") {
+    base.push(AGENT_PROFILE);
   }
   return base;
 }

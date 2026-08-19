@@ -87,10 +87,19 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(url)
     }
 
-    // Trial / plan enforcement — cache result in cookie to avoid DB hit on every request
+    // Routes agents are NOT allowed to access
+    const AGENT_BLOCKED_PREFIXES = [
+      '/campaigns', '/templates', '/media', '/analytics',
+      '/settings', '/connect', '/billing', '/team', '/automations',
+    ];
+
+    // Trial / plan + role enforcement — cache results in cookies to avoid DB hit on every request
     if (user && !isAppPublic(pathname) && pathname !== '/pricing' && !pathname.startsWith('/api/')) {
       const planCookie  = request.cookies.get('waptrix_plan_ok')
-      const cacheValid  = planCookie?.value === user.id   // cookie stores user.id as the check token
+      const roleCookie  = request.cookies.get('waptrix_role')
+      const cacheValid  = planCookie?.value === user.id
+
+      let userRole = roleCookie?.value || 'owner'
 
       if (!cacheValid) {
         // Only hit DB when no valid cookie exists (first visit or cookie expired)
@@ -99,10 +108,22 @@ export async function middleware(request: NextRequest) {
           process.env.NEXT_PUBLIC_SUPABASE_URL!,
           process.env.SUPABASE_SERVICE_KEY!
         )
+
+        // Check team member role
+        const { data: memberRow } = await serviceDb
+          .from('team_members')
+          .select('role, owner_tenant_id')
+          .eq('member_user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle()
+
+        userRole = memberRow ? (memberRow.role as string) : 'owner'
+        const tenantId = memberRow ? memberRow.owner_tenant_id : user.id
+
         const { data: tenant } = await serviceDb
           .from('tenants')
           .select('plan, trial_ends_at, plan_expires_at')
-          .eq('id', user.id)
+          .eq('id', tenantId)
           .maybeSingle()
 
         if (tenant) {
@@ -119,13 +140,23 @@ export async function middleware(request: NextRequest) {
             return NextResponse.redirect(url)
           }
 
-          // Set cookie so we skip DB for next 5 minutes
+          // Cache plan + role for 5 minutes
           supabaseResponse.cookies.set('waptrix_plan_ok', user.id, {
-            httpOnly: true,
-            maxAge:   300, // 5 minutes
-            path:     '/',
-            sameSite: 'lax',
+            httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
           })
+          supabaseResponse.cookies.set('waptrix_role', userRole, {
+            httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
+          })
+        }
+      }
+
+      // Agent route protection — redirect to dashboard if accessing restricted page
+      if (userRole === 'agent') {
+        const blocked = AGENT_BLOCKED_PREFIXES.some(p => pathname.startsWith(p))
+        if (blocked) {
+          const url = request.nextUrl.clone()
+          url.pathname = '/dashboard'
+          return NextResponse.redirect(url)
         }
       }
     }

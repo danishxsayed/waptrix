@@ -43,6 +43,7 @@ function WhatsAppIcon({ className }: { className?: string }) {
 import axios from "axios";
 import * as XLSX from "xlsx";
 import ContactProfileDrawer from "@/components/contacts/ContactProfileDrawer";
+import { useTenant } from "@/context/TenantContext";
 
 const COUNTRY_CODES = [
   // South Asia
@@ -1965,6 +1966,8 @@ const getAvatarGradient = (char: string) => {
 
 export default function ContactsPage() {
   const router = useRouter();
+  const { role } = useTenant();
+  const isAgent = role === 'agent';
   const [contacts, setContacts] = useState<any[]>([]);
   const [segments, setSegments] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -2318,13 +2321,15 @@ export default function ContactsPage() {
           <p className="text-sm text-text-muted">Manage your audience and subscriber lists.</p>
         </div>
         <div className="flex gap-3 w-full md:w-auto">
-          <a
-            href={activeSegmentFilter !== "all" ? `/campaigns?new=true&segmentId=${activeSegmentFilter}` : "/campaigns?new=true"}
-            className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2 hover:border-jade/30 text-xs font-bold font-dm-sans"
-          >
-            <Send className="w-4 h-4 text-jade" />
-            Send Campaign
-          </a>
+          {!isAgent && (
+            <a
+              href={activeSegmentFilter !== "all" ? `/campaigns?new=true&segmentId=${activeSegmentFilter}` : "/campaigns?new=true"}
+              className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2 hover:border-jade/30 text-xs font-bold font-dm-sans"
+            >
+              <Send className="w-4 h-4 text-jade" />
+              Send Campaign
+            </a>
+          )}
           <button
             onClick={handleExportContacts}
             className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2 hover:border-jade/30"
@@ -2332,20 +2337,24 @@ export default function ContactsPage() {
             <Download className="w-4 h-4 text-jade" />
             Export CSV
           </button>
-          <button
-            onClick={() => setShowImportModal(true)}
-            className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2"
-          >
-            <Upload className="w-4 h-4" />
-            Import CSV
-          </button>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="flex-1 md:flex-none btn-primary flex items-center justify-center gap-2"
-          >
-            <UserPlus className="w-4 h-4" />
-            Add Contact
-          </button>
+          {!isAgent && (
+            <button
+              onClick={() => setShowImportModal(true)}
+              className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2"
+            >
+              <Upload className="w-4 h-4" />
+              Import CSV
+            </button>
+          )}
+          {!isAgent && (
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="flex-1 md:flex-none btn-primary flex items-center justify-center gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add Contact
+            </button>
+          )}
         </div>
       </div>
 
@@ -2681,13 +2690,15 @@ export default function ContactsPage() {
                               >
                                 <WhatsAppIcon className="w-3.5 h-3.5" />
                               </button>
-                              <button
-                                onClick={() => setDeleteTarget(contact)}
-                                className="w-8 h-8 rounded-lg bg-surface border border-border/40 hover:border-danger/30 flex items-center justify-center text-text-muted hover:text-danger hover:bg-danger/5 hover:scale-105 active:scale-95 transition-all shadow-sm"
-                                title="Delete"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
+                              {!isAgent && (
+                                <button
+                                  onClick={() => setDeleteTarget(contact)}
+                                  className="w-8 h-8 rounded-lg bg-surface border border-border/40 hover:border-danger/30 flex items-center justify-center text-text-muted hover:text-danger hover:bg-danger/5 hover:scale-105 active:scale-95 transition-all shadow-sm"
+                                  title="Delete"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -2838,15 +2849,17 @@ export default function ContactsPage() {
               <ChevronDown className="w-3.5 h-3.5 text-text-muted absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none" />
             </div>
 
-            {/* Bulk Delete */}
-            <button
-              onClick={handleBulkDelete}
-              disabled={isBulkUpdating}
-              className="px-3 py-1.5 rounded-lg border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/20 text-rose-500 hover:text-rose-400 text-xs font-bold disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              Delete
-            </button>
+            {/* Bulk Delete — hidden for agents */}
+            {!isAgent && (
+              <button
+                onClick={handleBulkDelete}
+                disabled={isBulkUpdating}
+                className="px-3 py-1.5 rounded-lg border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/20 text-rose-500 hover:text-rose-400 text-xs font-bold disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Delete
+              </button>
+            )}
 
             {/* Clear Selection */}
             <button

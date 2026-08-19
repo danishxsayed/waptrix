@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useTenant } from "@/context/TenantContext";
 import {
   MessageSquare, Send, Paperclip, Search, CheckCheck, Check,
   Clock, FileText, Mic, X, Loader2, Download, Play, Plus, Phone, AlertCircle,
@@ -805,10 +806,16 @@ export default function InboxPanel({
   const [templateVarValues, setTemplateVarValues] = useState<string[]>([]);
   const [templateBtnValues, setTemplateBtnValues] = useState<string[]>([]);
 
+  const { role, userId } = useTenant();
+  const isAgent = role === 'agent';
+
   // ── Filter state
   const [showFilters, setShowFilters] = useState(false);
   const [appliedFilters, setAppliedFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
   const [pendingFilters, setPendingFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
+  // "Assigned to me" quick-filter — defaults ON for agents
+  const [assignedToMe, setAssignedToMe] = useState(false);
+  useEffect(() => { if (isAgent) setAssignedToMe(true); }, [isAgent]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   // phone (normalized, no +) → segment name — built from contacts+segments fetch
   const [phoneTagMap, setPhoneTagMap] = useState<Record<string, string>>({});
@@ -1669,9 +1676,13 @@ export default function InboxPanel({
     appliedFilters.replyStatus !== 'all',
     appliedFilters.tags.length > 0,
     !!(appliedFilters.lastMsgFrom || appliedFilters.lastMsgTo),
+    assignedToMe,
   ].filter(Boolean).length;
 
   const filteredConversations = conversations.filter((c) => {
+    // "Assigned to me" quick filter
+    if (assignedToMe && userId && c.assigned_to !== userId) return false;
+
     // Search
     const q = searchQuery.toLowerCase();
     if (q && !c.contact_name.toLowerCase().includes(q) && !c.contact_phone.includes(q)) return false;
@@ -1809,6 +1820,20 @@ export default function InboxPanel({
                 className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
               />
             </div>
+            {/* "Assigned to me" quick filter chip */}
+            <button
+              onClick={() => setAssignedToMe(v => !v)}
+              className={`w-full flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors ${
+                assignedToMe
+                  ? 'bg-[#25D366]/10 border-[#25D366]/30 text-[#075E54]'
+                  : 'bg-surface border-border text-text-muted hover:text-text-primary'
+              }`}
+            >
+              <User className="w-3.5 h-3.5 flex-shrink-0" />
+              <span>Assigned to me</span>
+              {assignedToMe && <span className="ml-auto w-2 h-2 rounded-full bg-[#25D366]" />}
+            </button>
+
             <div className="flex items-center gap-2">
               {/* Filter button */}
               <button
