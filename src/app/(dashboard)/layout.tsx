@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import Sidebar from "@/components/layout/Sidebar";
 import Topbar from "@/components/layout/Topbar";
+import GlobalInboxNotifier from "@/components/layout/GlobalInboxNotifier";
 import { TenantProvider } from "@/context/TenantContext";
 import { InboxProvider } from "@/context/InboxContext";
 
@@ -13,6 +14,7 @@ export default function DashboardLayout({
   return (
     <TenantProvider>
       <InboxProvider>
+        <GlobalInboxNotifier />
         <div className="flex h-screen bg-[#EDE8DE] overflow-hidden">
           <Sidebar />
           <div className="flex flex-col flex-1 overflow-hidden">

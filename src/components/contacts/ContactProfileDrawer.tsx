@@ -202,7 +202,7 @@ export default function ContactProfileDrawer({
     }
   };
 
-  if (!mounted) return null;
+  if (!mounted || !document.body) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex justify-end bg-black/70 backdrop-blur-sm animate-fade-in">
