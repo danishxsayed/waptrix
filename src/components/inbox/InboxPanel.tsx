@@ -75,9 +75,13 @@ function formatMsgTime(iso: string) {
 }
 
 function groupByDate(messages: ChatMessage[]) {
+  // Sort by created_at first so same-date messages are always contiguous
+  const sorted = [...messages].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
   const groups: { label: string; messages: ChatMessage[] }[] = [];
   let currentLabel = "";
-  for (const msg of messages) {
+  for (const msg of sorted) {
     const d = new Date(msg.created_at);
     const label = isToday(d)
       ? "Today"
@@ -109,7 +113,7 @@ function ReadMoreText({
   const isLong = text.length > READ_MORE_LIMIT;
 
   const displayText = isLong && !expanded ? text.slice(0, READ_MORE_LIMIT) : text;
-  const btnColor = noteStyle ? "text-amber-300 hover:text-amber-100" : "text-blue-300 hover:text-blue-100";
+  const btnColor = noteStyle ? "text-amber-300 hover:text-amber-100" : "text-[#25D366] hover:text-[#128C7E]";
 
   return (
     <p className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${className}`}>
@@ -141,26 +145,26 @@ function ReadMoreText({
 }
 
 // ─── Template Bubble ──────────────────────────────────────────────────────────
-function TemplateBubble({ template, resolvedBody }: { template: Template; resolvedBody?: string }) {
+function TemplateBubble({ template, resolvedBody, time, statusEl }: { template: Template; resolvedBody?: string; time?: string; statusEl?: React.ReactNode }) {
   const headerType = template.header_type || "NONE";
   const headerText = template.header_text || "";
   const isMediaHeader = ["IMAGE", "VIDEO", "DOCUMENT"].includes(headerType);
   const isUrl = headerText.startsWith("http");
 
   return (
-    <div className="rounded-2xl overflow-hidden border border-background/20 min-w-[220px] max-w-[260px]">
+    <div className="rounded-2xl overflow-hidden min-w-[220px] max-w-[260px] bg-white text-[#111B21]">
       {/* Header */}
       {headerType === "TEXT" && headerText && (
         <div className="px-3 pt-2.5 pb-1">
-          <p className="font-bold text-sm leading-snug">{headerText}</p>
+          <p className="font-bold text-sm leading-snug text-[#111B21]">{headerText}</p>
         </div>
       )}
       {headerType === "IMAGE" && (
         isUrl ? (
           <img src={headerText} alt="Header" className="w-full h-32 object-cover" onError={(e) => { (e.target as HTMLImageElement).style.display="none"; }} />
         ) : (
-          <div className="w-full h-32 bg-background/20 flex items-center justify-center">
-            <FileText className="w-8 h-8 opacity-40" />
+          <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+            <FileText className="w-8 h-8 text-gray-400" />
           </div>
         )
       )}
@@ -168,37 +172,44 @@ function TemplateBubble({ template, resolvedBody }: { template: Template; resolv
         isUrl ? (
           <video src={headerText} className="w-full h-32 object-cover" muted playsInline />
         ) : (
-          <div className="w-full h-32 bg-background/20 flex items-center justify-center">
-            <Play className="w-8 h-8 opacity-40" />
+          <div className="w-full h-32 bg-gray-100 flex items-center justify-center">
+            <Play className="w-8 h-8 text-gray-400" />
           </div>
         )
       )}
       {headerType === "DOCUMENT" && (
-        <div className="w-full px-3 py-2 bg-background/20 flex items-center gap-2">
-          <FileText className="w-5 h-5 opacity-60" />
-          <span className="text-xs opacity-70 truncate">{isUrl ? headerText.split("/").pop() : "Document"}</span>
+        <div className="w-full px-3 py-2 bg-gray-50 flex items-center gap-2 border-b border-gray-100">
+          <FileText className="w-5 h-5 text-gray-500" />
+          <span className="text-xs text-gray-600 truncate">{isUrl ? headerText.split("/").pop() : "Document"}</span>
         </div>
       )}
 
-      {/* Body — use resolvedBody (with real contact values) if available, else raw template body */}
-      <div className="px-3 py-2">
-        <ReadMoreText text={resolvedBody || template.body} />
+      {/* Body */}
+      <div className="px-3 pt-2.5 pb-1">
+        <ReadMoreText text={resolvedBody || template.body} className="text-[#111B21]" />
       </div>
 
-      {/* Footer */}
-      {template.footer && (
-        <div className="px-3 pb-2">
-          <p className="text-xs opacity-50">{template.footer}</p>
-        </div>
-      )}
+      {/* Footer + timestamp row */}
+      <div className="px-3 pb-2 flex items-end justify-between gap-2">
+        {template.footer
+          ? <p className="text-xs text-[#667781] flex-1">{template.footer}</p>
+          : <span />
+        }
+        {time && (
+          <div className="flex items-center gap-1 shrink-0">
+            <span className="text-[10px] text-[#667781]">{time}</span>
+            {statusEl}
+          </div>
+        )}
+      </div>
 
       {/* Buttons */}
       {template.buttons && template.buttons.length > 0 && (
-        <div className="border-t border-background/20">
+        <div className="border-t border-gray-200">
           {template.buttons.map((btn, i) => (
             <div
               key={i}
-              className="px-3 py-2 text-center text-xs font-semibold border-b border-background/10 last:border-b-0 opacity-80"
+              className="px-3 py-2.5 text-center text-xs font-semibold text-[#25D366] border-b border-gray-100 last:border-b-0 hover:bg-gray-50"
             >
               {btn.text}
             </div>
@@ -843,6 +854,9 @@ export default function InboxPanel({
 
   // ── Note mode
   const [showNoteArea, setShowNoteArea] = useState(false);
+
+  // ── 24h window: track which conv had template sent (reopens free-text)
+  const [reopenedConvId, setReopenedConvId] = useState<string | null>(null);
   const [noteText, setNoteText] = useState('');
   const [isSendingNote, setIsSendingNote] = useState(false);
   const [editingNoteId, setEditingNoteId] = useState<string | null>(null);
@@ -1347,6 +1361,7 @@ export default function InboxPanel({
     // Reset activity when switching conversations
     setActivityData(null);
     setShowActivity(false);
+    setReopenedConvId(null);
   }, [activeConv?.id]); // eslint-disable-line
 
   // ── Supabase Realtime — single stable subscription (no re-mount on conv change)
@@ -1542,6 +1557,11 @@ export default function InboxPanel({
         prev.map((m) => m.id === tempId ? { ...data, id: data.id || tempId } : m)
       );
 
+      // If template was sent while 24h window was expired, unlock free-text for this conv
+      if (replyMode === 'template') {
+        setReopenedConvId(activeConv.id);
+      }
+
       setConversations((prev) =>
         prev.map((c) =>
           c.id === activeConv.id
@@ -1656,9 +1676,12 @@ export default function InboxPanel({
     const q = searchQuery.toLowerCase();
     if (q && !c.contact_name.toLowerCase().includes(q) && !c.contact_phone.includes(q)) return false;
 
-    // Chat Status — null/undefined status treated as 'open' (default)
-    if (appliedFilters.chatStatus !== 'all') {
-      const convStatus = c.status || 'open';
+    const convStatus = c.status || 'open';
+
+    // Chat Status filter — when set to 'all', still hide closed chats (only show via explicit 'closed' filter)
+    if (appliedFilters.chatStatus === 'all') {
+      if (convStatus === 'closed') return false;
+    } else {
       if (convStatus !== appliedFilters.chatStatus) return false;
     }
 
@@ -1751,19 +1774,16 @@ export default function InboxPanel({
   // ─────────────────────────────────────────────────────────────────────────────
 
   return (
-    <div className="glass-card !p-0 overflow-hidden">
+    <div className="bg-card overflow-hidden h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-jade/10 rounded-xl flex items-center justify-center">
-            <MessageSquare className="w-5 h-5 text-jade" />
+      <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-jade/10 rounded-xl flex items-center justify-center">
+            <MessageSquare className="w-4 h-4 text-jade" />
           </div>
-          <div>
-            <h3 className="font-bold font-syne text-base">WhatsApp Inbox</h3>
-            <p className="text-[11px] text-text-muted">
-              {totalUnread > 0 ? `${totalUnread} unread` : "All caught up"}
-            </p>
-          </div>
+          <span className="font-bold font-syne text-sm">
+            {totalUnread > 0 ? `${totalUnread} unread` : "Inbox"}
+          </span>
         </div>
         <button
           onClick={() => { setShowNewChat(true); setNewChatError(""); }}
@@ -1774,7 +1794,7 @@ export default function InboxPanel({
         </button>
       </div>
 
-      <div className={`flex ${fullHeight ? "h-[calc(100vh-260px)]" : "h-[600px]"}`}>
+      <div className={`flex ${fullHeight ? "flex-1 min-h-0" : "h-[600px]"}`}>
         {/* ── Left: Conversation List ────────────────────────────── */}
         <div className="w-80 border-r border-border flex flex-col flex-shrink-0">
           {/* Search + Filter + Sort + Bulk */}
@@ -1980,18 +2000,65 @@ export default function InboxPanel({
                   <p className="text-[11px] text-text-muted">{activeConv.contact_phone}</p>
                 </div>
               </div>
-              {/* Toggle contact panel */}
-              <button
-                onClick={() => setShowContactPanel(v => !v)}
-                title="Contact Details"
-                className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-colors ${
-                  showContactPanel
-                    ? 'bg-jade/10 border-jade/30 text-jade'
-                    : 'bg-surface border-border text-text-muted hover:text-text-primary'
-                }`}
-              >
-                <Info className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Close / Reopen chat */}
+                <div className="relative group">
+                  <button
+                    onClick={async () => {
+                      if (!activeConv) return;
+                      const newStatus = (activeConv.status || 'open') === 'open' ? 'closed' : 'open';
+                      const res = await fetch(`/api/conversations/${activeConv.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ status: newStatus }),
+                      });
+                      if (res.ok) {
+                        setConversations(prev =>
+                          prev.map(c => c.id === activeConv.id ? { ...c, status: newStatus } : c)
+                        );
+                        setActiveConv(prev => prev ? { ...prev, status: newStatus } : prev);
+                        // Inject a local system event message in the chat
+                        const systemMsg = {
+                          id: `sys-${Date.now()}`,
+                          conversation_id: activeConv.id,
+                          direction: 'outbound' as const,
+                          type: 'system',
+                          content: newStatus === 'closed' ? 'You closed this chat' : 'You reopened this chat',
+                          created_at: new Date().toISOString(),
+                          status: 'sent',
+                        };
+                        setMessages(prev => [...prev, systemMsg as any]);
+                      }
+                    }}
+                    className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-colors ${
+                      (activeConv?.status || 'open') === 'closed'
+                        ? 'bg-jade/10 border-jade/30 text-jade'
+                        : 'bg-surface border-border text-text-muted hover:border-rose-400/40 hover:text-rose-400'
+                    }`}
+                  >
+                    <CheckCircle2 className="w-4 h-4" />
+                  </button>
+                  <div className="pointer-events-none absolute top-full right-0 mt-1.5 px-2 py-1 bg-[#111B21] text-white text-[11px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                    {(activeConv?.status || 'open') === 'open' ? 'Close Chat' : 'Reopen Chat'}
+                  </div>
+                </div>
+                {/* Toggle contact panel */}
+                <div className="relative group">
+                  <button
+                    onClick={() => setShowContactPanel(v => !v)}
+                    className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-colors ${
+                      showContactPanel
+                        ? 'bg-jade/10 border-jade/30 text-jade'
+                        : 'bg-surface border-border text-text-muted hover:text-text-primary'
+                    }`}
+                  >
+                    <Info className="w-4 h-4" />
+                  </button>
+                  <div className="pointer-events-none absolute top-full right-0 mt-1.5 px-2 py-1 bg-[#111B21] text-white text-[11px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                    Contact Details
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* Messages */}
@@ -2007,8 +2074,8 @@ export default function InboxPanel({
                   <p className="text-xs text-text-muted mt-1">Send the first message below</p>
                 </div>
               ) : (
-                messageGroups.map((group) => (
-                  <div key={group.label}>
+                messageGroups.map((group, gi) => (
+                  <div key={`${group.label}-${gi}`}>
                     {/* Date separator */}
                     <div className="flex items-center gap-3 my-4">
                       <div className="flex-1 h-px bg-border" />
@@ -2021,6 +2088,14 @@ export default function InboxPanel({
                     <div className="space-y-2">
                       {group.messages.map((msg) => {
                         const isOutbound = msg.direction === "outbound";
+                        // System events — tiny centered text, no bubble
+                        if (msg.type === 'system') {
+                          return (
+                            <div key={msg.id} className="flex items-center justify-center py-1">
+                              <span className="text-[11px] text-text-muted italic">{msg.content}</span>
+                            </div>
+                          );
+                        }
                         // Internal notes — render specially
                         if (msg.type === 'note') {
                           return (
@@ -2042,6 +2117,7 @@ export default function InboxPanel({
                         const quotedMsg = msg.replied_to_message_id
                           ? messages.find(m => m.meta_message_id === msg.replied_to_message_id)
                           : null;
+                        const isTemplate = msg.type === "template" || !!msg.content?.startsWith("[Template:");
                         return (
                         <div key={msg.id} id={`msg-${msg.id}`}
                           className={`transition-all duration-300 ${highlightedMsgId === msg.id ? 'rounded-xl ring-2 ring-jade/60 bg-jade/5' : ''}`}
@@ -2050,10 +2126,12 @@ export default function InboxPanel({
                           className={`flex ${isOutbound ? "justify-end" : "justify-start"}`}
                         >
                           <div
-                            className={`max-w-[70%] rounded-2xl px-4 py-2.5 ${
-                              msg.direction === "outbound"
-                                ? "bg-jade text-background rounded-br-sm"
-                                : "bg-card border border-border text-text-primary rounded-bl-sm"
+                            className={`max-w-[75%] rounded-2xl ${
+                              isTemplate
+                                ? "overflow-hidden shadow-sm"
+                                : msg.direction === "outbound"
+                                  ? "px-4 py-2.5 bg-jade text-background rounded-br-sm"
+                                  : "px-4 py-2.5 bg-card border border-border text-text-primary rounded-bl-sm"
                             }`}
                           >
                             {/* Quoted context — inside the bubble */}
@@ -2155,7 +2233,12 @@ export default function InboxPanel({
                                 : undefined;
 
                               return tpl ? (
-                                <TemplateBubble template={tpl} resolvedBody={resolvedBody} />
+                                <TemplateBubble
+                                  template={tpl}
+                                  resolvedBody={resolvedBody}
+                                  time={formatMsgTime(msg.created_at)}
+                                  statusEl={msg.direction === 'outbound' ? <StatusIcon status={msg.status} /> : undefined}
+                                />
                               ) : (
                                 <p className="text-sm leading-relaxed whitespace-pre-wrap break-words opacity-70 italic">
                                   {tplName ? `Template: ${tplName}` : msg.content}
@@ -2178,22 +2261,24 @@ export default function InboxPanel({
                               <ReadMoreText text={msg.content} />
                             )}
 
-                            <div
-                              className={`flex items-center gap-1 mt-1 ${
-                                msg.direction === "outbound" ? "justify-end" : "justify-start"
-                              }`}
-                            >
-                              <span
-                                className={`text-[10px] ${
-                                  msg.direction === "outbound" ? "text-background/60" : "text-text-muted"
+                            {!isTemplate && (
+                              <div
+                                className={`flex items-center gap-1 mt-1 ${
+                                  msg.direction === "outbound" ? "justify-end" : "justify-start"
                                 }`}
                               >
-                                {formatMsgTime(msg.created_at)}
-                              </span>
-                              {msg.direction === "outbound" && (
-                                <StatusIcon status={msg.status} />
-                              )}
-                            </div>
+                                <span
+                                  className={`text-[10px] ${
+                                    msg.direction === "outbound" ? "text-background/60" : "text-text-muted"
+                                  }`}
+                                >
+                                  {formatMsgTime(msg.created_at)}
+                                </span>
+                                {msg.direction === "outbound" && (
+                                  <StatusIcon status={msg.status} />
+                                )}
+                              </div>
+                            )}
                           </div>
                         </div>
                         </div>
@@ -2285,7 +2370,40 @@ export default function InboxPanel({
               )}
 
               {/* TEXT mode */}
-              {replyMode === "text" && (
+              {replyMode === "text" && (() => {
+                const lastMsgAt = activeConv?.last_message_at;
+                const hoursSince = lastMsgAt
+                  ? (Date.now() - new Date(lastMsgAt).getTime()) / 3_600_000
+                  : 0;
+                const windowExpired = hoursSince >= 24 && reopenedConvId !== activeConv?.id;
+
+                if (windowExpired) {
+                  return (
+                    <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 flex flex-col gap-3">
+                      <div className="flex items-start gap-3">
+                        <div className="w-8 h-8 rounded-xl bg-amber-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Clock className="w-4 h-4 text-amber-400" />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-amber-400">24-hour messaging window expired</p>
+                          <p className="text-[11px] text-text-muted mt-0.5">
+                            Last message was {hoursSince >= 48
+                              ? `${Math.floor(hoursSince / 24)} days ago`
+                              : `${Math.floor(hoursSince)}h ago`}. Send a template first to reopen the conversation, then you can reply freely.
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => { setReplyMode('template'); setShowNoteArea(false); }}
+                        className="self-start flex items-center gap-1.5 px-4 py-2 bg-amber-500 text-background text-xs font-bold rounded-xl hover:bg-amber-400 transition-colors"
+                      >
+                        <MessageSquare className="w-3.5 h-3.5" /> Open Conversation
+                      </button>
+                    </div>
+                  );
+                }
+
+                return (
                 <div className="space-y-1.5">
                   <div className="flex items-end gap-2">
                     <div className="flex-1 relative">
@@ -2415,7 +2533,8 @@ export default function InboxPanel({
                     )}
                   </div>
                 </div>
-              )}
+                );
+              })()}
 
               {/* TEMPLATE mode */}
               {replyMode === "template" && (

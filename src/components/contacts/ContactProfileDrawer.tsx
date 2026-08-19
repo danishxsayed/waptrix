@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import {
   X, Mail, Phone, Hash, Tag, Calendar, MapPin,
   CheckCircle2, AlertCircle, Loader2, Send, MessageSquare,
@@ -185,8 +186,11 @@ export default function ContactProfileDrawer({
     }
   };
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const char = (form.name || "?")[0].toUpperCase();
-  
+
   const getAvatarGradient = (c: string) => {
     const code = c.charCodeAt(0) % 5;
     switch (code) {
@@ -198,8 +202,10 @@ export default function ContactProfileDrawer({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm animate-fade-in">
+  if (!mounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex justify-end bg-black/70 backdrop-blur-sm animate-fade-in">
       {/* Click outside closer */}
       <div className="absolute inset-0 z-40" onClick={onClose} />
 
@@ -618,6 +624,7 @@ export default function ContactProfileDrawer({
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

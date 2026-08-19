@@ -12,14 +12,15 @@ function InboxPageInner() {
   const initialName = searchParams.get("name") ?? undefined;
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold font-syne">WhatsApp Inbox</h1>
-        <p className="text-sm text-text-muted mt-1">
-          View and reply to customer messages in real-time
-        </p>
-      </div>
-      <InboxPanel onUnreadChange={setUnread} fullHeight initialPhone={initialPhone} initialName={initialName} />
+    // -m-8 cancels the p-8 on <main>; h-[calc(100vh-64px)] = full viewport minus topbar (h-16)
+    // overflow-hidden prevents any scroll leaking out
+    <div className="-m-8 h-[calc(100vh-64px)] overflow-hidden">
+      <InboxPanel
+        onUnreadChange={setUnread}
+        fullHeight
+        initialPhone={initialPhone}
+        initialName={initialName}
+      />
     </div>
   );
 }
