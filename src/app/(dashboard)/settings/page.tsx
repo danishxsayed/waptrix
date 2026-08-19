@@ -704,7 +704,7 @@ export default function SettingsPage() {
             <ShieldCheck className="w-5 h-5 text-jade flex-shrink-0" />
             <p className="text-sm text-text-muted">
               WhatsApp message costs are billed directly by Meta to your connected WhatsApp Business Account.
-              <a href="https://business.facebook.com/billing" target="_blank" rel="noopener noreferrer"
+              <a href="https://business.facebook.com/latest/billing_hub/accounts/details/?payment_account_id=2009587012999858&asset_id=3366871083611361&business_id=1720298559176501&external_flow_id=SU-1787123878863-2079591265-1180359822&placement=whatsapp_ads" target="_blank" rel="noopener noreferrer"
                 className="text-jade font-semibold ml-1 hover:underline inline-flex items-center gap-1">
                 View Meta Billing <ExternalLink className="w-3 h-3" />
               </a>
