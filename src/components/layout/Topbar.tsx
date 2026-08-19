@@ -184,9 +184,11 @@ function getPlanBadge(plan: string) {
 // ─── User Menu ───────────────────────────────────────────────────────────────
 function UserMenu() {
   const router = useRouter();
-  const { tenant, loading } = useTenant();
+  const { tenant, role, agentName, loading } = useTenant();
   const [open, setOpen] = useState(false);
   const wrapRef = useRef<HTMLDivElement>(null);
+
+  const isAgent = role === "agent";
 
   useEffect(() => {
     function handler(e: MouseEvent) {
@@ -203,17 +205,20 @@ function UserMenu() {
     router.refresh();
   };
 
-  const initial = (tenant?.name || "U")[0].toUpperCase();
+  const displayName = isAgent ? (agentName || "Agent") : (tenant?.name || "User");
+  const initial = displayName[0].toUpperCase();
   const planStatus = getPlanStatus(tenant);
   const StatusIcon = planStatus.icon;
   const planLabel = tenant?.plan === "pro" ? "Waptrix Pro" : tenant?.plan === "trial" ? "Free Trial" : "Free";
 
-  const menuItems = [
-    { label: "Profile",                href: "/settings?tab=profile",  icon: User },
-    { label: "Billing & Subscription", href: "/billing",               icon: CreditCard },
-    { label: "Settings",               href: "/settings",              icon: Settings },
-    { label: "Help & Support",         href: "https://waptrix.in/docs",icon: HelpCircle, external: true },
+  const allMenuItems = [
+    { label: "Profile",                href: isAgent ? "/profile" : "/settings?tab=profile", icon: User,       hideForAgent: false },
+    { label: "Billing & Subscription", href: "/billing",               icon: CreditCard, hideForAgent: true },
+    { label: "Settings",               href: "/settings",              icon: Settings,   hideForAgent: true },
+    { label: "Help & Support",         href: "https://waptrix.in/docs",icon: HelpCircle, hideForAgent: true, external: true },
   ];
+
+  const menuItems = allMenuItems.filter(item => !(isAgent && item.hideForAgent));
 
   return (
     <div ref={wrapRef} className="relative">
@@ -236,7 +241,7 @@ function UserMenu() {
         {/* Name + plan */}
         <div className="text-left hidden sm:block">
           <p className="text-xs font-bold text-[#111B21] leading-tight truncate max-w-[100px]">
-            {loading ? "Loading…" : tenant?.name || "User"}
+            {loading ? "Loading…" : displayName}
           </p>
           <p className="text-[10px] text-[#667781] leading-tight">{planLabel}</p>
         </div>
@@ -256,7 +261,7 @@ function UserMenu() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-[#111B21] truncate">
-                  {loading ? "…" : tenant?.name || "User"}
+                  {loading ? "…" : displayName}
                 </p>
                 {tenant?.email && (
                   <p className="text-[11px] text-[#667781] truncate">{tenant.email}</p>
@@ -287,7 +292,7 @@ function UserMenu() {
           <div className="py-2">
             {menuItems.map(item => {
               const Icon = item.icon;
-              if (item.external) {
+              if ("external" in item && item.external) {
                 return (
                   <a
                     key={item.label}
@@ -335,7 +340,9 @@ function UserMenu() {
 // ─── Topbar ──────────────────────────────────────────────────────────────────
 export default function Topbar() {
   const pathname = usePathname();
-  const { tenant, loading } = useTenant();
+  const { tenant, role, agentName, loading } = useTenant();
+
+  const isAgent = role === "agent";
 
   const getTitle = () => {
     if (pathname === "/dashboard" || pathname === "/") return "Dashboard";
@@ -344,8 +351,9 @@ export default function Topbar() {
   };
 
   const getFirstName = () => {
-    if (!tenant?.name) return "there";
-    return tenant.name.split(" ")[0];
+    const name = isAgent ? agentName : tenant?.name;
+    if (!name) return "there";
+    return name.split(" ")[0];
   };
 
   return (

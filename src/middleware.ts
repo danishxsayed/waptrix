@@ -88,10 +88,13 @@ export async function middleware(request: NextRequest) {
     }
 
     // Routes agents are NOT allowed to access
+    // NOTE: use exact segment boundaries — '/team' must NOT match '/team-chat'
     const AGENT_BLOCKED_PREFIXES = [
       '/campaigns', '/templates', '/media', '/analytics',
-      '/settings', '/connect', '/billing', '/team', '/automations',
+      '/settings', '/connect', '/billing', '/automations',
     ];
+    // Team pages blocked for agents (exact path or sub-paths like /team/...) but NOT /team-chat
+    const isTeamBlocked = (p: string) => p === '/team' || p.startsWith('/team/');
 
     // Trial / plan + role enforcement — cache results in cookies to avoid DB hit on every request
     if (user && !isAppPublic(pathname) && pathname !== '/pricing' && !pathname.startsWith('/api/')) {
@@ -118,6 +121,7 @@ export async function middleware(request: NextRequest) {
           .maybeSingle()
 
         userRole = memberRow ? (memberRow.role as string) : 'owner'
+        const isTeamMember = !!memberRow
         const tenantId = memberRow ? memberRow.owner_tenant_id : user.id
 
         const { data: tenant } = await serviceDb
@@ -126,33 +130,34 @@ export async function middleware(request: NextRequest) {
           .eq('id', tenantId)
           .maybeSingle()
 
+        // Always cache role so subsequent requests don't hit DB again
+        supabaseResponse.cookies.set('waptrix_plan_ok', user.id, {
+          httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
+        })
+        supabaseResponse.cookies.set('waptrix_role', userRole, {
+          httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
+        })
+
         if (tenant) {
-          const now      = new Date()
-          const isPro    = tenant.plan === 'pro' && tenant.plan_expires_at && new Date(tenant.plan_expires_at) > now
-          const inTrial  = tenant.plan === 'trial' && tenant.trial_ends_at && new Date(tenant.trial_ends_at) > now
+          const now       = new Date()
+          const isPro     = tenant.plan === 'pro' && tenant.plan_expires_at && new Date(tenant.plan_expires_at) > now
+          const inTrial   = tenant.plan === 'trial' && tenant.trial_ends_at && new Date(tenant.trial_ends_at) > now
           const hasAccess = isPro || inTrial
 
-          if (!hasAccess) {
+          // Only owners/admins get the pricing redirect — agents are not responsible for billing
+          if (!hasAccess && !isTeamMember) {
             const url = request.nextUrl.clone()
             url.host = hostname.replace(/^app\./, '')
             url.pathname = '/pricing'
             url.searchParams.set('expired', '1')
             return NextResponse.redirect(url)
           }
-
-          // Cache plan + role for 5 minutes
-          supabaseResponse.cookies.set('waptrix_plan_ok', user.id, {
-            httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
-          })
-          supabaseResponse.cookies.set('waptrix_role', userRole, {
-            httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
-          })
         }
       }
 
       // Agent route protection — redirect to dashboard if accessing restricted page
       if (userRole === 'agent') {
-        const blocked = AGENT_BLOCKED_PREFIXES.some(p => pathname.startsWith(p))
+        const blocked = AGENT_BLOCKED_PREFIXES.some(p => pathname.startsWith(p)) || isTeamBlocked(pathname)
         if (blocked) {
           const url = request.nextUrl.clone()
           url.pathname = '/dashboard'

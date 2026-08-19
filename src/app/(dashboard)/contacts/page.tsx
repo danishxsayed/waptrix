@@ -2337,24 +2337,20 @@ export default function ContactsPage() {
             <Download className="w-4 h-4 text-jade" />
             Export CSV
           </button>
-          {!isAgent && (
-            <button
-              onClick={() => setShowImportModal(true)}
-              className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2"
-            >
-              <Upload className="w-4 h-4" />
-              Import CSV
-            </button>
-          )}
-          {!isAgent && (
-            <button
-              onClick={() => setShowAddModal(true)}
-              className="flex-1 md:flex-none btn-primary flex items-center justify-center gap-2"
-            >
-              <UserPlus className="w-4 h-4" />
-              Add Contact
-            </button>
-          )}
+          <button
+            onClick={() => setShowImportModal(true)}
+            className="flex-1 md:flex-none btn-secondary flex items-center justify-center gap-2"
+          >
+            <Upload className="w-4 h-4" />
+            Import CSV
+          </button>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="flex-1 md:flex-none btn-primary flex items-center justify-center gap-2"
+          >
+            <UserPlus className="w-4 h-4" />
+            Add Contact
+          </button>
         </div>
       </div>
 

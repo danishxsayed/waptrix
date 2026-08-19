@@ -15,6 +15,7 @@ import {
   Calendar,
   ChevronDown,
   Send,
+  Lock,
 } from "lucide-react";
 import nextDynamic from "next/dynamic";
 
@@ -72,11 +73,6 @@ export default function DashboardPage() {
   const [pendingFrom, setPendingFrom] = useState(fromDate);
   const [pendingTo, setPendingTo]     = useState(toDate);
 
-  // Agents only have inbox access
-  useEffect(() => {
-    if (role === "agent") router.replace("/inbox");
-  }, [role, router]);
-
   const fetchAnalytics = useCallback(async (from: string, to: string) => {
     setFetchError("");
     setIsLoading(true);
@@ -91,8 +87,8 @@ export default function DashboardPage() {
   }, []);
 
   useEffect(() => {
-    if (role !== "agent") fetchAnalytics(fromDate, toDate);
-  }, [role]); // eslint-disable-line
+    fetchAnalytics(fromDate, toDate);
+  }, []); // eslint-disable-line
 
   // Close picker when clicking outside
   useEffect(() => {
@@ -332,55 +328,51 @@ export default function DashboardPage() {
 
         {/* Quick Actions */}
         <div className="glass-card">
-          <h3 className="text-lg font-bold mb-6 font-syne">Quick Actions</h3>
+          <h3 className="text-lg font-bold mb-1 font-syne">Quick Actions</h3>
+          {role === "agent" && (
+            <p className="text-xs text-text-muted mb-4">These actions are restricted to admins.</p>
+          )}
+          {role !== "agent" && <div className="mb-6" />}
           <div className="space-y-3">
-            <button
-              onClick={() => router.push("/campaigns?new=true")}
-              className="w-full flex items-center justify-between p-4 bg-surface hover:bg-card border border-border rounded-xl group transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-jade/10 rounded-lg flex items-center justify-center">
-                  <Send className="w-5 h-5 text-jade" />
+            {[
+              { label: "New Campaign",     sub: "Blast messages to segment",    icon: Send, color: "jade",    href: "/campaigns?new=true" },
+              { label: "Import Contacts",  sub: "Upload CSV or XLSX",           icon: Plus, color: "info",    href: "/contacts?import=true" },
+              { label: "Create Template",  sub: "Build a Meta approved template", icon: Plus, color: "warning", href: "/templates" },
+            ].map(({ label, sub, icon: Icon, color, href }) => {
+              const isAgent = role === "agent";
+              return (
+                <div key={label} className="relative group">
+                  <button
+                    onClick={() => !isAgent && router.push(href)}
+                    disabled={isAgent}
+                    className={`w-full flex items-center justify-between p-4 border rounded-xl transition-all ${
+                      isAgent
+                        ? "bg-surface/50 border-border/40 cursor-not-allowed opacity-60"
+                        : "bg-surface hover:bg-card border-border cursor-pointer"
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className={`w-10 h-10 bg-${color}/10 rounded-lg flex items-center justify-center`}>
+                        {isAgent
+                          ? <Lock className="w-4 h-4 text-text-muted" />
+                          : <Icon className={`w-5 h-5 text-${color}`} />
+                        }
+                      </div>
+                      <div className="text-left">
+                        <p className="text-sm font-semibold">{label}</p>
+                        <p className="text-[10px] text-text-muted">
+                          {isAgent ? "Not authorised — contact your admin" : sub}
+                        </p>
+                      </div>
+                    </div>
+                    {isAgent
+                      ? <Lock className="w-4 h-4 text-text-muted/40" />
+                      : <ArrowUpRight className={`w-4 h-4 text-text-muted group-hover:text-${color} transition-colors`} />
+                    }
+                  </button>
                 </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold">New Campaign</p>
-                  <p className="text-[10px] text-text-muted">Blast messages to segment</p>
-                </div>
-              </div>
-              <ArrowUpRight className="w-4 h-4 text-text-muted group-hover:text-jade transition-colors" />
-            </button>
-
-            <button
-              onClick={() => router.push("/contacts?import=true")}
-              className="w-full flex items-center justify-between p-4 bg-surface hover:bg-card border border-border rounded-xl group transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-info/10 rounded-lg flex items-center justify-center">
-                  <Plus className="w-5 h-5 text-info" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold">Import Contacts</p>
-                  <p className="text-[10px] text-text-muted">Upload CSV or XLSX</p>
-                </div>
-              </div>
-              <ArrowUpRight className="w-4 h-4 text-text-muted group-hover:text-info transition-colors" />
-            </button>
-
-            <button
-              onClick={() => router.push("/templates")}
-              className="w-full flex items-center justify-between p-4 bg-surface hover:bg-card border border-border rounded-xl group transition-all"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-warning/10 rounded-lg flex items-center justify-center">
-                  <Plus className="w-5 h-5 text-warning" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm font-semibold">Create Template</p>
-                  <p className="text-[10px] text-text-muted">Build a Meta approved template</p>
-                </div>
-              </div>
-              <ArrowUpRight className="w-4 h-4 text-text-muted group-hover:text-warning transition-colors" />
-            </button>
+              );
+            })}
           </div>
         </div>
       </div>

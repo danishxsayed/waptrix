@@ -22,6 +22,7 @@ export async function GET() {
     );
 
     // Check if this user is a staff member
+    // Step 1: get role + tenant (critical — must not fail)
     const { data: memberRow } = await db
       .from('team_members')
       .select('role, owner_tenant_id')
@@ -35,6 +36,20 @@ export async function GET() {
       : 'owner';
     const tenantId = isStaff ? memberRow!.owner_tenant_id : user.id;
 
+    // Step 2: get agent name separately so a missing column never breaks role detection
+    let agentName: string | null = null;
+    if (isStaff) {
+      try {
+        const { data: nameRow } = await db
+          .from('team_members')
+          .select('name')
+          .eq('member_user_id', user.id)
+          .eq('status', 'active')
+          .maybeSingle();
+        agentName = nameRow?.name ?? null;
+      } catch (_) { /* name column may not exist yet — safe to ignore */ }
+    }
+
     // Load the effective tenant's data
     const { data: tenant } = await db
       .from('tenants')
@@ -43,7 +58,7 @@ export async function GET() {
       .single();
 
     return NextResponse.json(
-      { role, userId: user.id, tenant: tenant ? { ...tenant, email: user.email } : null, isStaff },
+      { role, userId: user.id, agentName, tenant: tenant ? { ...tenant, email: user.email } : null, isStaff },
       { headers: { 'Cache-Control': 'private, max-age=20, stale-while-revalidate=60' } }
     );
   } catch (err: any) {

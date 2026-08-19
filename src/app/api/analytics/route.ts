@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 /** Return YYYY-MM-DD in UTC from an ISO timestamp string */
 function toUTCDate(ts: string): string {
@@ -42,6 +43,8 @@ export async function GET(req: Request) {
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const tenantId = await getEffectiveTenantId(user.id);
+
     const serviceClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
@@ -68,7 +71,7 @@ export async function GET(req: Request) {
     const { data: campaigns } = await serviceClient
       .from('campaigns')
       .select('sent_count, failed_count, delivered_count, read_count')
-      .eq('tenant_id', user.id);
+      .eq('tenant_id', tenantId);
 
     let totalSent = 0, totalFailed = 0, totalDelivered = 0, totalRead = 0;
     (campaigns ?? []).forEach(c => {
@@ -89,8 +92,8 @@ export async function GET(req: Request) {
 
     // ── 2. Contacts + templates ──────────────────────────────────
     const [{ count: contactsCount }, { count: templatesCount }] = await Promise.all([
-      serviceClient.from('contacts').select('*', { count: 'exact', head: true }).eq('tenant_id', user.id),
-      serviceClient.from('templates').select('*', { count: 'exact', head: true }).eq('tenant_id', user.id),
+      serviceClient.from('contacts').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
+      serviceClient.from('templates').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantId),
     ]);
 
     // ── 3. Message logs + outbound chat messages for the selected date range ──
@@ -98,14 +101,14 @@ export async function GET(req: Request) {
       serviceClient
         .from('message_logs')
         .select('sent_at, created_at, status, read_at')
-        .eq('tenant_id', user.id)
+        .eq('tenant_id', tenantId)
         .in('status', ['sent', 'delivered', 'read'])
         .gte('created_at', fromISO)
         .lte('created_at', toISO),
       serviceClient
         .from('chat_messages')
         .select('created_at')
-        .eq('tenant_id', user.id)
+        .eq('tenant_id', tenantId)
         .eq('direction', 'outbound')
         .neq('type', 'note')
         .gte('created_at', fromISO)

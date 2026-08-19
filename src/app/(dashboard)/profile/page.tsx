@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { UserCircle, Mail, Building2, Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle } from "lucide-react";
 
 export default function ProfilePage() {
-  const { tenant, role, userId, loading } = useTenant();
+  const { tenant, role, userId, loading, refresh } = useTenant();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -55,6 +55,7 @@ export default function ProfilePage() {
       });
       if (res.ok) {
         setSaveMsg({ type: "success", text: "Name updated successfully!" });
+        await refresh(); // update topbar immediately
       } else {
         const d = await res.json();
         setSaveMsg({ type: "error", text: d.error || "Failed to update name." });

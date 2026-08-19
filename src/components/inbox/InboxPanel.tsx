@@ -1451,7 +1451,9 @@ export default function InboxPanel({
       })
       .subscribe((status: string) => {
         if (status === 'SUBSCRIBED') console.log('Inbox realtime connected');
-        if (status === 'CHANNEL_ERROR') console.error('Inbox realtime error — falling back to polling');
+        // CHANNEL_ERROR is expected for team members (agents/admins) whose anon JWT
+        // doesn't match the owner's tenant_id in RLS — polling still works fine.
+        if (status === 'CHANNEL_ERROR') console.warn('Inbox realtime: falling back to polling (team member session)');
       });
 
     return () => { supabase.removeChannel(channel); };
