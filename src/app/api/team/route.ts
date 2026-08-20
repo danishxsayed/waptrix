@@ -40,7 +40,7 @@ export async function GET() {
     const db = serviceDb();
     const { data, error } = await db
       .from('team_members')
-      .select('id, email, role, status, invited_at, accepted_at')
+      .select('id, member_user_id, email, role, status, invited_at, accepted_at')
       .eq('owner_tenant_id', user.id)
       .order('invited_at', { ascending: false });
 

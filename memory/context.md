@@ -116,6 +116,8 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Built an interactive Checkout Modal inside the `/pricing` marketing page (`src/app/(marketing)/pricing/page.tsx`) utilizing the Cashfree JS SDK to collect customer details, process payments, and display order success/failure feedback banners.
 
 ## Recent Session Progress
+- **Server Startup (2026-08-20)**:
+  - Started the Next.js development server running on port 3001 using `npm run dev`.
 - **Conversation Assignment & Inbox Improvements (2026-08-17)**:
   - Updated `InboxPanel.tsx` with significant enhancements to conversation handling and UI.
   - Added conversation assignment support in `src/app/api/conversations/[id]/route.ts`.

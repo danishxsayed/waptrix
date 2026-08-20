@@ -28,6 +28,7 @@ interface Conversation {
 
 interface TeamMember {
   id: string;
+  member_user_id: string | null; // Supabase auth user ID — used for assignment matching
   email: string;
   role: string;
   status: string;
@@ -2908,14 +2909,14 @@ export default function InboxPanel({
                       disabled={assigning}
                       onChange={e => {
                         const val = e.target.value;
-                        const member = teamMembers.find(m => m.id === val);
+                        const member = teamMembers.find(m => m.member_user_id === val);
                         assignConversation(val || null, member?.email || null);
                       }}
                       className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-xs text-text-primary focus:outline-none focus:border-jade/50 disabled:opacity-60"
                     >
                       <option value="">— Unassigned —</option>
                       {teamMembers.map(m => (
-                        <option key={m.id} value={m.id}>{m.email} ({m.role})</option>
+                        <option key={m.id} value={m.member_user_id || m.id}>{m.email} ({m.role})</option>
                       ))}
                     </select>
                     {activeConv?.assigned_name && (

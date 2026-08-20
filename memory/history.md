@@ -1,5 +1,8 @@
 # Implementation History
 
+## [2026-08-20] - Server Startup
+- **Dev Server**: Started the Next.js development server running on port 3001 (`npm run dev`).
+
 ## [2026-08-17] - Conversation Assignment, Inbox Improvements & API Updates
 - **Conversation Assignment**:
   - Added `supabase/add-conversation-assignment.sql` migration for conversation assignment schema support.
