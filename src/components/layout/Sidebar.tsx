@@ -23,6 +23,8 @@ import {
   Settings2,
   Receipt,
   UserCircle,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
 import { useTenant } from "@/context/TenantContext";
 import { createClient } from "@/lib/supabase/client";
@@ -74,36 +76,58 @@ const ALL_NAV_ITEMS: NavItem[] = [
   },
 ];
 
-// For agents/admins: Team Chat as top-level item (they can't see Team Members parent)
 const AGENT_EXTRA: NavItem[] = [
   { name: "Team Chat", href: "/team-chat", icon: MessageSquareText, minRole: "agent" },
 ];
 
-// Profile page — only for agents (owners/admins have settings)
 const AGENT_PROFILE: NavItem = { name: "Profile", href: "/profile", icon: UserCircle, minRole: "agent" };
 
 function navItemsForRole(role: string): NavItem[] {
   const base = ALL_NAV_ITEMS.filter(item => ROLE_RANK[role] >= ROLE_RANK[item.minRole]);
   if (role === "agent" || role === "admin") {
-    // Insert Team Chat after Inbox for non-owners
     const inboxIdx = base.findIndex(i => i.href === "/inbox");
     base.splice(inboxIdx + 1, 0, ...AGENT_EXTRA);
   }
-  // Add Profile at end for agents only
-  if (role === "agent") {
-    base.push(AGENT_PROFILE);
-  }
+  if (role === "agent") base.push(AGENT_PROFILE);
   return base;
+}
+
+// Tooltip shown next to icon when sidebar is collapsed
+function Tooltip({ label }: { label: string }) {
+  return (
+    <div className="absolute left-full ml-3 top-1/2 -translate-y-1/2 z-50 pointer-events-none
+      bg-[#111B21] text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg shadow-lg
+      whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+      {label}
+      <div className="absolute right-full top-1/2 -translate-y-1/2 border-4 border-transparent border-r-[#111B21]" />
+    </div>
+  );
 }
 
 export default function Sidebar() {
   const pathname  = usePathname();
   const { tenant, role, loading } = useTenant();
   const router    = useRouter();
+
+  const [collapsed, setCollapsed]             = useState(false);
   const [unreadCount, setUnreadCount]         = useState(0);
   const [teamChatUnread, setTeamChatUnread]   = useState(0);
   const [expanded, setExpanded]               = useState<Record<string, boolean>>({});
-  const navItems  = navItemsForRole(role);
+
+  const navItems = navItemsForRole(role);
+
+  // Persist collapsed state
+  useEffect(() => {
+    const stored = localStorage.getItem("sidebar_collapsed");
+    if (stored === "true") setCollapsed(true);
+  }, []);
+
+  const toggleCollapsed = () => {
+    setCollapsed(prev => {
+      localStorage.setItem("sidebar_collapsed", String(!prev));
+      return !prev;
+    });
+  };
 
   // Auto-expand parent if a child is active
   useEffect(() => {
@@ -126,18 +150,13 @@ export default function Sidebar() {
       } catch (_) {}
     }
     fetchUnread();
-    const iv = setInterval(fetchUnread, 60_000); // reduced from 30s → 60s
+    const iv = setInterval(fetchUnread, 60_000);
     return () => clearInterval(iv);
   }, []);
 
-  // Poll for unread team chat messages (only when not on the team-chat page)
   useEffect(() => {
     async function fetchTeamChatUnread() {
-      if (pathname === "/team-chat") {
-        // User is looking at the chat — reset badge
-        setTeamChatUnread(0);
-        return;
-      }
+      if (pathname === "/team-chat") { setTeamChatUnread(0); return; }
       try {
         const since = localStorage.getItem("lastSeenTeamChat") ?? "";
         const params = since ? `?since=${encodeURIComponent(since)}` : "";
@@ -149,7 +168,7 @@ export default function Sidebar() {
       } catch (_) {}
     }
     fetchTeamChatUnread();
-    const iv = setInterval(fetchTeamChatUnread, 40_000); // reduced from 20s → 40s
+    const iv = setInterval(fetchTeamChatUnread, 40_000);
     return () => clearInterval(iv);
   }, [pathname]);
 
@@ -164,21 +183,53 @@ export default function Sidebar() {
     setExpanded(prev => ({ ...prev, [href]: !prev[href] }));
 
   return (
-    <aside className="w-64 min-h-screen bg-white border-r border-[#E9EDEF] flex flex-col shadow-sm">
-      <div className="px-5 py-5 border-b border-[#E9EDEF]">
-        <Link href="/" className="flex items-center gap-2.5">
+    <aside
+      className={`relative min-h-screen bg-white border-r border-[#E9EDEF] flex flex-col shadow-sm transition-all duration-300 ease-in-out flex-shrink-0 ${
+        collapsed ? "w-[68px]" : "w-64"
+      }`}
+    >
+      {/* Header */}
+      <div className={`border-b border-[#E9EDEF] flex items-center ${collapsed ? "px-3 py-5 justify-center" : "px-5 py-5 justify-between"}`}>
+        <Link href="/" className="flex items-center gap-2.5 min-w-0">
           <div className="w-9 h-9 bg-[#25D366] rounded-xl flex items-center justify-center flex-shrink-0">
             <span className="text-white font-extrabold text-lg leading-none" style={{ fontFamily: "Arial, sans-serif" }}>W</span>
           </div>
-          <span className="text-xl font-extrabold text-[#111B21] tracking-tight">Waptrix</span>
+          {!collapsed && (
+            <span className="text-xl font-extrabold text-[#111B21] tracking-tight truncate">Waptrix</span>
+          )}
         </Link>
+
+        {/* Toggle button — visible only when expanded (inside header) */}
+        {!collapsed && (
+          <button
+            onClick={toggleCollapsed}
+            className="p-1.5 rounded-lg text-[#667781] hover:bg-[#EDE8DE] hover:text-[#111B21] transition-colors flex-shrink-0"
+            title="Collapse sidebar"
+          >
+            <PanelLeftClose className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto custom-scrollbar">
+      {/* Collapse toggle when collapsed — sits below logo */}
+      {collapsed && (
+        <div className="flex justify-center py-2 border-b border-[#E9EDEF]">
+          <button
+            onClick={toggleCollapsed}
+            className="p-1.5 rounded-lg text-[#667781] hover:bg-[#EDE8DE] hover:text-[#111B21] transition-colors"
+            title="Expand sidebar"
+          >
+            <PanelLeftOpen className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {/* Nav */}
+      <nav className={`flex-1 py-4 space-y-0.5 overflow-y-auto overflow-x-hidden custom-scrollbar ${collapsed ? "px-2" : "px-3"}`}>
         {loading && (
           <div className="space-y-1">
             {[...Array(4)].map((_, i) => (
-              <div key={i} className="h-11 rounded-xl bg-[#EDE8DE] animate-pulse" />
+              <div key={i} className={`h-11 rounded-xl bg-[#EDE8DE] animate-pulse ${collapsed ? "w-10 mx-auto" : ""}`} />
             ))}
           </div>
         )}
@@ -191,6 +242,32 @@ export default function Sidebar() {
             ? (pathname === item.href || item.children!.some(c => pathname.startsWith(c.href)))
             : pathname.startsWith(item.href);
 
+          // ── Collapsed mode: icon-only with tooltip ─────────────────
+          if (collapsed) {
+            const href = hasKids ? (item.children![0]?.href ?? item.href) : item.href;
+            const badge = item.badge && unreadCount > 0;
+            const tcBadge = item.href === "/team-chat" && teamChatUnread > 0;
+            return (
+              <div key={item.href} className="relative group">
+                <Link
+                  href={href}
+                  className={`flex items-center justify-center w-10 h-10 mx-auto rounded-xl transition-all ${
+                    isActive
+                      ? "bg-[#D9FDD3] text-[#25D366]"
+                      : "text-[#667781] hover:bg-[#EDE8DE] hover:text-[#111B21]"
+                  }`}
+                >
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  {(badge || tcBadge) && (
+                    <span className="absolute top-1 right-1 w-2 h-2 bg-[#25D366] rounded-full" />
+                  )}
+                </Link>
+                <Tooltip label={item.name} />
+              </div>
+            );
+          }
+
+          // ── Expanded mode ──────────────────────────────────────────
           if (hasKids) {
             return (
               <div key={item.href}>
@@ -266,34 +343,61 @@ export default function Sidebar() {
           );
         })}
 
+        {/* Logout */}
         <div className="pt-3 mt-3 border-t border-[#E9EDEF]">
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium text-[#667781] hover:bg-red-50 hover:text-red-500"
-          >
-            <LogOut className="w-4.5 h-4.5" />
-            <span className="font-medium">Logout</span>
-          </button>
+          {collapsed ? (
+            <div className="relative group">
+              <button
+                onClick={handleLogout}
+                className="flex items-center justify-center w-10 h-10 mx-auto rounded-xl transition-all text-[#667781] hover:bg-red-50 hover:text-red-500"
+              >
+                <LogOut className="w-5 h-5" />
+              </button>
+              <Tooltip label="Logout" />
+            </div>
+          ) : (
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all text-sm font-medium text-[#667781] hover:bg-red-50 hover:text-red-500"
+            >
+              <LogOut className="w-4.5 h-4.5" />
+              <span className="font-medium">Logout</span>
+            </button>
+          )}
         </div>
       </nav>
 
-      <div className="p-4 mt-auto">
-        <div className="bg-card border border-border rounded-xl p-4">
-          <div className="flex items-center gap-2 mb-1">
-            {loading ? (
-              <Loader2 className="w-4 h-4 text-jade animate-spin" />
-            ) : (
-              <ShieldCheck className="w-4 h-4 text-jade" />
-            )}
-            <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-              {loading ? "..." : tenant?.plan === "pro" ? "Pro Plan" : tenant?.plan === "trial" ? "Free Trial" : (tenant?.plan || "Free")}
-            </span>
+      {/* Plan card */}
+      <div className={`mt-auto ${collapsed ? "p-2" : "p-4"}`}>
+        {collapsed ? (
+          <div className="relative group flex justify-center">
+            <div className="w-10 h-10 flex items-center justify-center rounded-xl bg-card border border-border">
+              {loading
+                ? <Loader2 className="w-4 h-4 text-jade animate-spin" />
+                : <ShieldCheck className="w-4 h-4 text-jade" />
+              }
+            </div>
+            <Tooltip label={
+              loading ? "..." : tenant?.plan === "pro" ? "Pro Plan" : tenant?.plan === "trial" ? "Free Trial" : "Free"
+            } />
           </div>
-          <div className="flex items-center gap-1.5 mt-2">
-            <div className="w-1.5 h-1.5 rounded-full bg-jade animate-pulse" />
-            <span className="text-[11px] text-jade font-semibold">Unlimited Messages</span>
+        ) : (
+          <div className="bg-card border border-border rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-1">
+              {loading
+                ? <Loader2 className="w-4 h-4 text-jade animate-spin" />
+                : <ShieldCheck className="w-4 h-4 text-jade" />
+              }
+              <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
+                {loading ? "..." : tenant?.plan === "pro" ? "Pro Plan" : tenant?.plan === "trial" ? "Free Trial" : (tenant?.plan || "Free")}
+              </span>
+            </div>
+            <div className="flex items-center gap-1.5 mt-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-jade animate-pulse" />
+              <span className="text-[11px] text-jade font-semibold">Unlimited Messages</span>
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </aside>
   );

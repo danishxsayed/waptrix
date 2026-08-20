@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 /** GET /api/contacts/by-phone?phone=+919XXXXXXXXX
  *  Returns the contact record matching the given phone (with or without + prefix).
@@ -22,6 +23,8 @@ export async function GET(req: Request) {
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const tenantId = await getEffectiveTenantId(user.id);
+
     const db = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
@@ -35,7 +38,7 @@ export async function GET(req: Request) {
     const { data: dataPlus, error: errPlus } = await db
       .from('contacts')
       .select('*')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .eq('phone', withPlus)
       .maybeSingle();
     if (errPlus) return NextResponse.json({ error: errPlus.message }, { status: 500 });
@@ -45,7 +48,7 @@ export async function GET(req: Request) {
     const { data: dataRaw, error: errRaw } = await db
       .from('contacts')
       .select('*')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .eq('phone', digits)
       .maybeSingle();
     if (errRaw) return NextResponse.json({ error: errRaw.message }, { status: 500 });

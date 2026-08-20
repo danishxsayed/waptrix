@@ -3,7 +3,7 @@ export const dynamic = "force-dynamic";
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-
+import { getEffectiveTenantId } from '@/lib/tenant'
 
 import { NextResponse } from 'next/server';
 
@@ -16,10 +16,12 @@ export async function GET() {
       { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
     )
     const { data: { user } } = await ssrClient.auth.getUser()
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    const tenantId = await getEffectiveTenantId(user.id);
 
     const serviceClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,7 +31,7 @@ export async function GET() {
     const { data, error } = await serviceClient
       .from('templates')
       .select('*')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

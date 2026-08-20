@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 export async function GET() {
   try {
@@ -16,6 +17,8 @@ export async function GET() {
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const tenantId = await getEffectiveTenantId(user.id);
+
     const db = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
@@ -24,7 +27,7 @@ export async function GET() {
     const { data: notifications, error } = await db
       .from('notifications')
       .select('*')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false })
       .limit(50);
 

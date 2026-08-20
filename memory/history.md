@@ -1,9 +1,11 @@
 # Implementation History
 
-## [2026-08-20] - Server Startup & Team Assignment Mapping
+## [2026-08-20] - Server Startup, Collapsible Sidebar & Tenant Scope API Refactor
 - **Dev Server**: Started the Next.js development server running on port 3001 (`npm run dev`).
 - **Team Assignment Bugfix**: Resolved team member assignment mapping in inbox panel to match auth user IDs (`member_user_id`) instead of local database record IDs.
-- **Git**: Committed and pushed changes to GitHub `main` branch (commit `14faa38`).
+- **Collapsible Sidebar**: Implemented a responsive collapsible sidebar layout with smooth animations, custom tooltips, and dynamic icon-only badge states in `Sidebar.tsx`.
+- **Tenant Scope API Refactoring**: Refactored API endpoints (`contacts/[id]/activity`, `contacts/by-phone`, `conversations/ensure`, `conversations/start`, `notifications/[id]`, `notifications/read-all`, `notifications`, and `templates`) to use `getEffectiveTenantId(user.id)`, ensuring correct scoping for all team members (agents/admins).
+- **Git**: Committed and pushed changes to GitHub `main` branch.
 
 ## [2026-08-17] - Conversation Assignment, Inbox Improvements & API Updates
 - **Conversation Assignment**:

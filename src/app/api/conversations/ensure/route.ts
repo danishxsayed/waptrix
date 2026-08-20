@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 /**
  * POST /api/conversations/ensure
@@ -21,6 +22,8 @@ export async function POST(req: Request) {
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const tenantId = await getEffectiveTenantId(user.id);
+
     const { phone, name } = await req.json();
     if (!phone) return NextResponse.json({ error: 'phone is required' }, { status: 400 });
 
@@ -36,7 +39,7 @@ export async function POST(req: Request) {
     const { data: existing } = await db
       .from('conversations')
       .select('*')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .eq('contact_phone', normalized)
       .maybeSingle();
 
@@ -49,7 +52,7 @@ export async function POST(req: Request) {
     const { data: created, error } = await db
       .from('conversations')
       .insert({
-        tenant_id: user.id,
+        tenant_id: tenantId,
         contact_phone: normalized,
         contact_name: contactName,
         last_message: '',

@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 export async function PATCH() {
   try {
@@ -21,10 +22,12 @@ export async function PATCH() {
       process.env.SUPABASE_SERVICE_KEY!
     );
 
+    const tenantId = await getEffectiveTenantId(user.id);
+
     const { error } = await db
       .from('notifications')
       .update({ is_read: true })
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .eq('is_read', false);
 
     if (error) throw error;

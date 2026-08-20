@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 export async function GET(
   request: Request,
@@ -20,6 +21,8 @@ export async function GET(
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const tenantId = await getEffectiveTenantId(user.id);
+
     const db = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
@@ -30,7 +33,7 @@ export async function GET(
       .from('contacts')
       .select('*')
       .eq('id', id)
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (contactErr || !contact) {
@@ -42,7 +45,7 @@ export async function GET(
     const { data: conversation } = await db
       .from('conversations')
       .select('id')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .eq('contact_phone', contact.phone)
       .single();
 
@@ -59,7 +62,7 @@ export async function GET(
     const { data: logs } = await db
       .from('message_logs')
       .select('*')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .eq('contact_id', id)
       .order('created_at', { ascending: true });
 
@@ -67,7 +70,7 @@ export async function GET(
     const { data: campaigns } = await db
       .from('campaigns')
       .select('id, name')
-      .eq('tenant_id', user.id);
+      .eq('tenant_id', tenantId);
 
     const campaignMap = new Map((campaigns || []).map(c => [c.id, c.name]));
     const mappedLogs = (logs || []).map(log => ({

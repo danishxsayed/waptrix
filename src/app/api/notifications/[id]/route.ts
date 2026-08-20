@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 export async function PATCH(
   _req: Request,
@@ -20,6 +21,8 @@ export async function PATCH(
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const tenantId = await getEffectiveTenantId(user.id);
+
     const db = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
@@ -29,7 +32,7 @@ export async function PATCH(
       .from('notifications')
       .update({ is_read: true })
       .eq('id', id)
-      .eq('tenant_id', user.id);
+      .eq('tenant_id', tenantId);
 
     if (error) throw error;
     return NextResponse.json({ success: true });

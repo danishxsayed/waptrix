@@ -21,6 +21,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 export async function POST(req: Request) {
   try {
@@ -32,6 +33,8 @@ export async function POST(req: Request) {
     );
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const tenantId = await getEffectiveTenantId(user.id);
 
     const db = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -60,7 +63,7 @@ export async function POST(req: Request) {
     const { data: waConn } = await db
       .from('wa_connections')
       .select('access_token, phone_number_id')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     const phoneNumberId = waConn?.phone_number_id && waConn.phone_number_id !== 'pending'
@@ -120,7 +123,7 @@ export async function POST(req: Request) {
     // Look up actual template body for a meaningful conversation preview
     let storedContent = `[Template: ${normalizedTemplateName}]`;
     try {
-      const { data: tmpl } = await db.from('templates').select('body').eq('tenant_id', user.id).ilike('name', normalizedTemplateName).maybeSingle();
+      const { data: tmpl } = await db.from('templates').select('body').eq('tenant_id', tenantId).ilike('name', normalizedTemplateName).maybeSingle();
       if (tmpl?.body) storedContent = tmpl.body.slice(0, 120);
     } catch (_) { }
     const now = new Date().toISOString();
@@ -133,7 +136,7 @@ export async function POST(req: Request) {
     const { data: existing } = await db
       .from('conversations')
       .select('*')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .eq('contact_phone', normalizedPhone)
       .single();
 
@@ -155,7 +158,7 @@ export async function POST(req: Request) {
       const { data: created, error: createErr } = await db
         .from('conversations')
         .insert({
-          tenant_id: user.id,
+          tenant_id: tenantId,
           contact_phone: normalizedPhone,
           contact_name: contactName || normalizedPhone,
           last_message: storedContent,
@@ -177,7 +180,7 @@ export async function POST(req: Request) {
     const { data: savedMsg } = await db
       .from('chat_messages')
       .insert({
-        tenant_id: user.id,
+        tenant_id: tenantId,
         conversation_id: conversation.id,
         direction: 'outbound',
         meta_message_id: metaMessageId,

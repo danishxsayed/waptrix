@@ -116,10 +116,12 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Built an interactive Checkout Modal inside the `/pricing` marketing page (`src/app/(marketing)/pricing/page.tsx`) utilizing the Cashfree JS SDK to collect customer details, process payments, and display order success/failure feedback banners.
 
 ## Recent Session Progress
-- **Server Startup & Team Assignment Mapping (2026-08-20)**:
+- **Server Startup, Collapsible Sidebar & Tenant Scope API Refactor (2026-08-20)**:
   - Started the Next.js development server running on port 3001 using `npm run dev`.
   - Resolved team member assignment mapping in inbox panel to match auth user IDs (`member_user_id`) instead of local database record IDs.
-  - Committed and pushed changes to GitHub `main` branch (commit `14faa38`).
+  - Implemented collapsible sidebar layout in `Sidebar.tsx` with smooth animations, Tooltip components, and dynamic badge/icon representations in collapsed state.
+  - Refactored multiple API endpoints (`contacts/[id]/activity`, `contacts/by-phone`, `conversations/ensure`, `conversations/start`, `notifications/[id]`, `notifications/read-all`, `notifications`, `templates`) to use `getEffectiveTenantId(user.id)` to support shared tenant scopes for agents and admins.
+  - Committed and pushed changes to GitHub `main` branch.
 - **Conversation Assignment & Inbox Improvements (2026-08-17)**:
   - Updated `InboxPanel.tsx` with significant enhancements to conversation handling and UI.
   - Added conversation assignment support in `src/app/api/conversations/[id]/route.ts`.
