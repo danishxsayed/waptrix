@@ -1,7 +1,9 @@
 # Implementation History
 
-## [2026-08-20] - Server Startup
+## [2026-08-20] - Server Startup & Team Assignment Mapping
 - **Dev Server**: Started the Next.js development server running on port 3001 (`npm run dev`).
+- **Team Assignment Bugfix**: Resolved team member assignment mapping in inbox panel to match auth user IDs (`member_user_id`) instead of local database record IDs.
+- **Git**: Committed and pushed changes to GitHub `main` branch (commit `14faa38`).
 
 ## [2026-08-17] - Conversation Assignment, Inbox Improvements & API Updates
 - **Conversation Assignment**:
