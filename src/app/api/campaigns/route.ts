@@ -75,6 +75,35 @@ export async function GET() {
     // no cron upgrade needed.
     waitUntil(processDueCampaigns(user.id).catch(console.error));
 
+    // Fix campaigns where sent_count=0 but status='sent' (Redis may have returned 0 during finalization)
+    // Count from message_logs which is the ground truth
+    const needsRecount = (data || []).filter(
+      (c: any) => c.status === 'sent' && c.sent_count === 0 && c.total_contacts > 0
+    );
+    if (needsRecount.length > 0) {
+      const fixed = await Promise.all(
+        needsRecount.map(async (c: any) => {
+          const [{ count: sentCount }, { count: failedCount }] = await Promise.all([
+            db.from('message_logs').select('*', { count: 'exact', head: true })
+              .eq('campaign_id', c.id).eq('status', 'sent'),
+            db.from('message_logs').select('*', { count: 'exact', head: true })
+              .eq('campaign_id', c.id).eq('status', 'failed'),
+          ]);
+          const sc = sentCount ?? 0;
+          const fc = failedCount ?? 0;
+          if (sc > 0 || fc > 0) {
+            await db.from('campaigns').update({ sent_count: sc, failed_count: fc })
+              .eq('id', c.id);
+            return { ...c, sent_count: sc, failed_count: fc };
+          }
+          return c;
+        })
+      );
+      // Merge fixed data back
+      const fixedMap = new Map(fixed.map((c: any) => [c.id, c]));
+      return NextResponse.json((data || []).map((c: any) => fixedMap.get(c.id) ?? c));
+    }
+
     return NextResponse.json(data);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });

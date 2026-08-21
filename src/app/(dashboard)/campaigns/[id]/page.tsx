@@ -1,7 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
 import {
@@ -240,10 +240,6 @@ export default function CampaignDetailPage() {
   }
 
   const total = campaign.total_contacts || 1;
-  const sentPct = Math.round((campaign.sent_count / total) * 100);
-  const deliveredPct = Math.round((campaign.delivered_count / total) * 100);
-  const readPct = Math.round((campaign.read_count / total) * 100);
-  const failedPct = Math.round((campaign.failed_count / total) * 100);
 
   const filteredLogs = logs.filter((log) => {
     const matchesFilter = logFilter === "all" || (log.status || "").toLowerCase() === logFilter;
@@ -258,6 +254,18 @@ export default function CampaignDetailPage() {
     read: logs.filter((l) => (l.status || "").toLowerCase() === "read").length,
     failed: logs.filter((l) => (l.status || "").toLowerCase() === "failed").length,
   };
+
+  // Use live log counts when available — they're ground truth vs potentially stale campaign columns
+  const logsLoaded = !isLoadingLogs && logs.length > 0;
+  const displaySent      = logsLoaded ? logCounts.all - logCounts.failed : campaign.sent_count;
+  const displayDelivered = logsLoaded ? logCounts.delivered : campaign.delivered_count;
+  const displayRead      = logsLoaded ? logCounts.read : campaign.read_count;
+  const displayFailed    = logsLoaded ? logCounts.failed : campaign.failed_count;
+
+  const sentPct      = Math.round((displaySent      / total) * 100);
+  const deliveredPct = Math.round((displayDelivered / total) * 100);
+  const readPct      = Math.round((displayRead      / total) * 100);
+  const failedPct    = Math.round((displayFailed    / total) * 100);
 
   return (
     <div className="space-y-6 pb-10">
@@ -304,10 +312,10 @@ export default function CampaignDetailPage() {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         {[
           { label: "Total", value: campaign.total_contacts, icon: Users, color: "text-text-primary" },
-          { label: "Sent", value: campaign.sent_count, icon: Send, color: "text-sky-500" },
-          { label: "Delivered", value: campaign.delivered_count, icon: PackageCheck, color: "text-emerald-400" },
-          { label: "Read", value: campaign.read_count, icon: Eye, color: "text-jade" },
-          { label: "Failed", value: campaign.failed_count, icon: AlertCircle, color: "text-rose-500" },
+          { label: "Sent", value: displaySent, icon: Send, color: "text-sky-500" },
+          { label: "Delivered", value: displayDelivered, icon: PackageCheck, color: "text-emerald-400" },
+          { label: "Read", value: displayRead, icon: Eye, color: "text-jade" },
+          { label: "Failed", value: displayFailed, icon: AlertCircle, color: "text-rose-500" },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="glass-card flex flex-col gap-2">
             <div className="flex items-center justify-between">
@@ -401,8 +409,8 @@ export default function CampaignDetailPage() {
               </div>
               <div className="flex justify-between items-start">
                 <span className="text-text-muted text-xs font-bold uppercase tracking-wider">Approval</span>
-                <span className={`text-xs font-bold uppercase ${campaign.template.status === "APPROVED" ? "text-jade" : "text-amber-400"}`}>
-                  {campaign.template.status || "—"}
+                <span className={`text-xs font-bold uppercase ${(!campaign.template.status || campaign.template.status === "APPROVED") ? "text-jade" : "text-amber-400"}`}>
+                  {campaign.template.status || "Meta Approved"}
                 </span>
               </div>
             </div>
@@ -410,18 +418,20 @@ export default function CampaignDetailPage() {
             <p className="text-xs text-text-muted">Template not found (may have been deleted).</p>
           )}
 
-          {/* Variable Mapping */}
-          {campaign.variable_mapping && Object.keys(campaign.variable_mapping).length > 0 && (
+          {/* Variable Mapping — skip internal keys like _header_media_url */}
+          {campaign.variable_mapping && Object.entries(campaign.variable_mapping).filter(([key]) => !key.startsWith('_')).length > 0 && (
             <div className="pt-3 border-t border-border/50 space-y-2">
               <p className="text-[10px] font-bold uppercase tracking-widest text-text-muted">Variable Mapping</p>
               <div className="space-y-1.5">
-                {Object.entries(campaign.variable_mapping).map(([key, val]) => (
-                  <div key={key} className="flex justify-between items-center text-xs">
-                    <span className="font-mono text-jade bg-jade/10 px-1.5 py-0.5 rounded text-[10px]">{`{{${key}}}`}</span>
-                    <span className="text-text-muted">→</span>
-                    <span className="font-medium">{val}</span>
-                  </div>
-                ))}
+                {Object.entries(campaign.variable_mapping)
+                  .filter(([key]) => !key.startsWith('_'))
+                  .map(([key, val]) => (
+                    <div key={key} className="flex justify-between items-center text-xs">
+                      <span className="font-mono text-jade bg-jade/10 px-1.5 py-0.5 rounded text-[10px]">{`{{${key}}}`}</span>
+                      <span className="text-text-muted">→</span>
+                      <span className="font-medium">{val}</span>
+                    </div>
+                  ))}
               </div>
             </div>
           )}
@@ -513,9 +523,8 @@ export default function CampaignDetailPage() {
                   const errorMsg = log.error || log.error_message || log.error_detail;
                   const isExpanded = expandedLogId === log.id;
                   return (
-                    <>
+                    <React.Fragment key={log.id}>
                       <tr
-                        key={log.id}
                         className={`hover:bg-surface/40 transition-colors ${hasFailed ? "bg-rose-500/3" : ""}`}
                       >
                         <td className="px-4 py-3 font-mono font-medium text-text-primary">{log.phone}</td>
@@ -542,7 +551,7 @@ export default function CampaignDetailPage() {
                         </td>
                       </tr>
                       {isExpanded && hasFailed && errorMsg && (
-                        <tr key={`${log.id}-expanded`} className="bg-rose-500/5">
+                        <tr className="bg-rose-500/5">
                           <td colSpan={5} className="px-4 pb-3 pt-1">
                             <div className="p-3 bg-rose-500/8 border border-rose-500/20 rounded-lg text-[11px] font-mono text-rose-400 break-words">
                               <span className="font-bold uppercase tracking-wider mr-2 text-[9px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded">Error Detail</span>
@@ -551,7 +560,7 @@ export default function CampaignDetailPage() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </tbody>

@@ -410,11 +410,22 @@ export async function POST(
   const isLastBatch = batchIndex === totalBatches - 1;
 
   if (isLastBatch) {
+    // Count directly from message_logs — ground truth regardless of Redis availability
+    const [{ count: dbSent }, { count: dbFailed }] = await Promise.all([
+      db.from('message_logs').select('*', { count: 'exact', head: true })
+        .eq('campaign_id', campaignId).eq('status', 'sent'),
+      db.from('message_logs').select('*', { count: 'exact', head: true })
+        .eq('campaign_id', campaignId).eq('status', 'failed'),
+    ]);
+    // Fall back to Redis counters only if DB count is unavailable
     const stats = await getCampaignStats(campaignId);
+    const finalSent   = (dbSent   ?? 0) > 0 ? (dbSent   ?? 0) : stats.sent;
+    const finalFailed = (dbFailed ?? 0) > 0 ? (dbFailed ?? 0) : stats.failed;
+
     await db.from('campaigns').update({
       status:         'sent',
-      sent_count:     stats.sent,
-      failed_count:   stats.failed,
+      sent_count:     finalSent,
+      failed_count:   finalFailed,
       total_contacts: totalContacts,
       completed_at:   now,
     }).eq('id', campaignId);

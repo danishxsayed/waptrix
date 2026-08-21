@@ -1,5 +1,8 @@
 # Implementation History
 
+## [2026-08-21] - Dev Server Launch
+- **Dev Server**: Started the Next.js development server running on port 3001 (`npm run dev`).
+
 ## [2026-08-20] - Server Startup, Collapsible Sidebar & Tenant Scope API Refactor
 - **Dev Server**: Started the Next.js development server running on port 3001 (`npm run dev`).
 - **Team Assignment Bugfix**: Resolved team member assignment mapping in inbox panel to match auth user IDs (`member_user_id`) instead of local database record IDs.
