@@ -409,8 +409,8 @@ export default function CampaignDetailPage() {
               </div>
               <div className="flex justify-between items-start">
                 <span className="text-text-muted text-xs font-bold uppercase tracking-wider">Approval</span>
-                <span className={`text-xs font-bold uppercase ${(!campaign.template.status || campaign.template.status === "APPROVED") ? "text-jade" : "text-amber-400"}`}>
-                  {campaign.template.status || "Meta Approved"}
+                <span className={`text-xs font-bold uppercase ${campaign.template.status === "APPROVED" ? "text-jade" : campaign.template.status ? "text-amber-400" : "text-text-muted"}`}>
+                  {campaign.template.status || "Not Synced"}
                 </span>
               </div>
             </div>
