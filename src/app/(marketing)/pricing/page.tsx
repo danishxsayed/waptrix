@@ -16,8 +16,8 @@ const CYCLES: { id: Cycle; label: string; badge?: string }[] = [
 
 const PRICING: Record<Cycle, { planId: string; price: number; perMonth: number; billed: string }> = {
   monthly:   { planId: "pro_monthly",   price: 1999,  perMonth: 1999, billed: "Billed every month" },
-  quarterly: { planId: "pro_quarterly", price: 4999,  perMonth: 1666, billed: "₹4,999 billed every 3 months" },
-  yearly:    { planId: "pro_yearly",    price: 17999, perMonth: 1499, billed: "₹17,999 billed every year" },
+  quarterly: { planId: "pro_quarterly", price: 4998,  perMonth: 1666, billed: "₹4,998 billed every 3 months" },
+  yearly:    { planId: "pro_yearly",    price: 17988, perMonth: 1499, billed: "₹17,988 billed every year" },
 };
 
 const FEATURES = [

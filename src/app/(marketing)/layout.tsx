@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useState, useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { Menu, X, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
@@ -96,6 +97,7 @@ function WaptrixLogo() {
 }
 
 function Navbar() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [sessionUser, setSessionUser] = useState<{ name: string; email: string } | null>(null);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -135,15 +137,22 @@ function Navbar() {
 
         {/* Desktop nav */}
         <nav className="hidden md:flex items-center gap-1 flex-1 justify-center">
-          {NAV_LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              className="px-4 py-2 text-sm text-[#667781] hover:text-[#111B21] font-medium transition-colors rounded-lg hover:bg-[#EDE8DE]"
-            >
-              {l.label}
-            </Link>
-          ))}
+          {NAV_LINKS.map((l) => {
+            const isActive = l.href === "/" ? pathname === "/" : pathname.startsWith(l.href.split("#")[0]) && l.href !== "/#features";
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                className={`px-4 py-2 text-sm font-medium transition-colors rounded-lg ${
+                  isActive
+                    ? "bg-[#D9FDD3] text-[#075E54] font-semibold"
+                    : "text-[#667781] hover:text-[#111B21] hover:bg-[#EDE8DE]"
+                }`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
         </nav>
 
         {/* CTAs */}
@@ -218,16 +227,21 @@ function Navbar() {
 
       {open && (
         <div className="md:hidden bg-white border-t border-[#E9EDEF] px-6 py-4 flex flex-col gap-1">
-          {NAV_LINKS.map((l) => (
-            <Link
-              key={l.href}
-              href={l.href}
-              onClick={() => setOpen(false)}
-              className="py-3 px-3 text-sm text-[#667781] hover:text-[#111B21] font-medium border-b border-[#E9EDEF] last:border-0"
-            >
-              {l.label}
-            </Link>
-          ))}
+          {NAV_LINKS.map((l) => {
+            const isActive = l.href === "/" ? pathname === "/" : pathname.startsWith(l.href.split("#")[0]) && l.href !== "/#features";
+            return (
+              <Link
+                key={l.href}
+                href={l.href}
+                onClick={() => setOpen(false)}
+                className={`py-3 px-3 text-sm font-medium border-b border-[#E9EDEF] last:border-0 ${
+                  isActive ? "text-[#075E54] font-semibold" : "text-[#667781] hover:text-[#111B21]"
+                }`}
+              >
+                {l.label}
+              </Link>
+            );
+          })}
           <div className="flex flex-col gap-2 pt-4">
             {sessionUser ? (
               <>

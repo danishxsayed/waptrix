@@ -801,6 +801,8 @@ export default function InboxPanel({
   const [isSending, setIsSending] = useState(false);
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
+  const [loadingMoreMsgs, setLoadingMoreMsgs] = useState(false);
+  const [hasMoreMessages, setHasMoreMessages] = useState(false);
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string>("");
   const [sendError, setSendError] = useState<string>("");
@@ -1187,18 +1189,45 @@ export default function InboxPanel({
     setLoadingConvs(false);
   }, [onUnreadChange]);
 
-  // ── Fetch messages for active conversation
+  // ── Fetch messages for active conversation (initial load — most recent 20)
   const fetchMessages = useCallback(async (convId: string) => {
     setLoadingMsgs(true);
-    const res = await fetch(`/api/conversations/${convId}/messages`);
+    setHasMoreMessages(false);
+    const res = await fetch(`/api/conversations/${convId}/messages?limit=20`);
     if (res.ok) {
       const data: ChatMessage[] = await res.json();
       setMessages(data);
+      setHasMoreMessages(data.length === 20);
       // Always scroll to bottom (most recent) when loading a conversation
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'instant' }), 50);
     }
     setLoadingMsgs(false);
   }, []);
+
+  // ── Load older messages when user scrolls up
+  const loadMoreMessages = useCallback(async () => {
+    if (!activeConv || loadingMoreMsgs || !hasMoreMessages) return;
+    const oldest = messages[0];
+    if (!oldest) return;
+    setLoadingMoreMsgs(true);
+    const container = messagesContainerRef.current;
+    const prevScrollHeight = container?.scrollHeight ?? 0;
+    const res = await fetch(
+      `/api/conversations/${activeConv.id}/messages?limit=20&before=${encodeURIComponent(oldest.created_at)}`
+    );
+    if (res.ok) {
+      const older: ChatMessage[] = await res.json();
+      setMessages(prev => [...older, ...prev]);
+      setHasMoreMessages(older.length === 20);
+      // Restore scroll position so older messages appear above without jumping
+      setTimeout(() => {
+        if (container) {
+          container.scrollTop = container.scrollHeight - prevScrollHeight;
+        }
+      }, 0);
+    }
+    setLoadingMoreMsgs(false);
+  }, [activeConv, loadingMoreMsgs, hasMoreMessages, messages]);
 
   // ── Fetch approved templates
   const fetchTemplates = useCallback(async () => {
@@ -2090,7 +2119,33 @@ export default function InboxPanel({
             </div>
 
             {/* Messages */}
-            <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-4 custom-scrollbar bg-background/40">
+            <div
+              ref={messagesContainerRef}
+              className="flex-1 overflow-y-auto px-5 py-4 space-y-4 custom-scrollbar bg-background/40"
+              onScroll={() => {
+                const el = messagesContainerRef.current;
+                if (el && el.scrollTop < 80 && hasMoreMessages && !loadingMoreMsgs) {
+                  loadMoreMessages();
+                }
+              }}
+            >
+              {/* Load more indicator at top */}
+              {loadingMoreMsgs && (
+                <div className="flex items-center justify-center py-2">
+                  <Loader2 className="w-4 h-4 text-jade animate-spin mr-2" />
+                  <span className="text-xs text-text-muted">Loading older messages…</span>
+                </div>
+              )}
+              {hasMoreMessages && !loadingMoreMsgs && (
+                <div className="flex items-center justify-center py-1">
+                  <button
+                    onClick={loadMoreMessages}
+                    className="text-xs text-jade hover:underline"
+                  >
+                    Load older messages
+                  </button>
+                </div>
+              )}
               {loadingMsgs ? (
                 <div className="flex items-center justify-center h-full">
                   <Loader2 className="w-6 h-6 text-jade animate-spin" />
@@ -2281,12 +2336,12 @@ export default function InboxPanel({
                               </p>
                             )}
 
-                            {/* Text content — show for text messages and as caption for media */}
+                            {/* Text content — show full text, no truncation for normal messages */}
                             {msg.type !== "template" && msg.type !== "button" &&
                              msg.content !== "[button message]" &&
                              !msg.content?.startsWith("[Template:") &&
                              (msg.type === "text" || (msg.content && !["[image]","[video]","[audio]","[document]","[sticker]"].includes(msg.content))) && (
-                              <ReadMoreText text={msg.content} />
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
                             )}
 
                             {!isTemplate && (

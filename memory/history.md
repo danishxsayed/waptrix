@@ -1,5 +1,19 @@
 # Implementation History
 
+## [2026-08-27] - Inbox Message Pagination, Inbound Filters & Blog/Docs Expansion
+- **Dev Server**: Started the Next.js development server running on port 3001 (`npm run dev`).
+- **Inbox Message Pagination**:
+  - Refactored `GET /api/conversations/[id]/messages` to accept `before` and `limit` search query parameters, enabling cursor-based message loading.
+  - Updated `InboxPanel.tsx` to load only the latest 20 messages on mount.
+  - Implemented scroll-up detection in `InboxPanel.tsx` to automatically load older messages.
+  - Removed text message truncation (`ReadMoreText`) for normal text messages to display their complete message contents.
+- **Inbound Conversation Filters**:
+  - Updated `GET /api/conversations` to filter lists, returning only conversations with at least one inbound customer reply to improve support queue hygiene.
+- **Marketing, Blog & Documentation Upgrades**:
+  - Restructured `/blog` page and created `/blog/[slug]` route with a new post database `posts.ts` to host and display comprehensive WhatsApp marketing guides.
+  - Created `/docs/layout.tsx` layout structure and significantly expanded `/docs/page.tsx` with clear guides on WABA connections, onboarding checklist, contact schema templates, and webhook automations.
+  - Added active route styling using Next.js `usePathname` inside the main marketing `Navbar` component to highlight the currently visited page.
+
 ## [2026-08-22] - Campaign Detail Page Template Status Refinement
 - **Template Status Refinement**: Refined the template approval status rendering on the Campaign Detail Page ([page.tsx](file:///Users/danishsayed/Desktop/Waptrix/src/app/(dashboard)/campaigns/%5Bid%5D/page.tsx)) to display "Not Synced" in muted text when no status is returned, preventing false-positive "Meta Approved" indicators, and correctly formatting other non-approved statuses.
 

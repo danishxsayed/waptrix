@@ -54,10 +54,24 @@ export async function GET() {
     const tenantId = await getEffectiveTenantId(user.id);
     const db = serviceDb();
 
+    // Only show conversations where the customer has sent at least one inbound message
+    const { data: inboundRows } = await db
+      .from('chat_messages')
+      .select('conversation_id')
+      .eq('tenant_id', tenantId)
+      .eq('direction', 'inbound');
+
+    const inboundConvIds = [...new Set((inboundRows ?? []).map((r: any) => r.conversation_id))];
+
+    if (inboundConvIds.length === 0) {
+      return NextResponse.json([]);
+    }
+
     const { data, error } = await db
       .from('conversations')
       .select('*')
       .eq('tenant_id', tenantId)
+      .in('id', inboundConvIds)
       .order('last_message_at', { ascending: false })
       .limit(100);
 
