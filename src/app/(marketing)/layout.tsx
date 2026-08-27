@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
+import Script from "next/script";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
@@ -315,6 +316,20 @@ function Footer() {
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-[#EDE8DE] flex flex-col">
+      {/* Google Analytics */}
+      <Script
+        src="https://www.googletagmanager.com/gtag/js?id=G-2DX20HZESP"
+        strategy="afterInteractive"
+      />
+      <Script id="google-analytics" strategy="afterInteractive">
+        {`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-2DX20HZESP');
+        `}
+      </Script>
+
       <OfferPopup />
       <Navbar />
       <main className="flex-1 pt-[68px]">{children}</main>
