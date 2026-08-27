@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { metaApi } from '@/lib/meta';
 import { getTemplateStatusEmail, getCategoryChangeEmail } from '@/lib/email/template';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 export async function POST(
   req: Request,
@@ -18,6 +19,8 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const tenantId = await getEffectiveTenantId(user.id);
+
     const { createClient: createServiceClient } = await import('@supabase/supabase-js');
     const serviceClient = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,7 +32,7 @@ export async function POST(
       .from('templates')
       .select('*')
       .eq('id', id)
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (templateError || !template) {
@@ -46,7 +49,7 @@ export async function POST(
     const { data: conn, error: connError } = await serviceClient
       .from('wa_connections')
       .select('access_token')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (connError || !conn?.access_token) {
@@ -77,7 +80,7 @@ export async function POST(
       .from('templates')
       .update(dbUpdate)
       .eq('id', id)
-      .eq('tenant_id', user.id);
+      .eq('tenant_id', tenantId);
 
     if (dbError) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });
@@ -104,7 +107,7 @@ export async function POST(
 
       try {
         await serviceClient.from('notifications').insert({
-          tenant_id: user.id,
+          tenant_id: tenantId,
           type: 'template_category_change',
           title: '🔄 Template Category Changed by Meta',
           body: `Meta changed "${template.name}" from ${fmt(prevCat)} to ${fmt(metaCategory)}. This may affect messaging charges.`,

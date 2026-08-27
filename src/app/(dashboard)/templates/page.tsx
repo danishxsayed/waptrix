@@ -34,6 +34,7 @@ export default function TemplatesPage() {
   const [deleteError, setDeleteError] = useState<{ id: string; msg: string } | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
+  const [appealModal, setAppealModal] = useState<{ template: any; category: string; submitting: boolean } | null>(null);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -146,18 +147,33 @@ export default function TemplatesPage() {
     }
   };
 
-  const handleAppeal = async (template: any) => {
+  const handleAppeal = (template: any) => {
     if (!template.meta_template_id) {
       showToast("Template hasn't been submitted to Meta yet.", "error");
       return;
     }
-    if (!confirm(`Appeal category for "${template.name}"?\n\nThis will request Meta to review the category as ${template.category}. Meta will respond within 24h.`)) return;
+    // Open modal — pre-select the template's current category
+    setAppealModal({ template, category: template.category, submitting: false });
+    setActiveMenu(null);
+  };
+
+  const submitAppeal = async () => {
+    if (!appealModal) return;
+    setAppealModal(prev => prev ? { ...prev, submitting: true } : null);
     try {
-      await axios.post(`/api/templates/${template.id}/appeal`);
-      setTemplates(prev => prev.map(t => t.id === template.id ? { ...t, meta_status: 'PENDING' } : t));
+      await axios.post(`/api/templates/${appealModal.template.id}/appeal`, {
+        category: appealModal.category,
+      });
+      setTemplates(prev => prev.map(t =>
+        t.id === appealModal.template.id
+          ? { ...t, meta_status: 'PENDING', category: appealModal.category }
+          : t
+      ));
       showToast("Appeal submitted! Meta will review within 24h.");
+      setAppealModal(null);
     } catch (err: any) {
       showToast(err.response?.data?.error || "Appeal failed.", "error");
+      setAppealModal(prev => prev ? { ...prev, submitting: false } : null);
     }
   };
 
@@ -205,6 +221,77 @@ export default function TemplatesPage() {
 
   return (
     <div className="space-y-6">
+
+      {/* ── Appeal Category Modal ─────────────────────────────────────────── */}
+      {appealModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden">
+            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
+              <div className="flex items-center gap-2">
+                <Flag className="w-5 h-5 text-amber-400" />
+                <h2 className="font-bold text-base">Appeal Template Category</h2>
+              </div>
+              <button onClick={() => setAppealModal(null)} className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-surface text-text-muted">
+                <XCircle className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="px-6 py-5 space-y-4">
+              <p className="text-sm text-text-muted">
+                Appealing <span className="font-semibold text-text-primary">{appealModal.template.name}</span>.
+                {appealModal.template.meta_category && appealModal.template.meta_category !== appealModal.template.category && (
+                  <> Meta reclassified it as <span className="font-semibold text-amber-400">{appealModal.template.meta_category}</span>.</>
+                )}
+              </p>
+              <div>
+                <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-2">
+                  Appeal as category
+                </label>
+                <div className="flex gap-2">
+                  {(['MARKETING', 'UTILITY', 'AUTHENTICATION'] as const).map(cat => (
+                    <button
+                      key={cat}
+                      onClick={() => setAppealModal(prev => prev ? { ...prev, category: cat } : null)}
+                      className={`flex-1 py-2.5 rounded-xl text-xs font-bold border transition-all ${
+                        appealModal.category === cat
+                          ? 'bg-jade/15 border-jade text-jade'
+                          : 'border-border text-text-muted hover:border-jade/50 hover:text-text-primary'
+                      }`}
+                    >
+                      {cat.charAt(0) + cat.slice(1).toLowerCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3">
+                <p className="text-xs text-amber-400 leading-relaxed">
+                  Meta will review your appeal within 24 hours. If approved, the template will be re-listed under <strong>{appealModal.category.charAt(0) + appealModal.category.slice(1).toLowerCase()}</strong>. If rejected, no change is made.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 px-6 py-4 border-t border-border">
+              <button
+                onClick={() => setAppealModal(null)}
+                className="flex-1 btn-secondary text-sm"
+                disabled={appealModal.submitting}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitAppeal}
+                disabled={appealModal.submitting}
+                className="flex-1 flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white font-bold py-2.5 rounded-xl text-sm transition-colors disabled:opacity-60"
+              >
+                {appealModal.submitting ? (
+                  <><RotateCw className="w-4 h-4 animate-spin" /> Submitting…</>
+                ) : (
+                  <><Flag className="w-4 h-4" /> Submit Appeal</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Toast */}
       {toast && (
         <div className={`fixed top-6 right-6 z-50 flex items-center gap-3 px-5 py-3 rounded-xl shadow-xl border text-sm font-semibold transition-all ${

@@ -2,6 +2,10 @@
 
 ## [2026-08-27] - Inbox Message Pagination, Inbound Filters & Blog/Docs Expansion
 - **Dev Server**: Started and restarted the Next.js development server running on port 3001 (`npm run dev`).
+- **WhatsApp Template Appeals & Tenant Scoping**:
+  - Implemented an interactive Category Appeal dialog inside the templates dashboard page (`src/app/(dashboard)/templates/page.tsx`), letting users submit category corrections for rejected/reclassified templates.
+  - Refactored `POST /api/templates/[id]/appeal` to resolve `getEffectiveTenantId`, support user-selected appeal categories, trigger category appeals via `metaApi.appealCategory`, and update template status to PENDING.
+  - Refactored `POST /api/templates/[id]/sync` to support tenant scoping using `getEffectiveTenantId` for team management sync events.
 - **Subdomain Session Sharing & Local Testing**:
   - Configured custom cookie domains in `src/lib/supabase/client.ts` and `src/middleware.ts` (e.g., `.waptrix.in` / `localhost`) to enable session sharing between the root marketing domain and the app subdomain.
   - Enhanced middleware subdomain redirection to support local development ports and hostnames (`app.localhost`).
