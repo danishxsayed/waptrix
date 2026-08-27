@@ -5,7 +5,7 @@ import Image from "next/image";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { createClient } from "@/lib/supabase/client"; // still used for sign-out
 
 function OfferPopup() {
   const [visible, setVisible] = useState(false);
@@ -96,6 +96,15 @@ function WaptrixLogo() {
   );
 }
 
+/** Build the app subdomain URL — works in both dev and production */
+function appUrl(path: string) {
+  if (typeof window === "undefined") return path;
+  const { protocol, hostname, port } = window.location;
+  const h = hostname.startsWith("app.") ? hostname : `app.${hostname}`;
+  const p = port ? `:${port}` : "";
+  return `${protocol}//${h}${p}${path}`;
+}
+
 function Navbar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -104,18 +113,17 @@ function Navbar() {
   const [sessionLoaded, setSessionLoaded] = useState(false);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const name =
-          session.user.user_metadata?.full_name ||
-          session.user.user_metadata?.name ||
-          session.user.email?.split("@")[0] ||
-          "User";
-        setSessionUser({ name, email: session.user.email || "" });
-      }
-      setSessionLoaded(true);
-    });
+    // Use /api/me (server-side) — more reliable than browser Supabase client
+    // since it reads the actual session cookies directly.
+    fetch("/api/me")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (data?.userName) {
+          setSessionUser({ name: data.userName, email: data.userEmail || "" });
+        }
+        setSessionLoaded(true);
+      })
+      .catch(() => setSessionLoaded(true));
   }, []);
 
   const handleSignOut = async () => {
@@ -176,14 +184,14 @@ function Navbar() {
                     <p className="text-xs font-bold text-[#111B21] truncate">{sessionUser.name}</p>
                     <p className="text-[10px] text-[#667781] truncate">{sessionUser.email}</p>
                   </div>
-                  <Link
-                    href="/dashboard"
+                  <a
+                    href={appUrl("/dashboard")}
                     onClick={() => setUserMenuOpen(false)}
                     className="flex items-center gap-2.5 px-4 py-3 text-sm text-[#111B21] hover:bg-[#D9FDD3] transition-colors"
                   >
                     <LayoutDashboard className="w-4 h-4 text-[#25D366]" />
                     Go to Dashboard
-                  </Link>
+                  </a>
                   <button
                     onClick={handleSignOut}
                     className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-[#667781] hover:bg-[#EDE8DE] transition-colors"
@@ -245,7 +253,7 @@ function Navbar() {
           <div className="flex flex-col gap-2 pt-4">
             {sessionUser ? (
               <>
-                <Link href="/dashboard" onClick={() => setOpen(false)} className="text-center bg-[#25D366] text-[#111B21] font-bold py-2.5 rounded-full text-sm">Go to Dashboard</Link>
+                <a href={appUrl("/dashboard")} onClick={() => setOpen(false)} className="text-center bg-[#25D366] text-[#111B21] font-bold py-2.5 rounded-full text-sm">Go to Dashboard</a>
                 <button onClick={handleSignOut} className="text-center border-2 border-[#667781] text-[#667781] font-bold py-2.5 rounded-full text-sm">Sign Out</button>
               </>
             ) : (

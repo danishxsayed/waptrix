@@ -117,7 +117,10 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 
 ## Recent Session Progress
 - **Inbox Pagination, Inbound Filters & Blog/Docs System (2026-08-27)**:
-  - Started the Next.js dev server on port 3001.
+  - Started and restarted the Next.js dev server on port 3001.
+  - Configured shared cookie domains in Supabase browser client and Auth middleware to enable subdomain session sharing (`waptrix.in` <-> `app.waptrix.in` and `localhost` <-> `app.localhost`).
+  - Added user metadata and email details to the `GET /api/me` info payload.
+  - Refactored authentication state tracking to use `onAuthStateChange` instead of `getSession` in layout and pricing screens for improved reliability.
   - Implemented cursor-based pagination using `before` and `limit` for message histories, with auto-triggering scroll-up fetches in the inbox message panel.
   - Filtered conversation lists to exclude empty threads and only show active threads with at least one customer inbound response.
   - Expanded marketing site with a new dynamic blog engine, posts database (`posts.ts`), a dedicated documentation layout, and complete setups/user guides in `/docs`.

@@ -43,8 +43,19 @@ export async function middleware(request: NextRequest) {
             request.cookies.set(name, value)
           )
           supabaseResponse = NextResponse.next({ request })
+          const hostname = request.headers.get('host') || ''
+          const baseDomain = hostname.replace(/^app\./, '').split(':')[0] // strip port
+          const isLocal = baseDomain === 'localhost' || baseDomain === '127.0.0.1'
+          // localhost → domain=localhost  (accessible from app.localhost too)
+          // waptrix.in → domain=.waptrix.in  (accessible from app.waptrix.in)
+          const cookieDomain = isLocal
+            ? 'localhost'
+            : '.' + baseDomain.split('.').slice(-2).join('.')
           cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
+            supabaseResponse.cookies.set(name, value, {
+              ...options,
+              domain: cookieDomain,
+            })
           )
         },
       },
@@ -56,17 +67,17 @@ export async function middleware(request: NextRequest) {
   const hostname = request.headers.get('host') || ''
   const isAppSubdomain = hostname.startsWith('app.')
 
-  // ── waptrix.in (root domain) ──────────────────────────────────────────────
-  // Any non-marketing path on waptrix.in → redirect to app.waptrix.in
+  // ── root domain (waptrix.in or localhost) ────────────────────────────────
+  // Non-marketing paths on the root domain → redirect to app subdomain
   if (!isAppSubdomain && !isMarketingPath(pathname) && !pathname.startsWith('/api/')) {
     const url = request.nextUrl.clone()
-    url.host = 'app.' + hostname  // e.g. app.waptrix.in
+    url.host = 'app.' + hostname  // e.g. app.waptrix.in or app.localhost:3001
     return NextResponse.redirect(url)
   }
 
-  // ── app.waptrix.in ────────────────────────────────────────────────────────
+  // ── app subdomain (app.waptrix.in or app.localhost) ───────────────────────
   if (isAppSubdomain) {
-    // Marketing-only pages don't belong on app subdomain → redirect to waptrix.in
+    // Marketing-only pages don't belong on app subdomain → redirect to root domain
     if (isMarketingPath(pathname) && pathname !== '/') {
       const url = request.nextUrl.clone()
       url.host = hostname.replace(/^app\./, '')
@@ -96,7 +107,7 @@ export async function middleware(request: NextRequest) {
     // Team pages blocked for agents (exact path or sub-paths like /team/...) but NOT /team-chat
     const isTeamBlocked = (p: string) => p === '/team' || p.startsWith('/team/');
 
-    // Trial / plan + role enforcement — cache results in cookies to avoid DB hit on every request
+    // Trial / plan + role enforcement
     if (user && !isAppPublic(pathname) && pathname !== '/pricing' && !pathname.startsWith('/api/')) {
       const planCookie  = request.cookies.get('waptrix_plan_ok')
       const roleCookie  = request.cookies.get('waptrix_role')

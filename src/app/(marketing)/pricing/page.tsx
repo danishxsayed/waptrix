@@ -104,19 +104,22 @@ function PricingContent() {
 
   const pricing = PRICING[cycle];
 
-  // Detect session
+  // Detect session — onAuthStateChange fires immediately with INITIAL_SESSION
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) {
         setSessionUser({
           id:    session.user.id,
           email: session.user.email || "",
           name:  session.user.user_metadata?.full_name || session.user.email?.split("@")[0] || "User",
         });
+      } else {
+        setSessionUser(null);
       }
       setSessionLoaded(true);
     });
+    return () => subscription.unsubscribe();
   }, []);
 
   const handleSubscribe = async () => {
@@ -259,13 +262,26 @@ function PricingContent() {
             </div>
 
             {/* Trial CTA — always visible */}
-            <Link
-              href={sessionUser ? "/dashboard" : "/signup"}
-              className="w-full bg-[#25D366] hover:bg-[#128C7E] text-[#111B21] hover:text-white font-extrabold py-4 rounded-2xl text-base transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#25D366]/20"
-            >
-              {sessionUser ? "Go to Dashboard" : "🎉 Start 7-Day Free Trial"}
-              <ArrowRight className="w-5 h-5" />
-            </Link>
+            {sessionUser ? (
+              <a
+                href={(() => {
+                  if (typeof window === "undefined") return "/dashboard";
+                  const { protocol, hostname, port } = window.location;
+                  const h = hostname.startsWith("app.") ? hostname : `app.${hostname}`;
+                  return `${protocol}//${h}${port ? ":" + port : ""}/dashboard`;
+                })()}
+                className="w-full bg-[#25D366] hover:bg-[#128C7E] text-[#111B21] hover:text-white font-extrabold py-4 rounded-2xl text-base transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#25D366]/20"
+              >
+                Go to Dashboard <ArrowRight className="w-5 h-5" />
+              </a>
+            ) : (
+              <Link
+                href="/signup"
+                className="w-full bg-[#25D366] hover:bg-[#128C7E] text-[#111B21] hover:text-white font-extrabold py-4 rounded-2xl text-base transition-all flex items-center justify-center gap-2 shadow-lg shadow-[#25D366]/20"
+              >
+                🎉 Start 7-Day Free Trial <ArrowRight className="w-5 h-5" />
+              </Link>
+            )}
             <p className="text-center text-xs text-[#667781] mt-3">
               No card required · After trial, pay ₹{pricing.perMonth.toLocaleString("en-IN")}/mo · +18% GST
             </p>

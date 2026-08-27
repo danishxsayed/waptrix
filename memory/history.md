@@ -1,7 +1,14 @@
 # Implementation History
 
 ## [2026-08-27] - Inbox Message Pagination, Inbound Filters & Blog/Docs Expansion
-- **Dev Server**: Started the Next.js development server running on port 3001 (`npm run dev`).
+- **Dev Server**: Started and restarted the Next.js development server running on port 3001 (`npm run dev`).
+- **Subdomain Session Sharing & Local Testing**:
+  - Configured custom cookie domains in `src/lib/supabase/client.ts` and `src/middleware.ts` (e.g., `.waptrix.in` / `localhost`) to enable session sharing between the root marketing domain and the app subdomain.
+  - Enhanced middleware subdomain redirection to support local development ports and hostnames (`app.localhost`).
+- **User Metadata Fetching**:
+  - Refactored `GET /api/me` to include robust resolution of `userName` and `userEmail` from user metadata and auth properties.
+- **Authentication State Handling**:
+  - Refactored `src/app/(marketing)/layout.tsx` and `src/app/(marketing)/pricing/page.tsx` to use `onAuthStateChange` instead of `getSession` for more reliable user session detection across page navigations.
 - **Inbox Message Pagination**:
   - Refactored `GET /api/conversations/[id]/messages` to accept `before` and `limit` search query parameters, enabling cursor-based message loading.
   - Updated `InboxPanel.tsx` to load only the latest 20 messages on mount.

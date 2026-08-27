@@ -57,8 +57,14 @@ export async function GET() {
       .eq('id', tenantId)
       .single();
 
+    const userName = agentName
+      || user.user_metadata?.full_name
+      || user.user_metadata?.name
+      || user.email?.split('@')[0]
+      || 'User';
+
     return NextResponse.json(
-      { role, userId: user.id, agentName, tenant: tenant ? { ...tenant, email: user.email } : null, isStaff },
+      { role, userId: user.id, agentName, userName, userEmail: user.email, tenant: tenant ? { ...tenant, email: user.email } : null, isStaff },
       { headers: { 'Cache-Control': 'private, max-age=20, stale-while-revalidate=60' } }
     );
   } catch (err: any) {
