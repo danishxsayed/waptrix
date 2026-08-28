@@ -78,7 +78,10 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  const { data: { user } } = await supabase.auth.getUser()
+  // Use getSession() (local JWT decode, no network call) for routing decisions.
+  // API routes and server actions do their own getUser() verification.
+  const { data: { session } } = await supabase.auth.getSession()
+  const user = session?.user ?? null
 
   // ── app subdomain (app.waptrix.in or app.localhost) ───────────────────────
   if (isAppSubdomain) {
