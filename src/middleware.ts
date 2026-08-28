@@ -32,6 +32,24 @@ function isAppPublic(pathname: string): boolean {
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({ request })
 
+  const pathname = request.nextUrl.pathname
+  const hostname = request.headers.get('host') || ''
+  const isAppSubdomain = hostname.startsWith('app.')
+
+  // ── root domain (waptrix.in or localhost) ────────────────────────────────
+  // Non-marketing paths on the root domain → redirect to app subdomain
+  if (!isAppSubdomain && !isMarketingPath(pathname) && !pathname.startsWith('/api/')) {
+    const url = request.nextUrl.clone()
+    url.host = 'app.' + hostname  // e.g. app.waptrix.in or app.localhost:3001
+    return NextResponse.redirect(url)
+  }
+
+  // Marketing paths on root domain — no auth needed, return immediately
+  // (navbar uses /api/me client-side, no need for getUser() here)
+  if (!isAppSubdomain && (isMarketingPath(pathname) || pathname.startsWith('/api/'))) {
+    return supabaseResponse
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -43,11 +61,9 @@ export async function middleware(request: NextRequest) {
             request.cookies.set(name, value)
           )
           supabaseResponse = NextResponse.next({ request })
-          const hostname = request.headers.get('host') || ''
-          const baseDomain = hostname.replace(/^app\./, '').split(':')[0] // strip port
+          const h = request.headers.get('host') || ''
+          const baseDomain = h.replace(/^app\./, '').split(':')[0]
           const isLocal = baseDomain === 'localhost' || baseDomain === '127.0.0.1'
-          // localhost → domain=localhost  (accessible from app.localhost too)
-          // waptrix.in → domain=.waptrix.in  (accessible from app.waptrix.in)
           const cookieDomain = isLocal
             ? 'localhost'
             : '.' + baseDomain.split('.').slice(-2).join('.')
@@ -63,17 +79,6 @@ export async function middleware(request: NextRequest) {
   )
 
   const { data: { user } } = await supabase.auth.getUser()
-  const pathname = request.nextUrl.pathname
-  const hostname = request.headers.get('host') || ''
-  const isAppSubdomain = hostname.startsWith('app.')
-
-  // ── root domain (waptrix.in or localhost) ────────────────────────────────
-  // Non-marketing paths on the root domain → redirect to app subdomain
-  if (!isAppSubdomain && !isMarketingPath(pathname) && !pathname.startsWith('/api/')) {
-    const url = request.nextUrl.clone()
-    url.host = 'app.' + hostname  // e.g. app.waptrix.in or app.localhost:3001
-    return NextResponse.redirect(url)
-  }
 
   // ── app subdomain (app.waptrix.in or app.localhost) ───────────────────────
   if (isAppSubdomain) {
