@@ -13,7 +13,10 @@ export async function GET() {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
       { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
     );
-    const { data: { user } } = await ssrClient.auth.getUser();
+    // getSession() decodes the JWT locally — no network call to Supabase auth server.
+    // This avoids "Invalid Refresh Token" errors when cookies are incomplete on root domain.
+    const { data: { session } } = await ssrClient.auth.getSession();
+    const user = session?.user ?? null;
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const db = createClient(
