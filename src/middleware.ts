@@ -1,3 +1,4 @@
+import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -28,60 +29,6 @@ function isAppPublic(pathname: string): boolean {
   return false;
 }
 
-/**
- * Decode the Supabase JWT from cookies without any network call.
- * Returns the user id (sub) if a valid, non-expired token is found.
- * API routes do their own getUser() verification — this is routing-only.
- */
-function getUserIdFromCookies(request: NextRequest): string | null {
-  try {
-    const allCookies = request.cookies.getAll();
-
-    // Supabase stores auth in cookies named sb-*-auth-token (may be chunked: .0, .1, ...)
-    // Collect all chunks and reconstruct
-    const chunks: Array<{ name: string; value: string }> = allCookies
-      .filter(c => c.name.match(/sb-.+-auth-token(\.\d+)?$/) && !c.name.includes('code-verifier'))
-      .sort((a, b) => a.name.localeCompare(b.name));
-
-    if (chunks.length === 0) return null;
-
-    // Join chunks into a single value
-    const raw = chunks.map(c => c.value).join('');
-
-    // Value may be URL-encoded
-    const decoded = decodeURIComponent(raw);
-
-    // Parse JSON
-    let tokenData: any;
-    try {
-      tokenData = JSON.parse(decoded);
-    } catch {
-      // Sometimes base64-encoded
-      tokenData = JSON.parse(atob(decoded));
-    }
-
-    const accessToken: string | undefined =
-      typeof tokenData === 'string'
-        ? tokenData
-        : tokenData?.access_token ?? tokenData?.[0];
-
-    if (!accessToken) return null;
-
-    // Decode JWT payload (no signature verification — routing only)
-    const parts = accessToken.split('.');
-    if (parts.length !== 3) return null;
-
-    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-
-    // Reject expired tokens — user should re-login
-    if (payload.exp && payload.exp * 1000 < Date.now()) return null;
-
-    return payload.sub as string ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export async function middleware(request: NextRequest) {
   const supabaseResponse = NextResponse.next({ request })
 
@@ -110,8 +57,26 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Decode user from cookie — zero network calls, zero token refresh
-  const userId = getUserIdFromCookies(request)
+  // Create Supabase client with autoRefreshToken: false so getSession() NEVER
+  // makes a network call — it only reads + decodes the JWT from cookies locally.
+  // This eliminates all timeouts and refresh_token_already_used race conditions.
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() { return request.cookies.getAll() },
+        setAll() { /* read-only in middleware — no cookie writes needed */ },
+      },
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    }
+  )
+
+  const { data: { session } } = await supabase.auth.getSession()
+  const userId = session?.user?.id ?? null
 
   // Root on app subdomain → dashboard (if authed) or login
   if (pathname === '/') {
