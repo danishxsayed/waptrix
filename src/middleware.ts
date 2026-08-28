@@ -1,4 +1,3 @@
-import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
@@ -29,159 +28,174 @@ function isAppPublic(pathname: string): boolean {
   return false;
 }
 
+/**
+ * Decode the Supabase JWT from cookies without any network call.
+ * Returns the user id (sub) if a valid, non-expired token is found.
+ * API routes do their own getUser() verification — this is routing-only.
+ */
+function getUserIdFromCookies(request: NextRequest): string | null {
+  try {
+    const allCookies = request.cookies.getAll();
+
+    // Supabase stores auth in cookies named sb-*-auth-token (may be chunked: .0, .1, ...)
+    // Collect all chunks and reconstruct
+    const chunks: Array<{ name: string; value: string }> = allCookies
+      .filter(c => c.name.match(/sb-.+-auth-token(\.\d+)?$/) && !c.name.includes('code-verifier'))
+      .sort((a, b) => a.name.localeCompare(b.name));
+
+    if (chunks.length === 0) return null;
+
+    // Join chunks into a single value
+    const raw = chunks.map(c => c.value).join('');
+
+    // Value may be URL-encoded
+    const decoded = decodeURIComponent(raw);
+
+    // Parse JSON
+    let tokenData: any;
+    try {
+      tokenData = JSON.parse(decoded);
+    } catch {
+      // Sometimes base64-encoded
+      tokenData = JSON.parse(atob(decoded));
+    }
+
+    const accessToken: string | undefined =
+      typeof tokenData === 'string'
+        ? tokenData
+        : tokenData?.access_token ?? tokenData?.[0];
+
+    if (!accessToken) return null;
+
+    // Decode JWT payload (no signature verification — routing only)
+    const parts = accessToken.split('.');
+    if (parts.length !== 3) return null;
+
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
+
+    // Reject expired tokens — user should re-login
+    if (payload.exp && payload.exp * 1000 < Date.now()) return null;
+
+    return payload.sub as string ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function middleware(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({ request })
+  const supabaseResponse = NextResponse.next({ request })
 
   const pathname = request.nextUrl.pathname
   const hostname = request.headers.get('host') || ''
   const isAppSubdomain = hostname.startsWith('app.')
 
   // ── root domain (waptrix.in or localhost) ────────────────────────────────
-  // Non-marketing paths on the root domain → redirect to app subdomain
-  if (!isAppSubdomain && !isMarketingPath(pathname) && !pathname.startsWith('/api/')) {
-    const url = request.nextUrl.clone()
-    url.host = 'app.' + hostname  // e.g. app.waptrix.in or app.localhost:3001
-    return NextResponse.redirect(url)
-  }
-
-  // Marketing paths on root domain — no auth needed, return immediately
-  // (navbar uses /api/me client-side, no need for getUser() here)
-  if (!isAppSubdomain && (isMarketingPath(pathname) || pathname.startsWith('/api/'))) {
+  if (!isAppSubdomain) {
+    // Non-marketing, non-API paths → redirect to app subdomain
+    if (!isMarketingPath(pathname) && !pathname.startsWith('/api/')) {
+      const url = request.nextUrl.clone()
+      url.host = 'app.' + hostname
+      return NextResponse.redirect(url)
+    }
+    // Marketing pages and /api/* on root domain — pass through, no auth needed
     return supabaseResponse
   }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() { return request.cookies.getAll() },
-        setAll(cookiesToSet: { name: string, value: string, options: CookieOptions }[]) {
-          cookiesToSet.forEach(({ name, value, options }) =>
-            request.cookies.set(name, value)
-          )
-          supabaseResponse = NextResponse.next({ request })
-          const h = request.headers.get('host') || ''
-          const baseDomain = h.replace(/^app\./, '').split(':')[0]
-          const isLocal = baseDomain === 'localhost' || baseDomain === '127.0.0.1'
-          const cookieDomain = isLocal
-            ? 'localhost'
-            : '.' + baseDomain.split('.').slice(-2).join('.')
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, {
-              ...options,
-              domain: cookieDomain,
-            })
-          )
-        },
-      },
-    }
-  )
-
-  // Use getSession() (local JWT decode, no network call) for routing decisions.
-  // API routes and server actions do their own getUser() verification.
-  const { data: { session } } = await supabase.auth.getSession()
-  const user = session?.user ?? null
-
   // ── app subdomain (app.waptrix.in or app.localhost) ───────────────────────
-  if (isAppSubdomain) {
-    // Marketing-only pages don't belong on app subdomain → redirect to root domain
-    if (isMarketingPath(pathname) && pathname !== '/') {
-      const url = request.nextUrl.clone()
-      url.host = hostname.replace(/^app\./, '')
-      return NextResponse.redirect(url)
-    }
 
-    // Root on app subdomain → dashboard (if authed) or login
-    if (pathname === '/') {
-      const url = request.nextUrl.clone()
-      url.pathname = user ? '/dashboard' : '/login'
-      return NextResponse.redirect(url)
-    }
+  // Marketing-only pages don't belong on app subdomain → redirect to root domain
+  if (isMarketingPath(pathname) && pathname !== '/') {
+    const url = request.nextUrl.clone()
+    url.host = hostname.replace(/^app\./, '')
+    return NextResponse.redirect(url)
+  }
 
-    // Protected app route, not logged in → login
-    if (!user && !isAppPublic(pathname)) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      return NextResponse.redirect(url)
-    }
+  // Decode user from cookie — zero network calls, zero token refresh
+  const userId = getUserIdFromCookies(request)
 
-    // Routes agents are NOT allowed to access
-    // NOTE: use exact segment boundaries — '/team' must NOT match '/team-chat'
-    const AGENT_BLOCKED_PREFIXES = [
-      '/campaigns', '/templates', '/media', '/analytics',
-      '/settings', '/connect', '/billing', '/automations',
-    ];
-    // Team pages blocked for agents (exact path or sub-paths like /team/...) but NOT /team-chat
-    const isTeamBlocked = (p: string) => p === '/team' || p.startsWith('/team/');
+  // Root on app subdomain → dashboard (if authed) or login
+  if (pathname === '/') {
+    const url = request.nextUrl.clone()
+    url.pathname = userId ? '/dashboard' : '/login'
+    return NextResponse.redirect(url)
+  }
 
-    // Trial / plan + role enforcement
-    if (user && !isAppPublic(pathname) && pathname !== '/pricing' && !pathname.startsWith('/api/')) {
-      const planCookie  = request.cookies.get('waptrix_plan_ok')
-      const roleCookie  = request.cookies.get('waptrix_role')
-      const cacheValid  = planCookie?.value === user.id
+  // Protected app route, not logged in → login
+  if (!userId && !isAppPublic(pathname)) {
+    const url = request.nextUrl.clone()
+    url.pathname = '/login'
+    return NextResponse.redirect(url)
+  }
 
-      let userRole = roleCookie?.value || 'owner'
+  // Routes agents are NOT allowed to access
+  const AGENT_BLOCKED_PREFIXES = [
+    '/campaigns', '/templates', '/media', '/analytics',
+    '/settings', '/connect', '/billing', '/automations',
+  ];
+  const isTeamBlocked = (p: string) => p === '/team' || p.startsWith('/team/');
 
-      if (!cacheValid) {
-        // Only hit DB when no valid cookie exists (first visit or cookie expired)
-        const { createClient: createServiceClient } = await import('@supabase/supabase-js')
-        const serviceDb = createServiceClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.SUPABASE_SERVICE_KEY!
-        )
+  // Trial / plan + role enforcement (only for authenticated protected routes)
+  if (userId && !isAppPublic(pathname) && pathname !== '/pricing' && !pathname.startsWith('/api/')) {
+    const planCookie = request.cookies.get('waptrix_plan_ok')
+    const roleCookie = request.cookies.get('waptrix_role')
+    const cacheValid = planCookie?.value === userId
 
-        // Check team member role
-        const { data: memberRow } = await serviceDb
-          .from('team_members')
-          .select('role, owner_tenant_id')
-          .eq('member_user_id', user.id)
-          .eq('status', 'active')
-          .maybeSingle()
+    let userRole = roleCookie?.value || 'owner'
 
-        userRole = memberRow ? (memberRow.role as string) : 'owner'
-        const isTeamMember = !!memberRow
-        const tenantId = memberRow ? memberRow.owner_tenant_id : user.id
+    if (!cacheValid) {
+      const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+      const serviceDb = createServiceClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_KEY!
+      )
 
-        const { data: tenant } = await serviceDb
-          .from('tenants')
-          .select('plan, trial_ends_at, plan_expires_at')
-          .eq('id', tenantId)
-          .maybeSingle()
+      const { data: memberRow } = await serviceDb
+        .from('team_members')
+        .select('role, owner_tenant_id')
+        .eq('member_user_id', userId)
+        .eq('status', 'active')
+        .maybeSingle()
 
-        // Always cache role so subsequent requests don't hit DB again
-        supabaseResponse.cookies.set('waptrix_plan_ok', user.id, {
-          httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
-        })
-        supabaseResponse.cookies.set('waptrix_role', userRole, {
-          httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
-        })
+      userRole = memberRow ? (memberRow.role as string) : 'owner'
+      const isTeamMember = !!memberRow
+      const tenantId = memberRow ? memberRow.owner_tenant_id : userId
 
-        if (tenant) {
-          const now       = new Date()
-          const isPro     = tenant.plan === 'pro' && tenant.plan_expires_at && new Date(tenant.plan_expires_at) > now
-          const inTrial   = tenant.plan === 'trial' && tenant.trial_ends_at && new Date(tenant.trial_ends_at) > now
-          const hasAccess = isPro || inTrial
+      const { data: tenant } = await serviceDb
+        .from('tenants')
+        .select('plan, trial_ends_at, plan_expires_at')
+        .eq('id', tenantId)
+        .maybeSingle()
 
-          // Only owners/admins get the pricing redirect — agents are not responsible for billing
-          if (!hasAccess && !isTeamMember) {
-            const url = request.nextUrl.clone()
-            url.host = hostname.replace(/^app\./, '')
-            url.pathname = '/pricing'
-            url.searchParams.set('expired', '1')
-            return NextResponse.redirect(url)
-          }
-        }
-      }
+      supabaseResponse.cookies.set('waptrix_plan_ok', userId, {
+        httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
+      })
+      supabaseResponse.cookies.set('waptrix_role', userRole, {
+        httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
+      })
 
-      // Agent route protection — redirect to dashboard if accessing restricted page
-      if (userRole === 'agent') {
-        const blocked = AGENT_BLOCKED_PREFIXES.some(p => pathname.startsWith(p)) || isTeamBlocked(pathname)
-        if (blocked) {
+      if (tenant) {
+        const now = new Date()
+        const isPro = tenant.plan === 'pro' && tenant.plan_expires_at && new Date(tenant.plan_expires_at) > now
+        const inTrial = tenant.plan === 'trial' && tenant.trial_ends_at && new Date(tenant.trial_ends_at) > now
+        const hasAccess = isPro || inTrial
+
+        if (!hasAccess && !isTeamMember) {
           const url = request.nextUrl.clone()
-          url.pathname = '/dashboard'
+          url.host = hostname.replace(/^app\./, '')
+          url.pathname = '/pricing'
+          url.searchParams.set('expired', '1')
           return NextResponse.redirect(url)
         }
+      }
+    }
+
+    // Agent route protection
+    if (userRole === 'agent') {
+      const blocked = AGENT_BLOCKED_PREFIXES.some(p => pathname.startsWith(p)) || isTeamBlocked(pathname)
+      if (blocked) {
+        const url = request.nextUrl.clone()
+        url.pathname = '/dashboard'
+        return NextResponse.redirect(url)
       }
     }
   }
