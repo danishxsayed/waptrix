@@ -105,6 +105,18 @@ const NAV = [
       { id: "set-password",   label: "Change Password" },
     ],
   },
+  {
+    id: "integrations",
+    icon: ExternalLink,
+    title: "Integrations",
+    items: [
+      { id: "int-crm-overview",  label: "CRM Integration Overview" },
+      { id: "int-crm-setup",     label: "Set Up the Webhook" },
+      { id: "int-crm-events",    label: "Webhook Events & Payload" },
+      { id: "int-crm-security",  label: "Verifying Signatures" },
+      { id: "int-crm-examples",  label: "CRM Examples" },
+    ],
+  },
 ];
 
 // ─── Doc content ──────────────────────────────────────────────────────────────
@@ -845,6 +857,256 @@ function DOCS() {
         <Step n={3} title="Click Save Password">Your password is updated immediately. You'll need to use the new password on your next login.</Step>
         <DocH2>Forgot Your Password?</DocH2>
         <DocP>Go to the <a href="/login" className="text-[#25D366] underline">login page</a> and click Forgot password? We'll send a reset link to your registered email within a minute.</DocP>
+      </div>
+    ),
+
+    // ── Integrations ─────────────────────────────────────────────────────────
+    "int-crm-overview": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">CRM Integration Overview</h1>
+        <DocP>Waptrix can push real-time WhatsApp events to any CRM, helpdesk, or automation tool via outbound webhooks. Whenever a customer messages you, a delivery status changes, or a contact opts out, Waptrix instantly sends a structured JSON payload to your configured URL.</DocP>
+        <Callout type="success">This works with any CRM that accepts HTTP webhooks — HubSpot, Zoho, Salesforce, Pipedrive, Freshdesk, n8n, Make (Integromat), Zapier, and custom-built systems.</Callout>
+        <DocH2>What You Can Do</DocH2>
+        <DocUl items={[
+          "Create or update a CRM contact automatically when a customer sends a WhatsApp message",
+          "Log all WhatsApp conversations as activities in your CRM",
+          "Trigger CRM workflows when a customer replies to a campaign",
+          "Mark contacts as unsubscribed in your CRM when they send STOP",
+          "Sync delivery and read status back to your CRM records",
+        ]} />
+        <DocH2>How It Works</DocH2>
+        <div className="space-y-3 my-4">
+          {[
+            { step: "1", label: "Customer sends a WhatsApp message", desc: "Meta delivers it to Waptrix via webhook" },
+            { step: "2", label: "Waptrix processes and stores the message", desc: "Appears in your inbox as usual" },
+            { step: "3", label: "Waptrix fires your CRM webhook", desc: "POST request with signed JSON payload sent to your URL" },
+            { step: "4", label: "Your CRM receives and processes the event", desc: "Create contact, log activity, trigger workflow — whatever your CRM does" },
+          ].map(s => (
+            <div key={s.step} className="flex gap-4 p-4 bg-[#f8f8f8] rounded-xl border border-[#E9EDEF]">
+              <div className="w-8 h-8 rounded-full bg-[#075E54] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">{s.step}</div>
+              <div><p className="text-sm font-semibold text-[#111B21]">{s.label}</p><p className="text-xs text-[#667781] mt-0.5">{s.desc}</p></div>
+            </div>
+          ))}
+        </div>
+        <Callout type="info">Webhook failures never affect message delivery or inbox functionality. If your CRM endpoint is down, Waptrix silently skips the webhook and continues normally.</Callout>
+      </div>
+    ),
+
+    "int-crm-setup": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">Set Up the Webhook</h1>
+        <DocP>Setting up your CRM webhook takes less than 2 minutes.</DocP>
+        <Step n={1} title="Get your CRM's webhook URL">In your CRM (HubSpot, Zoho, n8n, etc.), create a new webhook endpoint or workflow trigger. Copy the URL it gives you. It looks like: https://hooks.zapier.com/hooks/catch/xxx or https://your-crm.com/webhooks/waptrix</Step>
+        <Step n={2} title="Go to Waptrix Settings → CRM Integration">In your Waptrix dashboard, go to Settings from the left sidebar. Scroll to the CRM Integration section.</Step>
+        <Step n={3} title="Paste your webhook URL">Paste the URL into the 'Your CRM Webhook URL' field.</Step>
+        <Step n={4} title="Click Save Webhook">Waptrix will save your URL and auto-generate a signing secret. Copy and store the signing secret — you'll use it to verify incoming payloads in your CRM.</Step>
+        <Callout type="success">That's it! From this point, every new WhatsApp message, status update, and opt-out event will be sent to your CRM in real-time.</Callout>
+        <DocH2>Regenerating the Signing Secret</DocH2>
+        <DocP>If your signing secret is ever compromised, click Regenerate Secret in the CRM Integration section. Update the new secret in your CRM immediately — the old secret stops working right away.</DocP>
+        <DocH2>Removing the Webhook</DocH2>
+        <DocP>Click Remove in the CRM Integration section to stop sending events to your CRM. You can re-add a webhook URL at any time.</DocP>
+      </div>
+    ),
+
+    "int-crm-events": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">Webhook Events & Payload</h1>
+        <DocP>Waptrix sends a POST request with a JSON body for each event. All events follow the same base structure.</DocP>
+        <DocH2>Event Types</DocH2>
+        <div className="overflow-x-auto my-4">
+          <table className="w-full text-sm border-collapse">
+            <thead><tr className="bg-[#075E54] text-white"><th className="px-4 py-2 text-left">Event</th><th className="px-4 py-2 text-left">When It Fires</th></tr></thead>
+            <tbody>
+              {[
+                ["message.received","Customer sends a WhatsApp message to you"],
+                ["conversation.created","First-ever message from a new contact (new conversation)"],
+                ["message.status","Message delivery status changes: delivered, read, or failed"],
+                ["contact.opted_out","Customer sends STOP or an opt-out keyword"],
+                ["contact.opted_in","Customer sends START after previously opting out"],
+              ].map(([event, desc], i) => (
+                <tr key={i} className={i%2===0?"bg-white":"bg-[#f5f0e8]"}>
+                  <td className="px-4 py-2 border-b border-[#EDE8DE] font-mono text-xs text-[#075E54]">{event}</td>
+                  <td className="px-4 py-2 border-b border-[#EDE8DE] text-xs text-[#667781]">{desc}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <DocH2>Payload Structure</DocH2>
+        <DocP>All events share this base structure:</DocP>
+        <div className="bg-[#111B21] rounded-xl p-4 my-4 overflow-x-auto">
+          <pre className="text-xs text-[#25D366] leading-relaxed">{`{
+  "event": "message.received",
+  "timestamp": "2026-08-31T10:30:00.000Z",
+  "tenant_id": "your-waptrix-tenant-id",
+
+  "contact": {
+    "phone": "+919876543210",
+    "name": "Rahul Sharma"
+  },
+
+  "conversation_id": "uuid-of-conversation",
+
+  "message": {
+    "id": "wamid.HBgN...",
+    "type": "text",
+    "content": "Hello, I want to know the price",
+    "direction": "inbound",
+    "timestamp": "2026-08-31T10:30:00.000Z"
+  }
+}`}</pre>
+        </div>
+        <DocH2>message.status Payload</DocH2>
+        <div className="bg-[#111B21] rounded-xl p-4 my-4 overflow-x-auto">
+          <pre className="text-xs text-[#25D366] leading-relaxed">{`{
+  "event": "message.status",
+  "timestamp": "2026-08-31T10:31:00.000Z",
+  "tenant_id": "your-waptrix-tenant-id",
+  "message": {
+    "id": "wamid.HBgN...",
+    "type": "status",
+    "content": "delivered",
+    "direction": "outbound",
+    "status": "delivered"
+  }
+}`}</pre>
+        </div>
+        <DocH2>Request Headers</DocH2>
+        <div className="overflow-x-auto my-4">
+          <table className="w-full text-sm border-collapse">
+            <thead><tr className="bg-[#075E54] text-white"><th className="px-4 py-2 text-left">Header</th><th className="px-4 py-2 text-left">Value</th></tr></thead>
+            <tbody>
+              {[
+                ["Content-Type","application/json"],
+                ["X-Waptrix-Event","The event name (e.g. message.received)"],
+                ["X-Waptrix-Signature","sha256=HMAC-SHA256 signature of the body"],
+                ["X-Waptrix-Tenant","Your tenant ID"],
+                ["User-Agent","Waptrix-Webhook/1.0"],
+              ].map(([h, v], i) => (
+                <tr key={i} className={i%2===0?"bg-white":"bg-[#f5f0e8]"}>
+                  <td className="px-4 py-2 border-b border-[#EDE8DE] font-mono text-xs">{h}</td>
+                  <td className="px-4 py-2 border-b border-[#EDE8DE] text-xs text-[#667781]">{v}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <Callout type="info">Your endpoint must respond with any 2xx HTTP status within 8 seconds. If it times out or returns an error, Waptrix skips that event silently — it does not retry.</Callout>
+      </div>
+    ),
+
+    "int-crm-security": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">Verifying Signatures</h1>
+        <DocP>Every webhook request from Waptrix includes an <code className="font-mono text-xs bg-[#EDE8DE] px-1 py-0.5 rounded">X-Waptrix-Signature</code> header. Verify this in your CRM to ensure requests are genuinely from Waptrix and not from a third party.</DocP>
+        <DocH2>How the Signature Works</DocH2>
+        <DocP>Waptrix computes an HMAC-SHA256 hash of the raw request body using your signing secret, then prefixes it with <code className="font-mono text-xs bg-[#EDE8DE] px-1 py-0.5 rounded">sha256=</code>. You compute the same hash on your side and compare.</DocP>
+        <DocH2>Verification Examples</DocH2>
+        <DocH3>Node.js</DocH3>
+        <div className="bg-[#111B21] rounded-xl p-4 my-3 overflow-x-auto">
+          <pre className="text-xs text-[#25D366] leading-relaxed">{`const crypto = require('crypto');
+
+function verifyWaptrixWebhook(rawBody, signature, secret) {
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', secret)
+    .update(rawBody)
+    .digest('hex');
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signature)
+  );
+}
+
+// Express example
+app.post('/webhooks/waptrix', express.raw({ type: '*/*' }), (req, res) => {
+  const sig = req.headers['x-waptrix-signature'];
+  if (!verifyWaptrixWebhook(req.body, sig, process.env.WAPTRIX_SECRET)) {
+    return res.status(401).send('Invalid signature');
+  }
+  const payload = JSON.parse(req.body);
+  console.log('Event:', payload.event);
+  res.sendStatus(200);
+});`}</pre>
+        </div>
+        <DocH3>Python</DocH3>
+        <div className="bg-[#111B21] rounded-xl p-4 my-3 overflow-x-auto">
+          <pre className="text-xs text-[#25D366] leading-relaxed">{`import hmac, hashlib
+
+def verify_waptrix_webhook(raw_body: bytes, signature: str, secret: str) -> bool:
+    expected = 'sha256=' + hmac.new(
+        secret.encode(), raw_body, hashlib.sha256
+    ).hexdigest()
+    return hmac.compare_digest(expected, signature)
+
+# Flask example
+@app.route('/webhooks/waptrix', methods=['POST'])
+def waptrix_webhook():
+    sig = request.headers.get('X-Waptrix-Signature', '')
+    if not verify_waptrix_webhook(request.data, sig, WAPTRIX_SECRET):
+        return 'Unauthorized', 401
+    payload = request.json
+    print('Event:', payload['event'])
+    return '', 200`}</pre>
+        </div>
+        <Callout type="warning">Always use <strong>timing-safe comparison</strong> (timingSafeEqual / hmac.compare_digest) to prevent timing attacks. Never use == for signature comparison.</Callout>
+      </div>
+    ),
+
+    "int-crm-examples": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">CRM Examples</h1>
+        <DocP>Here's how to connect Waptrix to popular tools using the outbound webhook.</DocP>
+
+        <DocH2>Zapier</DocH2>
+        <Step n={1} title="Create a new Zap">Choose 'Webhooks by Zapier' as the trigger. Select 'Catch Hook'.</Step>
+        <Step n={2} title="Copy the Zapier webhook URL">Paste it into Waptrix Settings → CRM Integration and click Save.</Step>
+        <Step n={3} title="Set up the action">Choose your CRM app (HubSpot, Salesforce, etc.) and map the fields: contact.phone → Phone, contact.name → Name, message.content → Note Body.</Step>
+        <Callout type="success">Zapier will now create or update a CRM contact every time a customer messages you on WhatsApp.</Callout>
+
+        <DocH2>n8n / Make (Integromat)</DocH2>
+        <Step n={1} title="Create a Webhook node">In n8n, add a 'Webhook' node. Copy the production webhook URL.</Step>
+        <Step n={2} title="Paste into Waptrix">Go to Settings → CRM Integration, paste the URL, click Save.</Step>
+        <Step n={3} title="Add downstream nodes">Connect CRM nodes (HubSpot, Zoho CRM, Pipedrive, etc.) to create contacts, log activities, or trigger automations based on the event type.</Step>
+        <Step n={4} title="Filter by event">Use an IF node to branch by payload.event: handle message.received differently from contact.opted_out.</Step>
+
+        <DocH2>HubSpot (Direct)</DocH2>
+        <DocP>HubSpot's workflows support incoming webhooks on the Operations Hub plan. Set up a workflow trigger with the Waptrix webhook URL, then map the payload fields to HubSpot contact properties.</DocP>
+
+        <DocH2>Zoho CRM</DocH2>
+        <DocP>In Zoho CRM, go to Setup → Developer Space → Functions. Create a custom function to parse the Waptrix payload and use Zoho's CRM API to create/update records. Expose it as a REST API and use that URL as your webhook endpoint.</DocP>
+
+        <DocH2>Custom Backend</DocH2>
+        <div className="bg-[#111B21] rounded-xl p-4 my-4 overflow-x-auto">
+          <pre className="text-xs text-[#25D366] leading-relaxed">{`// Minimal Express receiver
+app.post('/waptrix', express.raw({ type: '*/*' }), (req, res) => {
+  const payload = JSON.parse(req.body);
+
+  if (payload.event === 'message.received') {
+    // Upsert contact in your DB
+    db.contacts.upsert({
+      phone: payload.contact.phone,
+      name: payload.contact.name,
+    });
+    // Log the message
+    db.activities.create({
+      phone: payload.contact.phone,
+      type: 'whatsapp_message',
+      content: payload.message.content,
+      timestamp: payload.timestamp,
+    });
+  }
+
+  if (payload.event === 'contact.opted_out') {
+    db.contacts.update(
+      { phone: payload.contact.phone },
+      { whatsapp_opted_out: true }
+    );
+  }
+
+  res.sendStatus(200);
+});`}</pre>
+        </div>
+        <Callout type="info">Always respond with 200 immediately, even if your processing is async. Use a queue (Redis, BullMQ, etc.) for heavy processing to avoid timeout errors.</Callout>
       </div>
     ),
   };

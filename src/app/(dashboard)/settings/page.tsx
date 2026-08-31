@@ -75,6 +75,14 @@ export default function SettingsPage() {
   const [pwCurrent, setPwCurrent] = useState("");
   const [pwNew, setPwNew] = useState("");
   const [pwConfirm, setPwConfirm] = useState("");
+
+  // CRM Outbound Webhook state
+  const [crmWebhookUrl, setCrmWebhookUrl] = useState("");
+  const [crmWebhookSecret, setCrmWebhookSecret] = useState("");
+  const [crmWebhookSaving, setCrmWebhookSaving] = useState(false);
+  const [crmWebhookMsg, setCrmWebhookMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [crmSecretVisible, setCrmSecretVisible] = useState(false);
+  const [crmSecretCopied, setCrmSecretCopied] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
@@ -115,6 +123,15 @@ export default function SettingsPage() {
     }
 
     fetchProfile();
+
+    // Load CRM webhook config
+    fetch('/api/settings/webhook')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (d?.webhook_url) setCrmWebhookUrl(d.webhook_url);
+        if (d?.webhook_secret) setCrmWebhookSecret(d.webhook_secret);
+      })
+      .catch(() => {});
   }, [supabase]);
 
   useEffect(() => {
@@ -774,6 +791,149 @@ export default function SettingsPage() {
         </div>
       </section>
 
+
+      {/* CRM / Outbound Webhook Section */}
+      <section className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-jade/10 rounded-xl flex items-center justify-center">
+            <Webhook className="w-5 h-5 text-jade" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold font-syne">CRM Integration</h2>
+            <p className="text-sm text-text-muted">Send real-time WhatsApp events to your CRM or any HTTP endpoint.</p>
+          </div>
+        </div>
+
+        <div className="glass-card space-y-5">
+          {/* Events info */}
+          <div className="bg-jade/5 border border-jade/20 rounded-xl p-4 text-sm text-text-muted leading-relaxed">
+            Waptrix will POST a signed JSON payload to your URL for these events:
+            <span className="font-mono text-xs text-jade ml-1">message.received · message.sent · message.status · conversation.created · contact.opted_out · contact.opted_in</span>
+          </div>
+
+          {/* Webhook URL */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Your CRM Webhook URL</label>
+            <input
+              type="url"
+              value={crmWebhookUrl}
+              onChange={e => setCrmWebhookUrl(e.target.value)}
+              placeholder="https://your-crm.com/webhooks/waptrix"
+              className="input-field w-full text-sm font-mono"
+            />
+          </div>
+
+          {/* Secret */}
+          {crmWebhookSecret && (
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-text-muted uppercase tracking-wider">Signing Secret</label>
+              <div className="flex gap-2">
+                <input
+                  type={crmSecretVisible ? 'text' : 'password'}
+                  readOnly
+                  value={crmWebhookSecret}
+                  className="input-field flex-1 text-sm bg-surface font-mono"
+                />
+                <button
+                  onClick={() => setCrmSecretVisible(v => !v)}
+                  className="btn-secondary p-2.5 text-xs"
+                  title={crmSecretVisible ? 'Hide' : 'Show'}
+                >
+                  {crmSecretVisible ? '🙈' : '👁️'}
+                </button>
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(crmWebhookSecret);
+                    setCrmSecretCopied(true);
+                    setTimeout(() => setCrmSecretCopied(false), 2000);
+                  }}
+                  className="btn-secondary p-2.5 flex items-center gap-1 text-xs"
+                >
+                  {crmSecretCopied ? <CheckCircle2 className="w-4 h-4 text-jade" /> : <Copy className="w-4 h-4" />}
+                  Copy
+                </button>
+              </div>
+              <p className="text-[10px] text-text-muted">
+                Verify incoming requests using the <span className="font-mono">X-Waptrix-Signature</span> header (HMAC-SHA256).
+              </p>
+            </div>
+          )}
+
+          {crmWebhookMsg && (
+            <div className={`flex items-center gap-2 p-3 rounded-xl text-sm ${crmWebhookMsg.type === 'success' ? 'bg-jade/10 text-jade' : 'bg-red-50 text-red-600'}`}>
+              {crmWebhookMsg.type === 'success' ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+              {crmWebhookMsg.text}
+            </div>
+          )}
+
+          <div className="flex gap-3 flex-wrap">
+            <button
+              disabled={crmWebhookSaving || !crmWebhookUrl}
+              onClick={async () => {
+                setCrmWebhookSaving(true); setCrmWebhookMsg(null);
+                try {
+                  const res = await fetch('/api/settings/webhook', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ webhook_url: crmWebhookUrl }),
+                  });
+                  const d = await res.json();
+                  if (!res.ok) throw new Error(d.error);
+                  if (d.webhook_secret) setCrmWebhookSecret(d.webhook_secret);
+                  setCrmWebhookMsg({ type: 'success', text: 'Webhook saved! Events will now be sent to your CRM.' });
+                } catch (e: any) {
+                  setCrmWebhookMsg({ type: 'error', text: e.message });
+                } finally { setCrmWebhookSaving(false); }
+              }}
+              className="btn-primary flex items-center gap-2 text-sm"
+            >
+              {crmWebhookSaving ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle className="w-4 h-4" />}
+              Save Webhook
+            </button>
+
+            {crmWebhookSecret && (
+              <button
+                disabled={crmWebhookSaving}
+                onClick={async () => {
+                  if (!confirm('Regenerate signing secret? Your CRM will need to be updated with the new secret.')) return;
+                  setCrmWebhookSaving(true); setCrmWebhookMsg(null);
+                  try {
+                    const res = await fetch('/api/settings/webhook', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ webhook_url: crmWebhookUrl, regenerate_secret: true }),
+                    });
+                    const d = await res.json();
+                    if (!res.ok) throw new Error(d.error);
+                    setCrmWebhookSecret(d.webhook_secret);
+                    setCrmWebhookMsg({ type: 'success', text: 'Secret regenerated. Update your CRM immediately.' });
+                  } catch (e: any) {
+                    setCrmWebhookMsg({ type: 'error', text: e.message });
+                  } finally { setCrmWebhookSaving(false); }
+                }}
+                className="btn-secondary flex items-center gap-2 text-sm"
+              >
+                <RefreshCcw className="w-4 h-4" /> Regenerate Secret
+              </button>
+            )}
+
+            {crmWebhookUrl && (
+              <button
+                disabled={crmWebhookSaving}
+                onClick={async () => {
+                  if (!confirm('Remove webhook? Events will stop being sent to your CRM.')) return;
+                  await fetch('/api/settings/webhook', { method: 'DELETE' });
+                  setCrmWebhookUrl(''); setCrmWebhookSecret('');
+                  setCrmWebhookMsg({ type: 'success', text: 'Webhook removed.' });
+                }}
+                className="btn-secondary flex items-center gap-2 text-sm text-red-500 hover:bg-red-50"
+              >
+                <Trash2 className="w-4 h-4" /> Remove
+              </button>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Change Password */}
       <section className="pt-8 border-t border-border">

@@ -4,6 +4,7 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { createHmac } from 'crypto';
 import { getCategoryChangeEmail, getTemplateStatusEmail } from '@/lib/email/template';
+import { fireWebhook } from '@/lib/outbound-webhook';
 
 // ──────────────────────────────────────────────────────────
 // Verify Meta webhook signature
@@ -358,6 +359,16 @@ async function handleMessages(db: SupabaseClient, value: any) {
       .update(logUpdate)
       .eq('meta_msg_id', status.id);
 
+    // Fire CRM webhook for status changes
+    if (s === 'delivered' || s === 'read' || s === 'failed') {
+      fireWebhook(tenantId, {
+        event: 'message.status',
+        timestamp: new Date().toISOString(),
+        tenant_id: tenantId,
+        message: { id: status.id, type: 'status', content: s, direction: 'outbound', status: s },
+      });
+    }
+
     // Increment campaign counters based on delivery status
     const s = status.status;
     if (s === 'delivered' || s === 'read' || s === 'failed') {
@@ -435,6 +446,7 @@ async function handleMessages(db: SupabaseClient, value: any) {
     if (type === 'text') {
       if (isOptOut(content)) {
         await handleOptOut(db, tenantId, senderPhone, true);
+        fireWebhook(tenantId, { event: 'contact.opted_out', timestamp: new Date().toISOString(), tenant_id: tenantId, contact: { phone: '+' + senderPhone, name: contactName } });
         // Confirm opt-out to the contact
         sendAutoReply(
           db, tenantId, senderPhone,
@@ -551,6 +563,16 @@ async function handleMessages(db: SupabaseClient, value: any) {
     if (insertErr) {
       console.error('chat_messages insert error:', insertErr.message, insertErr.code);
     }
+
+    // Fire CRM outbound webhook (fire-and-forget — never block the main flow)
+    fireWebhook(tenantId, {
+      event: isNewConversation ? 'conversation.created' : 'message.received',
+      timestamp: msgTimestamp,
+      tenant_id: tenantId,
+      contact: { phone: '+' + senderPhone, name: contactName },
+      conversation_id: conversationId,
+      message: { id: metaMessageId, type, content, direction: 'inbound', timestamp: msgTimestamp },
+    });
 
     // Fire automations (greeting for new conversations, OOO, keyword rules)
     // Must be awaited — setTimeout fire-and-forget is NOT reliable on serverless (Vercel kills
