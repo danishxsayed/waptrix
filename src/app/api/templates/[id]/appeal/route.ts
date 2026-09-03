@@ -68,9 +68,9 @@ export async function POST(
       return NextResponse.json({ error: `Invalid category. Must be one of: ${VALID.join(', ')}` }, { status: 400 });
     }
 
-    // For APPROVED templates Meta requires "appeal_category" field, not "category"
-    const isApproved = template.meta_status === 'APPROVED';
-    await metaApi.appealCategory(token, template.meta_template_id, appealCategory, isApproved);
+    // Pass existing components so Meta treats this as a re-submission (not a bare
+    // category swap, which is rejected for APPROVED templates).
+    await metaApi.appealCategory(token, template.meta_template_id, appealCategory, template.components);
 
     // Update DB — store the appealed category and mark PENDING
     await service

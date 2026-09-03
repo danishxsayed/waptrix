@@ -131,10 +131,19 @@ export const metaApi = {
    * For PENDING/FLAGGED templates: use category field.
    * POST /{message-template-id}  { appeal_category: "UTILITY" | "MARKETING" }
    */
-  async appealCategory(accessToken: string, templateId: string, category: string, isApproved = false) {
-    // For approved templates, Meta requires allow_category_change: true alongside category
+  async appealCategory(
+    accessToken: string,
+    templateId: string,
+    category: string,
+    components?: any[]
+  ) {
+    // Meta requires components to be included for approved templates —
+    // a bare category change is rejected. Sending components + category
+    // triggers a full re-review with the new category.
     const payload: Record<string, any> = { category };
-    if (isApproved) payload.allow_category_change = true;
+    if (components && components.length > 0) {
+      payload.components = components;
+    }
     const response = await axios.post(
       `${GRAPH_URL}/${templateId}`,
       payload,
