@@ -3,8 +3,7 @@ export const dynamic = "force-dynamic";
 import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
-
-
+import { getEffectiveTenantId } from '@/lib/tenant'
 import { NextResponse } from 'next/server';
 
 export async function GET(
@@ -25,6 +24,11 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const tenantId = await getEffectiveTenantId(user.id);
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Your workspace could not be found. Please contact support.' }, { status: 400 });
+    }
+
     const serviceClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
@@ -34,7 +38,7 @@ export async function GET(
       .from('templates')
       .select('*')
       .eq('id', id)
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -60,6 +64,11 @@ export async function PUT(
     
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const tenantId = await getEffectiveTenantId(user.id);
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Your workspace could not be found. Please contact support.' }, { status: 400 });
     }
 
     const body = await req.json();
@@ -98,7 +107,7 @@ export async function PUT(
         meta_status: 'DRAFT'
       })
       .eq('id', id)
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .select()
       .single();
 
@@ -127,6 +136,11 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const tenantId = await getEffectiveTenantId(user.id);
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Your workspace could not be found. Please contact support.' }, { status: 400 });
+    }
+
     const serviceClient = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
@@ -137,7 +151,7 @@ export async function DELETE(
       .from('campaigns')
       .select('id', { count: 'exact', head: true })
       .eq('template_id', id)
-      .eq('tenant_id', user.id);
+      .eq('tenant_id', tenantId);
 
     if (campaignCount && campaignCount > 0) {
       return NextResponse.json({
@@ -149,7 +163,7 @@ export async function DELETE(
       .from('templates')
       .delete()
       .eq('id', id)
-      .eq('tenant_id', user.id);
+      .eq('tenant_id', tenantId);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });

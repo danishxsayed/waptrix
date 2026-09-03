@@ -55,6 +55,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const tenantId = await getEffectiveTenantId(user.id);
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Your workspace could not be found. Please contact support.' }, { status: 400 });
+    }
+
     const body = await request.json();
     const { 
       name, 
@@ -91,7 +96,7 @@ export async function POST(request: Request) {
     const { data, error } = await serviceClient
       .from('templates')
       .insert({
-        tenant_id: user.id,
+        tenant_id: tenantId,
         name,
         category: category || 'MARKETING',
         language: language || 'en_US',

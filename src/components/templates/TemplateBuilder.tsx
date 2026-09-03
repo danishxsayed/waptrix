@@ -21,6 +21,7 @@ interface TemplateButton {
   text: string;
   url?: string;
   phone_number?: string;
+  _key?: string; // stable key for React reconciliation
 }
 
 interface FormData {
@@ -332,7 +333,10 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
       : "",
     body: editTemplate?.body || "",
     footer: editTemplate?.footer || "",
-    buttons: editTemplate?.buttons || [],
+    buttons: (editTemplate?.buttons || []).map((b: TemplateButton) => ({
+      ...b,
+      _key: b._key || `btn-${Math.random().toString(36).slice(2)}`,
+    })),
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -378,15 +382,18 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const updated = { ...formData, [e.target.name]: e.target.value };
-    setFormData(updated);
-    // Auto-detect category when body changes — suggest if different from current selection
-    if (e.target.name === 'body' && e.target.value.length > 20) {
-      const suggested = detectCategory(e.target.value);
-      setSuggestedCategory(suggested !== updated.category ? suggested : null);
-    } else if (e.target.name === 'body') {
-      setSuggestedCategory(null);
-    }
+    const { name, value } = e.target;
+    setFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      // Auto-detect category when body changes
+      if (name === 'body' && value.length > 20) {
+        const suggested = detectCategory(value);
+        setSuggestedCategory(suggested !== updated.category ? suggested : null);
+      } else if (name === 'body') {
+        setSuggestedCategory(null);
+      }
+      return updated;
+    });
   };
 
   // Upload a file directly to Supabase Storage via signed URL.
@@ -463,7 +470,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   };
 
   const handleLibrarySelect = (item: MediaItem) => {
-    setFormData({ ...formData, header_image_url: item.dataUrl });
+    setFormData(prev => ({ ...prev, header_image_url: item.dataUrl }));
     setShowMediaLibrary(false);
   };
 
@@ -562,7 +569,11 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
 
     setIsSubmitting(true);
     try {
-      const payload = { ...formData };
+      // Strip internal _key field — not a DB column
+      const payload = {
+        ...formData,
+        buttons: formData.buttons.map(({ _key, ...btn }) => btn),
+      };
       let res;
       if (savedTemplateId) {
         res = await axios.put(`/api/templates/${savedTemplateId}`, payload);
@@ -595,20 +606,29 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   };
 
   const updateButton = (idx: number, updated: Partial<TemplateButton>) => {
-    const newBtns = [...formData.buttons];
-    newBtns[idx] = { ...newBtns[idx], ...updated };
-    setFormData({ ...formData, buttons: newBtns });
+    setFormData(prev => {
+      const newBtns = [...prev.buttons];
+      newBtns[idx] = { ...newBtns[idx], ...updated };
+      return { ...prev, buttons: newBtns };
+    });
   };
 
   const removeButton = (idx: number) => {
-    const newBtns = [...formData.buttons];
-    newBtns.splice(idx, 1);
-    setFormData({ ...formData, buttons: newBtns });
+    setFormData(prev => {
+      const newBtns = [...prev.buttons];
+      newBtns.splice(idx, 1);
+      return { ...prev, buttons: newBtns };
+    });
   };
 
   const addButton = () => {
-    if (formData.buttons.length >= 3) return;
-    setFormData({ ...formData, buttons: [...formData.buttons, { type: "QUICK_REPLY", text: "" }] });
+    setFormData(prev => {
+      if (prev.buttons.length >= 3) return prev;
+      return {
+        ...prev,
+        buttons: [...prev.buttons, { type: "QUICK_REPLY", text: "", _key: `btn-${Math.random().toString(36).slice(2)}` }],
+      };
+    });
   };
 
   // Preview data: sample in step 1, live in step 2
@@ -1167,7 +1187,7 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
 
                         <div className="space-y-3">
                           {formData.buttons.map((btn, idx) => (
-                            <ButtonRow key={idx} btn={btn} idx={idx} onChange={updateButton} onRemove={removeButton} />
+                            <ButtonRow key={btn._key || idx} btn={btn} idx={idx} onChange={updateButton} onRemove={removeButton} />
                           ))}
                         </div>
 
