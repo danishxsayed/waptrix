@@ -126,13 +126,17 @@ export const metaApi = {
   },
 
   /**
-   * Appeal a Meta category reclassification
-   * POST /{message-template-id}  { category: "UTILITY" | "MARKETING" }
+   * Appeal a Meta category reclassification.
+   * For APPROVED templates: use appeal_category field.
+   * For PENDING/FLAGGED templates: use category field.
+   * POST /{message-template-id}  { appeal_category: "UTILITY" | "MARKETING" }
    */
-  async appealCategory(accessToken: string, templateId: string, category: string) {
+  async appealCategory(accessToken: string, templateId: string, category: string, isApproved = false) {
+    // Approved templates require "appeal_category"; non-approved use "category"
+    const payload = isApproved ? { appeal_category: category } : { category };
     const response = await axios.post(
       `${GRAPH_URL}/${templateId}`,
-      { category },
+      payload,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     return response.data;
