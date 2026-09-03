@@ -397,6 +397,7 @@ async function handleMessages(db: SupabaseClient, value: any) {
       .eq('meta_msg_id', status.id);
 
     // Fire CRM webhook for status changes
+    const s = status.status;
     if (s === 'delivered' || s === 'read' || s === 'failed') {
       fireWebhook(tenantId, {
         event: 'message.status',
@@ -407,7 +408,6 @@ async function handleMessages(db: SupabaseClient, value: any) {
     }
 
     // Increment campaign counters based on delivery status
-    const s = status.status;
     if (s === 'delivered' || s === 'read' || s === 'failed') {
       const { data: log } = await db
         .from('message_logs')
