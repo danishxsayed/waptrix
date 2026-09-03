@@ -1336,11 +1336,16 @@ export default function InboxPanel({
       if (!mRes.ok) return;
       const freshMsgs: ChatMessage[] = await mRes.json();
       setMessages(prev => {
-        if (freshMsgs.length === prev.filter(m => !m.id.startsWith('temp-')).length) return prev;
-        // Merge: keep optimistic temp messages, add new real ones
-        const realIds = new Set(prev.filter(m => !m.id.startsWith('temp-')).map(m => m.id));
-        const newReal = freshMsgs.filter(m => !realIds.has(m.id));
-        return newReal.length > 0 ? [...prev.filter(m => !m.id.startsWith('temp-')), ...freshMsgs.slice(-200)] : prev;
+        const realPrev = prev.filter(m => !m.id.startsWith('temp-'));
+        const hasNewMessages = freshMsgs.length !== realPrev.length;
+        // Also detect status changes (e.g. sent → delivered → read)
+        const hasStatusChange = freshMsgs.some(fm => {
+          const pm = realPrev.find(m => m.id === fm.id);
+          return pm && pm.status !== fm.status;
+        });
+        if (!hasNewMessages && !hasStatusChange) return prev;
+        // Replace real messages with fresh, preserve optimistic temp messages
+        return [...prev.filter(m => m.id.startsWith('temp-')), ...freshMsgs.slice(-200)];
       });
     };
 
