@@ -68,9 +68,44 @@ export async function POST(
       return NextResponse.json({ error: `Invalid category. Must be one of: ${VALID.join(', ')}` }, { status: 400 });
     }
 
-    // Pass existing components so Meta treats this as a re-submission (not a bare
-    // category swap, which is rejected for APPROVED templates).
-    await metaApi.appealCategory(token, template.meta_template_id, appealCategory, template.components);
+    // Build Meta components from stored template fields (same as submit route).
+    // Meta requires components alongside category for APPROVED templates —
+    // a bare category field is rejected.
+    const metaComponents: any[] = [];
+
+    if (template.header_type && template.header_type !== 'NONE') {
+      if (template.header_type === 'TEXT') {
+        metaComponents.push({ type: 'HEADER', format: 'TEXT', text: template.header_text });
+      } else {
+        // IMAGE/VIDEO/DOCUMENT — send format without handle (appeal, not re-upload)
+        metaComponents.push({ type: 'HEADER', format: template.header_type });
+      }
+    }
+
+    const bodyText = template.body || '';
+    const bodyMatches = bodyText.match(/{{(\d+)}}/g);
+    metaComponents.push({
+      type: 'BODY',
+      text: bodyText,
+      ...(bodyMatches?.length ? { example: { body_text: [bodyMatches.map((_: string, i: number) => `Sample ${i + 1}`)] } } : {}),
+    });
+
+    if (template.footer) {
+      metaComponents.push({ type: 'FOOTER', text: template.footer });
+    }
+
+    if (template.buttons?.length > 0) {
+      metaComponents.push({
+        type: 'BUTTONS',
+        buttons: template.buttons.map((btn: any) => {
+          if (btn.type === 'QUICK_REPLY') return { type: 'QUICK_REPLY', text: btn.text };
+          if (btn.type === 'URL') return { type: 'URL', text: btn.text, url: btn.url };
+          return { type: 'PHONE_NUMBER', text: btn.text, phone_number: btn.phone_number };
+        }),
+      });
+    }
+
+    await metaApi.appealCategory(token, template.meta_template_id, appealCategory, metaComponents);
 
     // Update DB — store the appealed category and mark PENDING
     await service

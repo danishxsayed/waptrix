@@ -13,6 +13,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${BASE}/contact`,  lastModified: now, changeFrequency: "yearly",  priority: 0.6 },
     { url: `${BASE}/blog`,     lastModified: now, changeFrequency: "weekly",  priority: 0.8 },
     { url: `${BASE}/docs`,     lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${BASE}/whatsapp-for-ecommerce`,   lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE}/whatsapp-for-clinics`,    lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE}/whatsapp-for-real-estate`,lastModified: now, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${BASE}/signup`,   lastModified: now, changeFrequency: "yearly",  priority: 0.5 },
     { url: `${BASE}/privacy`,  lastModified: now, changeFrequency: "yearly",  priority: 0.4 },
     { url: `${BASE}/terms`,    lastModified: now, changeFrequency: "yearly",  priority: 0.4 },
   ];

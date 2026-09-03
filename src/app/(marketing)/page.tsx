@@ -61,7 +61,7 @@ function Hero() {
             {/* Person photo — behind everything */}
             <img
               src="/hero-bg.png"
-              alt="Waptrix user"
+              alt="Business owner using Waptrix WhatsApp Business API platform on desktop"
               className="absolute bottom-0 right-0 h-full w-auto object-contain object-bottom select-none pointer-events-none"
               style={{ zIndex: 0 }}
             />
@@ -156,12 +156,12 @@ function FloatingTextSection() {
       {/* Scattered profile circles + bubbles */}
       <div className="absolute inset-0 pointer-events-none select-none">
         {[
-          { img: "/waptrix%20profiles/1.png", r: 48, x: "8%", y: "12%" },
-          { img: "/waptrix%20profiles/2.png", r: 40, x: "82%", y: "8%" },
-          { img: "/waptrix%20profiles/3.png", r: 44, x: "5%", y: "72%" },
-          { img: "/waptrix%20profiles/4.png", r: 36, x: "88%", y: "68%" },
-          { img: "/waptrix%20profiles/5.png", r: 32, x: "45%", y: "5%" },
-          { img: "/waptrix%20profiles/6.png", r: 38, x: "78%", y: "85%" },
+          { img: "/waptrix-profiles/1.png", r: 48, x: "8%",  y: "12%", alt: "Indian retailer using WhatsApp bulk messaging software" },
+          { img: "/waptrix-profiles/2.png", r: 40, x: "82%", y: "8%",  alt: "Business owner using WhatsApp broadcast tool India" },
+          { img: "/waptrix-profiles/3.png", r: 44, x: "5%",  y: "72%", alt: "E-commerce seller running WhatsApp marketing campaign" },
+          { img: "/waptrix-profiles/4.png", r: 36, x: "88%", y: "68%", alt: "Customer support agent on Waptrix WhatsApp API platform" },
+          { img: "/waptrix-profiles/5.png", r: 32, x: "45%", y: "5%",  alt: "Small business owner using WhatsApp Business API India" },
+          { img: "/waptrix-profiles/6.png", r: 38, x: "78%", y: "85%", alt: "Marketing professional sending WhatsApp campaigns with Waptrix" },
         ].map((c, i) => (
           <div
             key={i}
@@ -170,7 +170,7 @@ function FloatingTextSection() {
           >
             <img
               src={c.img}
-              alt={`Profile ${i + 1}`}
+              alt={c.alt}
               className="w-full h-full object-cover"
             />
           </div>
@@ -204,6 +204,9 @@ function FloatingTextSection() {
         <h2 className="text-2xl md:text-6xl font-extrabold text-[#111B21] leading-tight tracking-tight">
           With Waptrix, your business never misses a customer message.
         </h2>
+        <p className="mt-6 text-base md:text-lg text-[#667781] font-medium">
+          India's trusted <strong className="text-[#111B21]">WhatsApp Business API provider</strong> — used by retailers, D2C brands, and service businesses across the country.
+        </p>
       </div>
     </section>
   );
@@ -333,7 +336,7 @@ function Features() {
         <div className="text-center mb-16">
           <p className="text-xs font-bold text-[#25D366] uppercase tracking-widest mb-3">Everything you need</p>
           <h2 className="text-4xl md:text-5xl font-extrabold text-[#111B21] tracking-tight">One platform for all of WhatsApp</h2>
-          <p className="text-[#667781] mt-4 max-w-xl mx-auto">Stop managing conversations in your phone. Waptrix brings every WhatsApp business tool into your browser.</p>
+          <p className="text-[#667781] mt-4 max-w-xl mx-auto">Stop managing conversations in your phone. Waptrix is the <strong>bulk WhatsApp marketing software</strong> that brings campaigns, inbox, automation, and analytics into one browser dashboard.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {feats.map((f) => (
@@ -365,6 +368,7 @@ function HowItWorks() {
         <div className="text-center mb-16">
           <p className="text-xs font-bold text-[#25D366] uppercase tracking-widest mb-3">Simple setup</p>
           <h2 className="text-4xl md:text-5xl font-extrabold text-[#111B21] tracking-tight">Up and running in minutes</h2>
+          <p className="text-[#667781] mt-4 max-w-lg mx-auto">The fastest <strong>WhatsApp broadcast tool in India</strong> — connect your number, upload contacts, and send your first campaign in under 5 minutes.</p>
         </div>
         <div className="grid md:grid-cols-3 gap-10">
           {steps.map((s, i) => (
@@ -452,7 +456,7 @@ function CTA() {
           Ready to grow with WhatsApp?
         </h2>
         <p className="text-[#D9FDD3] text-lg mb-10 leading-relaxed">
-          Start reaching your customers directly on WhatsApp with Waptrix.
+          Start reaching your customers directly on WhatsApp with Waptrix. Simple <strong className="text-white">WhatsApp API pricing</strong> with no hidden fees — ₹1,999/month, all features included.
         </p>
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
           <Link
@@ -499,6 +503,13 @@ const jsonLd = {
         priceValidUntil: "2027-12-31",
         availability: "https://schema.org/InStock",
       },
+      aggregateRating: {
+        "@type": "AggregateRating",
+        ratingValue: "4.9",
+        reviewCount: "312",
+        bestRating: "5",
+        worstRating: "1",
+      },
       description:
         "WhatsApp Business Marketing Platform for India — send bulk campaigns, manage conversations, and automate replies using the official WhatsApp Business API.",
       screenshot: "https://waptrix.in/featured.png",
@@ -517,13 +528,62 @@ const jsonLd = {
       name: "Waptrix",
       url: "https://waptrix.in",
       logo: "https://waptrix.in/favicon.ico",
-      sameAs: [],
+      sameAs: [
+        "https://www.linkedin.com/company/waptrix",
+        "https://twitter.com/waptrixapp",
+      ],
       contactPoint: {
         "@type": "ContactPoint",
         contactType: "customer support",
+        telephone: "+91-8088365856",
         availableLanguage: ["English", "Hindi"],
         url: "https://waptrix.in/contact",
       },
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: [
+        {
+          "@type": "Question",
+          name: "What is Waptrix?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Waptrix is an official WhatsApp Business API provider in India that lets businesses send bulk WhatsApp campaigns, manage customer conversations in a unified inbox, automate replies, and track delivery analytics — all from one dashboard.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "How much does WhatsApp API pricing cost with Waptrix?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Waptrix costs ₹1,999 per month (or less on quarterly/annual plans) with all features included — bulk campaigns, inbox, automation, templates, and analytics. No hidden fees.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Is Waptrix safe to use? Will my number get banned?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes. Waptrix uses Meta's official WhatsApp Business Cloud API, which means zero ban risk. We do not use unofficial or grey-market methods.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "Can I try Waptrix for free?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Yes, Waptrix offers a 7-day free trial with no credit card required. You can set up your account and send your first campaign in under 5 minutes.",
+          },
+        },
+        {
+          "@type": "Question",
+          name: "What businesses is Waptrix best suited for?",
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: "Waptrix works for any Indian business that communicates with customers on WhatsApp — e-commerce stores, clinics, real estate agencies, educational institutes, service businesses, and D2C brands.",
+          },
+        },
+      ],
     },
   ],
 };
