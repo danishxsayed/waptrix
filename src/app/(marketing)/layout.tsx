@@ -275,7 +275,7 @@ function Footer() {
     { title: "Company",  links: [["About", "/about"], ["Contact", "/contact"], ["Blog", "/blog"], ["Careers", "/contact"]] },
     { title: "Product",  links: [["Features", "/#features"], ["Pricing", "/pricing"], ["Docs", "/docs"], ["Changelog", "/blog"]] },
     { title: "Legal",    links: [["Privacy Policy", "/privacy"], ["Terms of Service", "/terms"]] },
-    { title: "Support",  links: [["Help Centre", "/docs"], ["Email Support", "mailto:support@waptrix.in"], ["WhatsApp Us", "https://wa.me/919999999999"]] },
+    { title: "Support",  links: [["Help Centre", "/docs"], ["Email Support", "mailto:support@waptrix.in"], ["WhatsApp Us", "https://wa.me/918088365856"]] },
   ];
 
   return (

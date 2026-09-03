@@ -43,8 +43,8 @@ export default function ContactPage() {
               <div className="flex flex-col gap-5 mb-8">
                 {[
                   { icon: Mail,          label: "Email",     value: "support@waptrix.in",   href: "mailto:support@waptrix.in" },
-                  { icon: MessageSquare, label: "WhatsApp",  value: "+91 98765 43210",       href: "https://wa.me/919876543210" },
-                  { icon: Phone,         label: "Phone",     value: "+91 98765 43210",       href: "tel:+919876543210" },
+                  { icon: MessageSquare, label: "WhatsApp",  value: "+91 80883 65856",       href: "https://wa.me/918088365856" },
+                  { icon: Phone,         label: "Phone",     value: "+91 80883 65856",       href: "tel:+918088365856" },
                 ].map((c) => (
                   <a key={c.label} href={c.href} target={c.href.startsWith("http") ? "_blank" : undefined} rel="noopener noreferrer" className="flex items-center gap-4 group">
                     <div className="w-11 h-11 rounded-xl bg-white shadow-sm flex items-center justify-center flex-shrink-0 group-hover:bg-[#D9FDD3] transition-colors border border-[#E9EDEF]">

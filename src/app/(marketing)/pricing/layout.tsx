@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Pricing | Waptrix Pro — WhatsApp Marketing Plans",
   description:
-    "Simple, transparent pricing for Waptrix Pro. Send unlimited WhatsApp campaigns, manage your inbox, and automate replies. Start with a 7-day free trial — no card required.",
+    "Simple, transparent pricing for Waptrix Pro. Unlimited WhatsApp campaigns, inbox, and automation. Start with a 7-day free trial — no card required.",
   alternates: { canonical: "https://waptrix.in/pricing" },
   openGraph: {
     title: "Pricing | Waptrix Pro — WhatsApp Marketing Plans",

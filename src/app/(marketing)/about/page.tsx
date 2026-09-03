@@ -5,7 +5,7 @@ import { Shield, Zap, Heart, MessageSquare, ArrowRight } from "lucide-react";
 export const metadata: Metadata = {
   title: "About Waptrix | WhatsApp Marketing Platform Built for India",
   description:
-    "Learn how Waptrix helps Indian businesses reach customers on WhatsApp with bulk campaigns, smart automation, and a unified inbox — powered by the official WhatsApp Business API.",
+    "Learn how Waptrix helps Indian businesses reach customers on WhatsApp with bulk campaigns, smart automation, and a unified inbox.",
   alternates: { canonical: "https://waptrix.in/about" },
   openGraph: {
     title: "About Waptrix | WhatsApp Marketing Platform Built for India",
@@ -41,7 +41,7 @@ export default function AboutPage() {
         <div className="max-w-3xl mx-auto">
           <p className="text-xs font-bold text-[#25D366] uppercase tracking-widest mb-4">Our mission</p>
           <h2 className="text-4xl font-extrabold text-white leading-tight tracking-tight">
-            Make professional WhatsApp marketing accessible to every Indian business — from 5 people to 500.
+            Make professional WhatsApp marketing accessible to every Indian business, from 5 people to 500.
           </h2>
         </div>
       </section>

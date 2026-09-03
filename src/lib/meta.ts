@@ -132,8 +132,9 @@ export const metaApi = {
    * POST /{message-template-id}  { appeal_category: "UTILITY" | "MARKETING" }
    */
   async appealCategory(accessToken: string, templateId: string, category: string, isApproved = false) {
-    // Approved templates require "appeal_category"; non-approved use "category"
-    const payload = isApproved ? { appeal_category: category } : { category };
+    // For approved templates, Meta requires allow_category_change: true alongside category
+    const payload: Record<string, any> = { category };
+    if (isApproved) payload.allow_category_change = true;
     const response = await axios.post(
       `${GRAPH_URL}/${templateId}`,
       payload,

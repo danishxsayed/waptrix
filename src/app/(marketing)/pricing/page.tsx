@@ -63,7 +63,7 @@ function PaymentBanner() {
         <div>
           <p className="text-sm font-bold text-amber-800">Your 7-day free trial has ended</p>
           <p className="text-xs text-amber-700 mt-0.5">
-            Subscribe to Waptrix Pro below to continue — all your data is safe and waiting.
+            Subscribe to Waptrix Pro below to continue. All your data is safe and waiting.
           </p>
         </div>
       </div>
@@ -75,7 +75,7 @@ function PaymentBanner() {
     <div className="bg-[#D9FDD3] border border-[#25D366]/30 rounded-2xl px-5 py-4 flex items-center gap-3 mb-10">
       <CheckCircle className="w-5 h-5 text-[#075E54] flex-shrink-0" />
       <div>
-        <p className="text-sm font-bold text-[#075E54]">Payment successful — your subscription is active!</p>
+        <p className="text-sm font-bold text-[#075E54]">Payment successful. Your subscription is active!</p>
         <p className="text-xs text-[#128C7E] mt-0.5">
           Check your email for the confirmation.{" "}
           <Link href="/dashboard" className="underline font-semibold">Go to Dashboard →</Link>
@@ -172,7 +172,7 @@ function PricingContent() {
                   Independence Day Launch Offer
                 </p>
                 <p className="text-[#667781] text-xs mt-0.5">
-                  Launching on 15 August 🇮🇳 — Start free, no credit card needed
+                  Launching on 15 August 🇮🇳. Start free, no credit card needed
                 </p>
               </div>
             </div>
@@ -190,7 +190,7 @@ function PricingContent() {
             One plan. Everything included.
           </h1>
           <p className="text-[#667781] max-w-md mx-auto">
-            No hidden fees. No per-message charges beyond your Meta costs. Start with a 7-day free trial — no card required.
+            No hidden fees. No per-message charges beyond your Meta costs. Start with a 7-day free trial, no card required.
           </p>
         </div>
 
@@ -290,7 +290,7 @@ function PricingContent() {
             <div className="mt-4 border-t border-[#E9EDEF] pt-4">
               {sessionUser ? (
                 <p className="text-center text-xs text-[#667781] mb-2">
-                  Logged in as <span className="font-semibold text-[#111B21]">{sessionUser.name}</span> — subscribe directly
+                  Logged in as <span className="font-semibold text-[#111B21]">{sessionUser.name}</span>. Subscribe directly
                 </p>
               ) : (
                 <p className="text-center text-xs text-[#667781] mb-2">Already have an account? Subscribe now</p>
@@ -315,8 +315,8 @@ function PricingContent() {
                 ) : (
                   <>
                     {sessionUser
-                      ? `Subscribe — ₹${pricing.price.toLocaleString("en-IN")}`
-                      : `Log in & Subscribe — ₹${pricing.price.toLocaleString("en-IN")}`
+                      ? `Subscribe for ₹${pricing.price.toLocaleString("en-IN")}`
+                      : `Log in & Subscribe for ₹${pricing.price.toLocaleString("en-IN")}`
                     }
                     <ArrowRight className="w-4 h-4" />
                   </>
@@ -347,12 +347,12 @@ function PricingContent() {
           </h2>
           <div className="grid md:grid-cols-2 gap-4">
             {[
-              ["Can I switch billing cycles?",           "Yes — upgrade from monthly to quarterly or yearly anytime. The remaining days of your current plan will be credited."],
-              ["What payment methods are accepted?",     "UPI (GPay, PhonePe, Paytm), debit/credit cards, and net banking — all via Cashfree."],
+              ["Can I switch billing cycles?",           "Yes, you can upgrade from monthly to quarterly or yearly anytime. The remaining days of your current plan will be credited."],
+              ["What payment methods are accepted?",     "UPI (GPay, PhonePe, Paytm), debit/credit cards, and net banking via Cashfree."],
               ["Is GST included in the price?",          "Prices shown are exclusive of GST. 18% GST applies at checkout for Indian customers."],
               ["When will I get my invoice?",            "A receipt is emailed instantly after payment. GST invoices are available on request."],
               ["What happens when my plan expires?",     "You'll get a reminder 7 days before expiry. After expiry, sending is paused until you renew."],
-              ["Is the WhatsApp Business API included?", "Yes — Waptrix runs on the official Meta WhatsApp Business API. You connect your own number."],
+              ["Is the WhatsApp Business API included?", "Yes. Waptrix runs on the official Meta WhatsApp Business API. You connect your own number."],
             ].map(([q, a]) => (
               <div key={q} className="bg-white rounded-2xl p-5 border border-[#E9EDEF]">
                 <p className="font-bold text-[#111B21] text-sm mb-2">{q}</p>

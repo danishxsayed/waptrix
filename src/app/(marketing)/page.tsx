@@ -8,7 +8,7 @@ import {
 export const metadata: Metadata = {
   title: "Waptrix | WhatsApp Business Marketing Platform for India",
   description:
-    "Send bulk WhatsApp campaigns, manage conversations, automate replies, and track every message — all in one platform. Built for Indian businesses on the official WhatsApp Business API.",
+    "Send bulk WhatsApp campaigns, manage conversations, automate replies, and track every message — all in one platform. Built for Indian businesses.",
   alternates: { canonical: "https://waptrix.in" },
   openGraph: {
     title: "Waptrix | WhatsApp Business Marketing Platform",
@@ -319,9 +319,9 @@ function Features() {
   const feats = [
     { icon: Send, title: "Bulk Campaigns", desc: "Reach thousands with personalised WhatsApp messages in one click." },
     { icon: Inbox, title: "Unified Inbox", desc: "All conversations in one place. Assign, reply, and resolve." },
-    { icon: Bot, title: "Automation", desc: "Keyword triggers, auto-replies, and drip sequences — 24/7." },
+    { icon: Bot, title: "Automation", desc: "Keyword triggers, auto-replies, and drip sequences. 24/7." },
     { icon: FileText, title: "Template Manager", desc: "Create Meta-approved templates with images, variables, and buttons." },
-    { icon: BarChart3, title: "Live Analytics", desc: "Sent, delivered, read, replied — tracked in real time." },
+    { icon: BarChart3, title: "Live Analytics", desc: "Sent, delivered, read, replied. Tracked in real time." },
     { icon: Users, title: "Team Access", desc: "Invite your team, set roles, collaborate in team chat." },
     { icon: Shield, title: "Official API", desc: "Built on Meta's official WhatsApp Business API. Zero ban risk." },
     { icon: Zap, title: "Instant Setup", desc: "Connect your number and send your first campaign in 5 minutes." },

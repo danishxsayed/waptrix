@@ -6,7 +6,7 @@ import { POSTS, TAG_COLORS } from "./posts";
 export const metadata: Metadata = {
   title: "Blog | WhatsApp Marketing Tips & Guides — Waptrix",
   description:
-    "Actionable WhatsApp marketing guides, bulk messaging tips, and Business API tutorials for Indian businesses. Learn how to grow with WhatsApp from the Waptrix team.",
+    "Actionable WhatsApp marketing guides, bulk messaging tips, and Business API tutorials for Indian businesses. Learn how to grow with WhatsApp.",
   alternates: { canonical: "https://waptrix.in/blog" },
   openGraph: {
     title: "Blog | WhatsApp Marketing Tips & Guides — Waptrix",
