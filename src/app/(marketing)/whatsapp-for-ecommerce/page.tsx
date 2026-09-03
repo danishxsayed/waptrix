@@ -5,7 +5,7 @@ import { ArrowRight, ShoppingCart, Package, RotateCcw, Star, CheckCircle } from 
 export const metadata: Metadata = {
   title: "WhatsApp Marketing for E-commerce | Waptrix",
   description:
-    "Send order confirmations, abandoned cart reminders, and promotional campaigns on WhatsApp. Boost e-commerce sales with Waptrix — India's bulk WhatsApp marketing software.",
+    "Send order confirmations, abandoned cart reminders, and promotional campaigns on WhatsApp. Boost e-commerce sales with Waptrix  India's bulk WhatsApp marketing software.",
   alternates: { canonical: "https://waptrix.in/whatsapp-for-ecommerce" },
   openGraph: {
     title: "WhatsApp Marketing for E-commerce | Waptrix",
@@ -58,7 +58,7 @@ const results = [
   ["98%", "WhatsApp open rate vs 20% for email"],
   ["3×", "Higher cart recovery than SMS"],
   ["60%", "Drop in 'where is my order?' calls"],
-  ["5 min", "Setup time — no developers needed"],
+  ["5 min", "Setup time  no developers needed"],
 ];
 
 export default function EcommercePage() {
@@ -72,7 +72,7 @@ export default function EcommercePage() {
           WhatsApp marketing for e-commerce stores in India.
         </h1>
         <p className="text-lg text-[#667781] max-w-2xl mx-auto leading-relaxed mb-10">
-          Recover abandoned carts, send order updates, and run promotional broadcasts — all via the official <strong className="text-[#111B21]">WhatsApp Business API</strong>. Used by Shopify, WooCommerce, and direct-to-consumer brands across India.
+          Recover abandoned carts, send order updates, and run promotional broadcasts  all via the official <strong className="text-[#111B21]">WhatsApp Business API</strong>. Used by Shopify, WooCommerce, and direct-to-consumer brands across India.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <Link href="/signup" className="inline-flex items-center gap-2 bg-[#25D366] text-[#111B21] font-bold px-7 py-3.5 rounded-full hover:bg-[#128C7E] hover:text-white transition-all text-sm shadow-lg">

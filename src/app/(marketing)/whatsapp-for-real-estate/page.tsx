@@ -72,7 +72,7 @@ export default function RealEstatePage() {
           WhatsApp marketing for real estate agents and developers in India.
         </h1>
         <p className="text-lg text-[#667781] max-w-2xl mx-auto leading-relaxed mb-10">
-          Share property listings, follow up with leads, and send site visit reminders — all via the official <strong className="text-[#111B21]">WhatsApp Business API</strong>. Used by brokers, builders, and property consultants across India.
+          Share property listings, follow up with leads, and send site visit reminders  all via the official <strong className="text-[#111B21]">WhatsApp Business API</strong>. Used by brokers, builders, and property consultants across India.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <Link href="/signup" className="inline-flex items-center gap-2 bg-[#25D366] text-[#111B21] font-bold px-7 py-3.5 rounded-full hover:bg-[#128C7E] hover:text-white transition-all text-sm shadow-lg">

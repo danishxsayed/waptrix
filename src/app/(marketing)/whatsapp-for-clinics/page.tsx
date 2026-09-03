@@ -56,9 +56,9 @@ const useCases = [
 
 const results = [
   ["40%", "Fewer no-shows with WhatsApp reminders"],
-  ["98%", "Open rate — patients actually read it"],
+  ["98%", "Open rate  patients actually read it"],
   ["2×", "More AMC renewals vs calling"],
-  ["5 min", "Setup — no IT team needed"],
+  ["5 min", "Setup  no IT team needed"],
 ];
 
 export default function ClinicsPage() {
@@ -72,7 +72,7 @@ export default function ClinicsPage() {
           WhatsApp appointment reminders and AMC alerts for Indian businesses.
         </h1>
         <p className="text-lg text-[#667781] max-w-2xl mx-auto leading-relaxed mb-10">
-          Stop losing patients and service customers to no-shows and missed renewals. Waptrix sends automated WhatsApp reminders via the official <strong className="text-[#111B21]">WhatsApp Business API</strong> — for clinics, diagnostic labs, AC service centres, RO dealers, and more.
+          Stop losing patients and service customers to no-shows and missed renewals. Waptrix sends automated WhatsApp reminders via the official <strong className="text-[#111B21]">WhatsApp Business API</strong>  for clinics, diagnostic labs, AC service centres, RO dealers, and more.
         </p>
         <div className="flex flex-wrap justify-center gap-4">
           <Link href="/signup" className="inline-flex items-center gap-2 bg-[#25D366] text-[#111B21] font-bold px-7 py-3.5 rounded-full hover:bg-[#128C7E] hover:text-white transition-all text-sm shadow-lg">
