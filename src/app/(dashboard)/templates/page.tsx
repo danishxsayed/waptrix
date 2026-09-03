@@ -34,7 +34,7 @@ export default function TemplatesPage() {
   const [deleteError, setDeleteError] = useState<{ id: string; msg: string } | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
-  const [appealModal, setAppealModal] = useState<{ template: any; category: string; submitting: boolean } | null>(null);
+  const [appealModal, setAppealModal] = useState<{ template: any; category: string; submitting: boolean; apiBlocked?: boolean } | null>(null);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -172,8 +172,16 @@ export default function TemplatesPage() {
       showToast("Appeal submitted! Meta will review within 24h.");
       setAppealModal(null);
     } catch (err: any) {
-      showToast(err.response?.data?.error || "Appeal failed.", "error");
-      setAppealModal(prev => prev ? { ...prev, submitting: false } : null);
+      const msg: string = err.response?.data?.error || "Appeal failed.";
+      const isApprovedBlock = msg.toLowerCase().includes('cannot update an approved');
+      if (isApprovedBlock) {
+        // Meta blocks API-level category changes for APPROVED templates.
+        // Show modal guidance instead of a toast.
+        setAppealModal(prev => prev ? { ...prev, submitting: false, apiBlocked: true } : null);
+      } else {
+        showToast(msg, "error");
+        setAppealModal(prev => prev ? { ...prev, submitting: false } : null);
+      }
     }
   };
 
@@ -236,6 +244,31 @@ export default function TemplatesPage() {
               </button>
             </div>
             <div className="px-6 py-5 space-y-4">
+              {appealModal.apiBlocked ? (
+                <>
+                  <p className="text-sm text-text-muted">
+                    Meta's API does not allow category changes on <strong className="text-text-primary">APPROVED</strong> templates programmatically. You need to appeal directly in WhatsApp Manager.
+                  </p>
+                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl px-4 py-3 space-y-2">
+                    <p className="text-xs font-bold text-amber-400">How to appeal in WhatsApp Manager:</p>
+                    <ol className="text-xs text-amber-400 space-y-1 list-decimal list-inside leading-relaxed">
+                      <li>Go to <strong>WhatsApp Manager</strong> → <strong>Message Templates</strong></li>
+                      <li>Find <strong>{appealModal.template.name}</strong></li>
+                      <li>Click the template → <strong>Appeal Category</strong></li>
+                      <li>Select <strong>{appealModal.category.charAt(0) + appealModal.category.slice(1).toLowerCase()}</strong> and submit</li>
+                    </ol>
+                  </div>
+                  <a
+                    href="https://business.facebook.com/wa/manage/message-templates/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full bg-[#1877F2] hover:bg-[#1464D8] text-white font-bold py-2.5 rounded-xl text-sm transition-colors"
+                  >
+                    Open WhatsApp Manager ↗
+                  </a>
+                </>
+              ) : (
+              <>
               <p className="text-sm text-text-muted">
                 Appealing <span className="font-semibold text-text-primary">{appealModal.template.name}</span>.
                 {appealModal.template.meta_category && appealModal.template.meta_category !== appealModal.template.category && (
@@ -267,6 +300,8 @@ export default function TemplatesPage() {
                   Meta will review your appeal within 24 hours. If approved, the template will be re-listed under <strong>{appealModal.category.charAt(0) + appealModal.category.slice(1).toLowerCase()}</strong>. If rejected, no change is made.
                 </p>
               </div>
+              </>
+              )}
             </div>
             <div className="flex items-center gap-3 px-6 py-4 border-t border-border">
               <button
@@ -274,8 +309,9 @@ export default function TemplatesPage() {
                 className="flex-1 btn-secondary text-sm"
                 disabled={appealModal.submitting}
               >
-                Cancel
+                {appealModal.apiBlocked ? 'Close' : 'Cancel'}
               </button>
+              {!appealModal.apiBlocked && (
               <button
                 onClick={submitAppeal}
                 disabled={appealModal.submitting}
@@ -287,6 +323,7 @@ export default function TemplatesPage() {
                   <><Flag className="w-4 h-4" /> Submit Appeal</>
                 )}
               </button>
+              )}
             </div>
           </div>
         </div>
