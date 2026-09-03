@@ -46,14 +46,16 @@ async function getTenantByWaba(db: SupabaseClient, wabaId: string): Promise<stri
 }
 
 // ──────────────────────────────────────────────────────────
-// Opt-out keywords (case-insensitive, whole message match)
+// Opt-out / opt-in keywords (whole-message match, case-insensitive)
+// NOTE: "yes" is intentionally excluded — it's a common campaign reply keyword
+// and must be handled by campaign auto-reply rules, not subscription management.
 // ──────────────────────────────────────────────────────────
 const OPT_OUT_KEYWORDS = new Set([
   'stop', 'unsubscribe', 'optout', 'opt out', 'opt-out',
   'cancel', 'end', 'quit', 'remove me',
 ]);
 const OPT_IN_KEYWORDS = new Set([
-  'start', 'subscribe', 'optin', 'opt in', 'opt-in', 'yes',
+  'start', 'subscribe', 'optin', 'opt in', 'opt-in',
 ]);
 
 function isOptOut(text: string) {
@@ -61,6 +63,28 @@ function isOptOut(text: string) {
 }
 function isOptIn(text: string) {
   return OPT_IN_KEYWORDS.has(text.trim().toLowerCase());
+}
+
+// ──────────────────────────────────────────────────────────
+// Extract the matchable text for automation rules.
+// For button/interactive types, combines title + payload so
+// campaign rules can match either field.
+// ──────────────────────────────────────────────────────────
+function extractMatchText(msg: any, type: string, content: string): string {
+  if (type === 'button') {
+    const parts = [msg.button?.text, msg.button?.payload].filter(Boolean);
+    return parts.join(' ').trim() || content;
+  }
+  if (type === 'interactive') {
+    const parts = [
+      msg.interactive?.button_reply?.title,
+      msg.interactive?.button_reply?.id,
+      msg.interactive?.list_reply?.title,
+      msg.interactive?.list_reply?.id,
+    ].filter(Boolean);
+    return parts.join(' ').trim() || content;
+  }
+  return content;
 }
 
 // Mark a contact opted-out (or back in) by phone number
@@ -148,16 +172,22 @@ async function sendAutoReply(
 }
 
 /**
- * Campaign auto-reply: when a contact replies to a campaign message, check if the
- * campaign has auto_reply rules enabled and fire the matching response.
+ * Priority 1 — Campaign auto-reply.
+ * Called BEFORE opt-in/opt-out and keyword automations.
+ * Returns true if a campaign rule matched (so callers can skip lower-priority handlers).
+ *
+ * matchText is the combined text + payload for button/interactive messages,
+ * or plain message text for text messages.
  */
-async function maybeFirCampaignAutoReply(
+async function maybeFireCampaignAutoReply(
   db: SupabaseClient,
   tenantId: string,
   senderPhone: string,
-  inboundText: string
-) {
+  matchText: string
+): Promise<boolean> {
   try {
+    if (!matchText.trim()) return false;
+
     // Normalise phone — message_logs stores without leading +
     const phoneNorm = senderPhone.replace(/^\+/, '');
 
@@ -174,7 +204,7 @@ async function maybeFirCampaignAutoReply(
       .limit(1)
       .maybeSingle();
 
-    if (!logRow?.campaign_id) return;
+    if (!logRow?.campaign_id) return false;
 
     // Fetch campaign auto_replies config
     const { data: campaign } = await db
@@ -183,24 +213,30 @@ async function maybeFirCampaignAutoReply(
       .eq('id', logRow.campaign_id)
       .maybeSingle();
 
-    if (!campaign?.auto_replies?.enabled) return;
+    if (!campaign?.auto_replies?.enabled) return false;
     const rules: { keywords: string[]; response: string }[] = campaign.auto_replies.rules || [];
-    if (rules.length === 0) return;
+    if (rules.length === 0) return false;
 
-    const textLower = inboundText.toLowerCase().trim();
+    // Match against the combined text (covers button title AND payload)
+    const textLower = matchText.toLowerCase().trim();
 
     for (const rule of rules) {
-      if (!rule.keywords || !rule.response) continue;
-      const matched = rule.keywords.some((kw: string) => textLower.includes(kw.toLowerCase()));
+      if (!rule.keywords?.length || !rule.response) continue;
+      const matched = rule.keywords.some((kw: string) => {
+        const kwl = kw.trim().toLowerCase();
+        return kwl && textLower.includes(kwl);
+      });
       if (matched) {
-        setTimeout(() => {
-          sendAutoReply(db, tenantId, senderPhone, rule.response);
-        }, 1200);
-        break; // only fire the first matching rule
+        await sendAutoReply(db, tenantId, senderPhone, rule.response);
+        console.log(`[automation] Campaign rule matched for "${matchText}" → campaign ${campaign.id}`);
+        return true; // matched — callers skip lower-priority handlers
       }
     }
+
+    return false; // campaign found but no rule matched
   } catch (err: any) {
     console.error('Campaign auto-reply check failed:', err.message);
+    return false;
   }
 }
 
@@ -215,7 +251,8 @@ async function maybeFireAutomations(
   tenantId: string,
   toPhone: string,
   isNewConversation: boolean,
-  messageText?: string
+  messageText?: string,
+  skipKeywords = false  // true when campaign auto-reply already handled this message
 ) {
   try {
     const { data: automations } = await db
@@ -263,7 +300,7 @@ async function maybeFireAutomations(
 
         await sendAutoReply(db, tenantId, toPhone, auto.message);
 
-      } else if (auto.type === 'keyword_rules' && messageText && auto.message) {
+      } else if (auto.type === 'keyword_rules' && messageText && auto.message && !skipKeywords) {
         // Parse the JSON rules array and match against messageText
         try {
           const rules: { id: string; keywords: string[]; response: string }[] = JSON.parse(auto.message);
@@ -442,26 +479,8 @@ async function handleMessages(db: SupabaseClient, value: any) {
 
     const msgTimestamp = new Date(parseInt(msg.timestamp) * 1000).toISOString();
 
-    // ── Opt-out / opt-in detection ──────────────────────────
-    if (type === 'text') {
-      if (isOptOut(content)) {
-        await handleOptOut(db, tenantId, senderPhone, true);
-        fireWebhook(tenantId, { event: 'contact.opted_out', timestamp: new Date().toISOString(), tenant_id: tenantId, contact: { phone: '+' + senderPhone, name: contactName } });
-        // Confirm opt-out to the contact
-        sendAutoReply(
-          db, tenantId, senderPhone,
-          "You've been unsubscribed and won't receive further messages from us. " +
-          "Reply START anytime to opt back in."
-        );
-      } else if (isOptIn(content)) {
-        await handleOptOut(db, tenantId, senderPhone, false);
-        sendAutoReply(
-          db, tenantId, senderPhone,
-          "You've been re-subscribed! You'll now receive messages from us again. " +
-          "Reply STOP at any time to unsubscribe."
-        );
-      }
-    }
+    // ── Extract matchable text (covers button title + payload for template button clicks) ──
+    const matchText = extractMatchText(msg, type, content);
 
     // Meta sends phone without + (e.g. "919970939342") but some conversations
     // are stored with + prefix (created via outbound start route). Match both.
@@ -574,15 +593,58 @@ async function handleMessages(db: SupabaseClient, value: any) {
       message: { id: metaMessageId, type, content, direction: 'inbound', timestamp: msgTimestamp },
     });
 
-    // Fire automations (greeting for new conversations, OOO, keyword rules)
-    // Must be awaited — setTimeout fire-and-forget is NOT reliable on serverless (Vercel kills
-    // the function after the response is sent, before macrotasks can execute).
-    await maybeFireAutomations(db, tenantId, senderPhone, isNewConversation, type === 'text' ? content : undefined);
+    // ── Automation priority routing ────────────────────────────────────────────
+    //
+    // Priority 1: Campaign auto-reply (checked first for text, button, interactive).
+    //   Button clicks from template quick-replies arrive as type='button' or 'interactive'.
+    //   matchText includes both button title and payload for broad matching.
+    //
+    // Priority 2: Keyword automations — only if campaign didn't handle the message.
+    //   Greeting (new conversation) and OOO automations always fire regardless.
+    //
+    // Priority 3: Opt-in/opt-out system keywords — only for plain text messages
+    //   and only if no campaign rule matched. "yes" is NOT an opt-in keyword.
+    // ─────────────────────────────────────────────────────────────────────────
 
-    // Check campaign auto-reply rules for text messages
-    if (type === 'text' && content && !isOptOut(content) && !isOptIn(content)) {
-      await maybeFirCampaignAutoReply(db, tenantId, senderPhone, content);
+    const isActionableType = ['text', 'button', 'interactive'].includes(type);
+    let campaignHandled = false;
+
+    if (isActionableType && matchText) {
+      campaignHandled = await maybeFireCampaignAutoReply(db, tenantId, senderPhone, matchText);
     }
+
+    if (!campaignHandled && type === 'text') {
+      // Priority 3: opt-in / opt-out (only plain text, only if campaign didn't fire)
+      if (isOptOut(content)) {
+        await handleOptOut(db, tenantId, senderPhone, true);
+        fireWebhook(tenantId, {
+          event: 'contact.opted_out',
+          timestamp: new Date().toISOString(),
+          tenant_id: tenantId,
+          contact: { phone: '+' + senderPhone, name: contactName },
+        });
+        await sendAutoReply(
+          db, tenantId, senderPhone,
+          "You've been unsubscribed and won't receive further messages from us. " +
+          "Reply START anytime to opt back in."
+        );
+      } else if (isOptIn(content)) {
+        await handleOptOut(db, tenantId, senderPhone, false);
+        await sendAutoReply(
+          db, tenantId, senderPhone,
+          "You've been re-subscribed! You'll now receive messages from us again. " +
+          "Reply STOP at any time to unsubscribe."
+        );
+      }
+    }
+
+    // Greeting (new conversation) and OOO automations always fire.
+    // Keyword automations are skipped when campaign already handled the message.
+    await maybeFireAutomations(
+      db, tenantId, senderPhone, isNewConversation,
+      type === 'text' ? content : matchText,
+      campaignHandled  // skipKeywords = true if campaign matched
+    );
   }
 }
 
