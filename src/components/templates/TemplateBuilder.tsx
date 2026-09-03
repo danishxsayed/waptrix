@@ -356,7 +356,6 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
   const [showSampleModal, setShowSampleModal] = useState(false);
   const [sampleValues, setSampleValues] = useState<Record<string, string>>({});
   const bodyRef = useRef<HTMLTextAreaElement>(null);
-  const bodyOverlayRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
@@ -1019,65 +1018,18 @@ export default function TemplateBuilder({ onClose, onSave, editTemplate }: { onC
                     <label className="text-xs font-bold text-text-muted uppercase tracking-wider block">Body</label>
                     <p className="text-xs text-text-muted">The WhatsApp message in the language you have selected</p>
                     <div className="border border-border rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-jade/30">
-                      {/* Highlight overlay wrapper */}
                       <div className="relative bg-surface">
-                        {/*
-                          Highlight overlay technique:
-                          • Bottom div: shows ALL text in normal color + variable marks in jade.
-                          • Top textarea: color:transparent + caretColor visible → user types normally,
-                            caret shows, but glyph pixels come from the div below.
-                        */}
-                        <div
-                          ref={bodyOverlayRef}
-                          aria-hidden="true"
-                          className="absolute inset-0 px-4 py-3 text-sm whitespace-pre-wrap break-words pointer-events-none select-none text-text-primary"
-                          style={{ lineHeight: "1.625", fontFamily: "inherit", overflowY: "hidden" }}
-                        >
-                          {formData.body.length === 0 ? (
-                            <span className="text-text-muted">Write your template body here...</span>
-                          ) : (
-                            formData.body.split(/({{[\d]+}})/g).map((part, i) =>
-                              part.match(/{{[\d]+}}/) ? (
-                                <mark
-                                  key={i}
-                                  style={{
-                                    background: "rgba(16,185,129,0.2)",
-                                    color: "#10B981",
-                                    borderRadius: "4px",
-                                    padding: "0 3px",
-                                    fontWeight: 700,
-                                  }}
-                                >
-                                  {part}
-                                </mark>
-                              ) : (
-                                <span key={i}>{part}</span>
-                              )
-                            )
-                          )}
-                        </div>
-                        {/* Transparent textarea — captures input; text is invisible so the div below shows through */}
                         <textarea
                           ref={bodyRef}
                           name="body"
                           value={formData.body}
                           onChange={handleChange}
                           rows={5}
-                          className="relative w-full bg-transparent px-4 py-3 text-sm resize-none focus:outline-none placeholder:text-transparent"
-                          style={{
-                            color: "transparent",
-                            caretColor: "var(--color-text-primary)",
-                            lineHeight: "1.625",
-                            overflowY: "auto",
-                          }}
-                          placeholder="x"
+                          className="w-full bg-transparent px-4 py-3 text-sm resize-none focus:outline-none text-text-primary placeholder:text-text-muted"
+                          style={{ lineHeight: "1.625" }}
+                          placeholder="Write your template body here..."
                           disabled={isPostSubmit}
                           onBlur={() => setShowEmojiPicker(false)}
-                          onScroll={(e) => {
-                            if (bodyOverlayRef.current) {
-                              bodyOverlayRef.current.scrollTop = e.currentTarget.scrollTop;
-                            }
-                          }}
                         />
                       </div>
                       {/* Toolbar */}
