@@ -26,6 +26,7 @@ import {
   MessageSquare,
   X,
   Info,
+  MessageCircleReply,
 } from "lucide-react";
 
 interface Campaign {
@@ -72,6 +73,7 @@ export default function CampaignDetailPage() {
 
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
+  const [replyCount, setReplyCount] = useState<number>(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [error, setError] = useState("");
@@ -107,10 +109,20 @@ export default function CampaignDetailPage() {
     }
   }, [id]);
 
+  const fetchReplies = useCallback(async () => {
+    try {
+      const res = await axios.get(`/api/campaigns/${id}/replies`);
+      setReplyCount(res.data?.reply_count ?? 0);
+    } catch {
+      // non-fatal — reply count stays 0
+    }
+  }, [id]);
+
   useEffect(() => {
     fetchCampaign();
     fetchLogs();
-  }, [fetchCampaign, fetchLogs]);
+    fetchReplies();
+  }, [fetchCampaign, fetchLogs, fetchReplies]);
 
   // Auto-refresh when campaign is sending
   useEffect(() => {
@@ -126,7 +138,7 @@ export default function CampaignDetailPage() {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([fetchCampaign(), fetchLogs()]);
+    await Promise.all([fetchCampaign(), fetchLogs(), fetchReplies()]);
     setRefreshing(false);
   };
 
@@ -250,7 +262,8 @@ export default function CampaignDetailPage() {
   const logCounts = {
     all: logs.length,
     sent: logs.filter((l) => (l.status || "").toLowerCase() === "sent").length,
-    delivered: logs.filter((l) => (l.status || "").toLowerCase() === "delivered").length,
+    // "delivered" includes messages that progressed to "read" — read implies delivered
+    delivered: logs.filter((l) => ["delivered", "read"].includes((l.status || "").toLowerCase())).length,
     read: logs.filter((l) => (l.status || "").toLowerCase() === "read").length,
     failed: logs.filter((l) => (l.status || "").toLowerCase() === "failed").length,
   };
@@ -258,7 +271,8 @@ export default function CampaignDetailPage() {
   // Use live log counts when available — they're ground truth vs potentially stale campaign columns
   const logsLoaded = !isLoadingLogs && logs.length > 0;
   const displaySent      = logsLoaded ? logCounts.all - logCounts.failed : campaign.sent_count;
-  const displayDelivered = logsLoaded ? logCounts.delivered : campaign.delivered_count;
+  // For delivered: if logs loaded use live count (which includes read); else use DB columns sum
+  const displayDelivered = logsLoaded ? logCounts.delivered : (campaign.delivered_count + campaign.read_count);
   const displayRead      = logsLoaded ? logCounts.read : campaign.read_count;
   const displayFailed    = logsLoaded ? logCounts.failed : campaign.failed_count;
 
@@ -266,6 +280,7 @@ export default function CampaignDetailPage() {
   const deliveredPct = Math.round((displayDelivered / total) * 100);
   const readPct      = Math.round((displayRead      / total) * 100);
   const failedPct    = Math.round((displayFailed    / total) * 100);
+  const replyPct     = Math.round((replyCount       / total) * 100);
 
   return (
     <div className="space-y-6 pb-10">
@@ -309,12 +324,13 @@ export default function CampaignDetailPage() {
       </div>
 
       {/* ── Stat Cards ── */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
         {[
           { label: "Total", value: campaign.total_contacts, icon: Users, color: "text-text-primary" },
           { label: "Sent", value: displaySent, icon: Send, color: "text-sky-500" },
           { label: "Delivered", value: displayDelivered, icon: PackageCheck, color: "text-emerald-400" },
           { label: "Read", value: displayRead, icon: Eye, color: "text-jade" },
+          { label: "Replied", value: replyCount, icon: MessageCircleReply, color: "text-violet-400" },
           { label: "Failed", value: displayFailed, icon: AlertCircle, color: "text-rose-500" },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="glass-card flex flex-col gap-2">
@@ -341,6 +357,7 @@ export default function CampaignDetailPage() {
             { label: "Sent", pct: sentPct, color: "bg-sky-500" },
             { label: "Delivered", pct: deliveredPct, color: "bg-emerald-400" },
             { label: "Read", pct: readPct, color: "bg-jade" },
+            { label: "Replied", pct: replyPct, color: "bg-violet-400" },
             { label: "Failed", pct: failedPct, color: "bg-rose-500" },
           ].map(({ label, pct, color }) => (
             <div key={label} className="space-y-1">
