@@ -223,7 +223,7 @@ export default function CampaignsPage() {
 
             <div className="flex items-center gap-4 border-l border-border/50 pl-8 h-12 relative" onClick={(e) => e.stopPropagation()}>
               <div className="text-center">
-                <p className="text-xs font-bold text-text-primary">{(campaign.delivered_count || 0) + (campaign.read_count || 0)}</p>
+                <p className="text-xs font-bold text-text-primary">{campaign.delivered_count || 0}</p>
                 <p className="text-[10px] text-text-muted uppercase">Delivered</p>
               </div>
               <div className="text-center">

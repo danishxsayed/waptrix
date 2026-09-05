@@ -42,9 +42,11 @@ export async function GET(
       return NextResponse.json({ reply_count: 0, replied_phones: [] });
     }
 
-    // Normalise phones — strip leading + so comparison works both ways
+    // Normalise phones — strip leading + for consistent comparison
     const normalize = (p: string) => p.replace(/^\+/, '');
-    const sentPhones = [...new Set(sentLogs.map((l) => normalize(l.phone)))];
+
+    // Build a Set of normalised sent phones for O(1) lookup
+    const sentPhoneSet = new Set(sentLogs.map((l) => normalize(l.phone)));
 
     // Earliest send time for this campaign
     const sentTimes = sentLogs.map((l) => l.sent_at).filter(Boolean);
@@ -52,38 +54,47 @@ export async function GET(
       ? sentTimes.reduce((a, b) => (a < b ? a : b))
       : new Date(0).toISOString();
 
-    // 2. Find conversations whose contact_phone matches a sent phone
-    //    Build OR filter covering both +91xxx and 91xxx variants
-    const phoneFilter = sentPhones
-      .flatMap((p) => [`contact_phone.eq.${p}`, `contact_phone.eq.+${p}`])
-      .join(',');
-
+    // 2. Fetch ALL conversations for this tenant — filter in JS to avoid huge OR filter
+    //    (Supabase OR strings with 400+ conditions exceed URL limits)
     const { data: convs } = await db
       .from('conversations')
       .select('id, contact_phone')
-      .eq('tenant_id', tenantId)
-      .or(phoneFilter);
+      .eq('tenant_id', tenantId);
 
     if (!convs || convs.length === 0) {
       return NextResponse.json({ reply_count: 0, replied_phones: [] });
     }
 
-    const convIds = convs.map((c) => c.id);
+    // Keep only conversations whose phone matches a sent phone
+    const matchedConvs = convs.filter((c) => sentPhoneSet.has(normalize(c.contact_phone)));
+    if (matchedConvs.length === 0) {
+      return NextResponse.json({ reply_count: 0, replied_phones: [] });
+    }
 
-    // 3. Count conversations that have at least one inbound message AFTER the campaign was sent
-    const { data: replyConvs } = await db
-      .from('chat_messages')
-      .select('conversation_id')
-      .eq('tenant_id', tenantId)
-      .eq('direction', 'inbound')
-      .in('conversation_id', convIds)
-      .gte('created_at', campaignStartedAt);
+    const matchedConvIds = matchedConvs.map((c) => c.id);
 
-    const repliedConvIds = new Set((replyConvs || []).map((m) => m.conversation_id));
+    // 3. Find which of those conversations have at least one inbound message
+    //    created AFTER the campaign was sent. Use .in() with the filtered ID list.
+    //    Chunk into batches of 200 to stay within Supabase limits.
+    const CHUNK = 200;
+    const repliedConvIdSet = new Set<string>();
 
-    // Map back to phones
-    const repliedPhones = convs
-      .filter((c) => repliedConvIds.has(c.id))
+    for (let i = 0; i < matchedConvIds.length; i += CHUNK) {
+      const chunk = matchedConvIds.slice(i, i + CHUNK);
+      const { data: replyMsgs } = await db
+        .from('chat_messages')
+        .select('conversation_id')
+        .eq('tenant_id', tenantId)
+        .eq('direction', 'inbound')
+        .in('conversation_id', chunk)
+        .gte('created_at', campaignStartedAt);
+
+      (replyMsgs || []).forEach((m) => repliedConvIdSet.add(m.conversation_id));
+    }
+
+    // Map replied conv IDs back to phone numbers
+    const repliedPhones = matchedConvs
+      .filter((c) => repliedConvIdSet.has(c.id))
       .map((c) => c.contact_phone);
 
     return NextResponse.json({

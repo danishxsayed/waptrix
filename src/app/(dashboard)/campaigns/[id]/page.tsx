@@ -262,18 +262,20 @@ export default function CampaignDetailPage() {
   const logCounts = {
     all: logs.length,
     sent: logs.filter((l) => (l.status || "").toLowerCase() === "sent").length,
-    // "delivered" includes messages that progressed to "read" — read implies delivered
-    delivered: logs.filter((l) => ["delivered", "read"].includes((l.status || "").toLowerCase())).length,
+    delivered: logs.filter((l) => (l.status || "").toLowerCase() === "delivered").length,
     read: logs.filter((l) => (l.status || "").toLowerCase() === "read").length,
     failed: logs.filter((l) => (l.status || "").toLowerCase() === "failed").length,
   };
 
-  // Use live log counts when available — they're ground truth vs potentially stale campaign columns
+  // Use live log counts for sent/failed — they are accurate in message_logs.
+  // For delivered/read: always use DB campaign columns because the webhook
+  // increments them independently as separate events (delivered → read both fire),
+  // while message_logs only stores the LATEST status (a read message drops out
+  // of the delivered count in logs, making logCounts.delivered inaccurate).
   const logsLoaded = !isLoadingLogs && logs.length > 0;
   const displaySent      = logsLoaded ? logCounts.all - logCounts.failed : campaign.sent_count;
-  // For delivered: if logs loaded use live count (which includes read); else use DB columns sum
-  const displayDelivered = logsLoaded ? logCounts.delivered : (campaign.delivered_count + campaign.read_count);
-  const displayRead      = logsLoaded ? logCounts.read : campaign.read_count;
+  const displayDelivered = campaign.delivered_count ?? 0;
+  const displayRead      = campaign.read_count ?? 0;
   const displayFailed    = logsLoaded ? logCounts.failed : campaign.failed_count;
 
   const sentPct      = Math.round((displaySent      / total) * 100);
