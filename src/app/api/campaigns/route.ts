@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { waitUntil } from '@vercel/functions';
 import { enqueueCampaignBatches } from '@/lib/campaign-queue';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 function serviceClient() {
   return createClient(
@@ -61,11 +62,14 @@ export async function GET() {
     const user = await getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const tenantId = await getEffectiveTenantId(user.id);
+    if (!tenantId) return NextResponse.json({ error: 'Workspace not found' }, { status: 400 });
+
     const db = serviceClient();
     const { data, error } = await db
       .from('campaigns')
       .select('*, template:templates(*), segment:segments(*)')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .order('created_at', { ascending: false });
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -73,7 +77,7 @@ export async function GET() {
     // Fire any overdue scheduled campaigns in background — piggybacks on the
     // 10-second poll so campaigns fire within 10s of their scheduled time,
     // no cron upgrade needed.
-    waitUntil(processDueCampaigns(user.id).catch(console.error));
+    waitUntil(processDueCampaigns(tenantId).catch(console.error));
 
     // Fix campaigns where sent_count=0 but status='sent' (Redis may have returned 0 during finalization)
     // Count from message_logs which is the ground truth
@@ -116,6 +120,9 @@ export async function POST(req: Request) {
     const user = await getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    const tenantId = await getEffectiveTenantId(user.id);
+    if (!tenantId) return NextResponse.json({ error: 'Workspace not found' }, { status: 400 });
+
     let body: any = {};
     try { body = await req.json(); }
     catch { return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 }); }
@@ -142,7 +149,7 @@ export async function POST(req: Request) {
     const { data: campaign, error } = await db
       .from('campaigns')
       .insert({
-        tenant_id:        user.id,
+        tenant_id:        tenantId,
         name,
         description,
         template_id:      templateId,

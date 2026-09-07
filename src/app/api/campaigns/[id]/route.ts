@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic";
 
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 export async function GET(
   req: Request,
@@ -16,6 +17,9 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const tenantId = await getEffectiveTenantId(user.id);
+    if (!tenantId) return NextResponse.json({ error: 'Workspace not found' }, { status: 400 });
+
     const { createClient: createServiceClient } = await import('@supabase/supabase-js');
     const serviceClient = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,7 +30,7 @@ export async function GET(
       .from('campaigns')
       .select('*, template:templates(*), segment:segments(*)')
       .eq('id', id)
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (error || !campaign) {
@@ -52,6 +56,9 @@ export async function DELETE(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const tenantId = await getEffectiveTenantId(user.id);
+    if (!tenantId) return NextResponse.json({ error: 'Workspace not found' }, { status: 400 });
+
     const { createClient: createServiceClient } = await import('@supabase/supabase-js');
     const serviceClient = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -63,7 +70,7 @@ export async function DELETE(
       .from('campaigns')
       .select('id')
       .eq('id', id)
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (campaignError || !campaign) {
