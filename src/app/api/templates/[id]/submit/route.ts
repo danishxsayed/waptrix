@@ -3,6 +3,7 @@ export const dynamic = "force-dynamic";
 import { createClient } from '@/lib/supabase/server';
 import { NextResponse } from 'next/server';
 import { metaApi } from '@/lib/meta';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 export async function POST(
   req: Request,
@@ -17,6 +18,11 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    const tenantId = await getEffectiveTenantId(user.id);
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Workspace not found. Please contact support.' }, { status: 400 });
+    }
+
     const { createClient: createServiceClient } = await import('@supabase/supabase-js');
     const serviceClient = createServiceClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,7 +34,7 @@ export async function POST(
       .from('templates')
       .select('*')
       .eq('id', id)
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (templateError || !template) {
@@ -39,7 +45,7 @@ export async function POST(
     const { data: conn, error: connError } = await serviceClient
       .from('wa_connections')
       .select('access_token, waba_id, phone_number_id')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (connError || !conn?.access_token) {
@@ -67,7 +73,7 @@ export async function POST(
           await serviceClient
             .from('wa_connections')
             .update({ waba_id: wabaId })
-            .eq('tenant_id', user.id);
+            .eq('tenant_id', tenantId);
           console.log(`Resolved and saved WABA ID: ${wabaId}`);
         }
       } catch (e) {
@@ -283,7 +289,7 @@ export async function POST(
         name: normalizedName,
       })
       .eq('id', id)
-      .eq('tenant_id', user.id);
+      .eq('tenant_id', tenantId);
 
     if (dbError) {
       return NextResponse.json({ error: dbError.message }, { status: 500 });

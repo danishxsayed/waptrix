@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr'
 import { createClient } from '@supabase/supabase-js'
 import { cookies } from 'next/headers'
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 export async function POST(request: Request) {
   try {
@@ -14,9 +15,14 @@ export async function POST(request: Request) {
       { cookies: { getAll() { return cookieStore.getAll() }, setAll() {} } }
     )
     const { data: { user } } = await ssrClient.auth.getUser()
-    
+
     if (!user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const tenantId = await getEffectiveTenantId(user.id);
+    if (!tenantId) {
+      return NextResponse.json({ error: 'Workspace not found. Please contact support.' }, { status: 400 });
     }
 
     const { contacts, segment_id } = await request.json();
@@ -33,7 +39,7 @@ export async function POST(request: Request) {
     }
 
     const formattedContacts = Array.from(phoneMap.values()).map((c: any) => ({
-      tenant_id: user.id,
+      tenant_id: tenantId,
       segment_id: segment_id || null,
       name: c.name || '',
       phone: c.phone || '',
