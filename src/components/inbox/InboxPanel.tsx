@@ -222,6 +222,24 @@ function TemplateBubble({ template, resolvedBody, time, statusEl }: { template: 
   );
 }
 
+/** Parse WhatsApp markdown into safe HTML spans.
+ *  Handles: *bold*, _italic_, ~strikethrough~, ```monospace``` */
+function formatWhatsAppText(text: string): React.ReactNode {
+  // Split on formatting tokens while preserving them
+  const parts = text.split(/(\*[^*]+\*|_[^_]+_|~[^~]+~|```[\s\S]+?```)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith('*') && part.endsWith('*') && part.length > 2)
+      return <strong key={i}>{part.slice(1, -1)}</strong>;
+    if (part.startsWith('_') && part.endsWith('_') && part.length > 2)
+      return <em key={i}>{part.slice(1, -1)}</em>;
+    if (part.startsWith('~') && part.endsWith('~') && part.length > 2)
+      return <s key={i}>{part.slice(1, -1)}</s>;
+    if (part.startsWith('```') && part.endsWith('```') && part.length > 6)
+      return <code key={i} className="font-mono bg-black/10 rounded px-0.5">{part.slice(3, -3)}</code>;
+    return part;
+  });
+}
+
 /** Extract ordered variable indices from a template body, e.g. ["1","2"] from "Hello {{1}}, enjoy {{2}}!" */
 function extractTemplateVars(body: string): string[] {
   const matches = [...new Set((body || "").match(/{{(\d+)}}/g)?.map(m => m.replace(/[{}]/g, "")) ?? [])];
@@ -2251,11 +2269,16 @@ export default function InboxPanel({
                                 />
                               </div>
                             )}
-                            {msg.type === "audio" && (msg.media_id || msg.media_url) && (
+                            {(msg.type === "audio" || msg.content === "[audio]") && (msg.media_id || msg.media_url) && (
                               <div className="mb-2">
                                 <audio controls className="w-full max-w-[220px]"
-                                  src={msg.media_url || `/api/whatsapp/media/${msg.media_id}`} />
+                                  src={msg.media_url || `/api/whatsapp/media/${msg.media_id}`}
+                                  onError={(e) => { (e.target as HTMLAudioElement).style.display = 'none'; }}
+                                />
                               </div>
+                            )}
+                            {(msg.type === "audio" || msg.content === "[audio]") && !msg.media_id && !msg.media_url && (
+                              <p className="text-sm italic text-text-muted mb-2">🎤 Audio message</p>
                             )}
                             {msg.type === "document" && (msg.media_id || msg.media_url) && (() => {
                               const href = msg.media_url || `/api/whatsapp/media/${msg.media_id}`;
@@ -2346,7 +2369,7 @@ export default function InboxPanel({
                              msg.content !== "[button message]" &&
                              !msg.content?.startsWith("[Template:") &&
                              (msg.type === "text" || (msg.content && !["[image]","[video]","[audio]","[document]","[sticker]"].includes(msg.content))) && (
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.content}</p>
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{formatWhatsAppText(msg.content || '')}</p>
                             )}
 
                             {!isTemplate && (

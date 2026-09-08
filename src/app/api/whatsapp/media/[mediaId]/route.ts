@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { getEffectiveTenantId } from '@/lib/tenant';
 
 // Proxies WhatsApp media files from Meta's CDN.
 // Meta media URLs are temporary and require an access token — this endpoint
@@ -23,6 +24,9 @@ export async function GET(
     const { data: { user } } = await ssrClient.auth.getUser();
     if (!user) return new NextResponse('Unauthorized', { status: 401 });
 
+    const tenantId = await getEffectiveTenantId(user.id);
+    if (!tenantId) return new NextResponse('Workspace not found', { status: 400 });
+
     const db = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
@@ -31,7 +35,7 @@ export async function GET(
     const { data: conn } = await db
       .from('wa_connections')
       .select('access_token')
-      .eq('tenant_id', user.id)
+      .eq('tenant_id', tenantId)
       .single();
 
     if (!conn?.access_token) return new NextResponse('No connection', { status: 404 });
