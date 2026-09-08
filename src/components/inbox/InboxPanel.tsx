@@ -3002,25 +3002,36 @@ export default function InboxPanel({
                       </span>
                     </div>
 
-                    {/* Extra fields - show more toggle */}
-                    {contactShowMore && contactInfo && (
-                      <>
-                        {contactInfo.custom1 && (
-                          <div>
-                            <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">Custom 1</p>
-                            <p className="text-xs text-text-primary">{contactInfo.custom1}</p>
-                          </div>
-                        )}
-                      </>
+                    {contactInfo?.custom1 && (
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">User ID</p>
+                        <p className="text-xs text-text-primary">{contactInfo.custom1}</p>
+                      </div>
                     )}
-                    <button
-                      type="button"
-                      onClick={() => setContactShowMore(v => !v)}
-                      className="flex items-center gap-1 text-[11px] text-text-muted hover:text-jade transition-colors"
-                    >
-                      {contactShowMore ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-                      {contactShowMore ? 'Show Less' : 'Show More'}
-                    </button>
+                    {(() => {
+                      if (!contactInfo?.custom3) return null;
+                      try {
+                        const parsed = JSON.parse(contactInfo.custom3);
+                        const loc = parsed.location || "";
+                        const appt = parsed.appointment_time || "";
+                        return (
+                          <>
+                            {loc && (
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">Location</p>
+                                <p className="text-xs text-text-primary">{loc}</p>
+                              </div>
+                            )}
+                            {appt && (
+                              <div>
+                                <p className="text-[10px] font-bold uppercase tracking-wider text-text-muted mb-0.5">Appointment</p>
+                                <p className="text-xs text-text-primary">{new Date(appt).toLocaleString()}</p>
+                              </div>
+                            )}
+                          </>
+                        );
+                      } catch { return null; }
+                    })()}
                   </div>
 
                   <div className="h-px bg-border" />
