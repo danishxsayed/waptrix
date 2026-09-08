@@ -378,7 +378,7 @@ export default function Sidebar() {
               }
             </div>
             <Tooltip label={
-              loading ? "..." : tenant?.plan === "pro" ? "Pro Plan" : tenant?.plan === "trial" ? "Free Trial" : "Free"
+              loading ? "..." : tenant?.plan === "pro" ? "Pro Plan" : (tenant?.trial_ends_at && new Date(tenant.trial_ends_at) > new Date()) ? "Free Trial" : "Free"
             } />
           </div>
         ) : (
@@ -389,7 +389,7 @@ export default function Sidebar() {
                 : <ShieldCheck className="w-4 h-4 text-jade" />
               }
               <span className="text-xs font-semibold text-text-muted uppercase tracking-wider">
-                {loading ? "..." : tenant?.plan === "pro" ? "Pro Plan" : tenant?.plan === "trial" ? "Free Trial" : (tenant?.plan || "Free")}
+                {loading ? "..." : tenant?.plan === "pro" ? "Pro Plan" : (tenant?.trial_ends_at && new Date(tenant.trial_ends_at) > new Date()) ? "Free Trial" : "Free"}
               </span>
             </div>
             <div className="flex items-center gap-1.5 mt-2">

@@ -162,9 +162,10 @@ function GlobalSearch() {
 // ─── Plan status helpers ─────────────────────────────────────────────────────
 function getPlanStatus(tenant: any): { label: string; color: string; icon: React.ElementType } {
   if (!tenant) return { label: "Loading", color: "text-[#667781]", icon: Clock };
-  if (tenant.plan === "trial") {
-    const trialEnd = tenant.trial_ends_at ? new Date(tenant.trial_ends_at) : null;
-    if (trialEnd && trialEnd < new Date()) return { label: "Trial Expired", color: "text-red-500", icon: XCircle };
+  // Treat free plan with a future trial_ends_at as a trial
+  if (tenant.plan !== "pro" && tenant.trial_ends_at) {
+    const trialEnd = new Date(tenant.trial_ends_at);
+    if (trialEnd < new Date()) return { label: "Trial Expired", color: "text-red-500", icon: XCircle };
     return { label: "Free Trial", color: "text-amber-600", icon: Clock };
   }
   if (tenant.plan === "pro") {
@@ -175,9 +176,9 @@ function getPlanStatus(tenant: any): { label: string; color: string; icon: React
   return { label: "Free", color: "text-[#667781]", icon: Clock };
 }
 
-function getPlanBadge(plan: string) {
-  if (plan === "pro")   return "bg-[#D9FDD3] text-[#075E54]";
-  if (plan === "trial") return "bg-amber-50 text-amber-700";
+function getPlanBadge(plan: string, trialEndsAt?: string | null) {
+  if (plan === "pro") return "bg-[#D9FDD3] text-[#075E54]";
+  if (trialEndsAt && new Date(trialEndsAt) > new Date()) return "bg-amber-50 text-amber-700";
   return "bg-[#EDE8DE] text-[#667781]";
 }
 
@@ -209,7 +210,8 @@ function UserMenu() {
   const initial = displayName[0].toUpperCase();
   const planStatus = getPlanStatus(tenant);
   const StatusIcon = planStatus.icon;
-  const planLabel = tenant?.plan === "pro" ? "Waptrix Pro" : tenant?.plan === "trial" ? "Free Trial" : "Free";
+  const isOnTrial = tenant?.plan !== "pro" && tenant?.trial_ends_at && new Date(tenant.trial_ends_at) > new Date();
+  const planLabel = tenant?.plan === "pro" ? "Waptrix Pro" : isOnTrial ? "Free Trial" : "Free";
 
   const allMenuItems = [
     { label: "Profile",                href: isAgent ? "/profile" : "/settings?tab=profile", icon: User,       hideForAgent: false },

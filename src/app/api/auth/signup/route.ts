@@ -38,7 +38,7 @@ export async function POST(request: Request) {
         name,
         email,
         company,
-        plan: 'trial',
+        plan: 'free',
         trial_ends_at: trialEndsAt.toISOString(),
       });
 

@@ -125,11 +125,11 @@ export default function ManageSubscriptionPage() {
 
         <div className="divide-y divide-border/50">
           {[
-            ["Plan",           sub?.plan === "pro" ? "Waptrix Pro" : sub?.plan === "trial" ? "Free Trial" : "No active plan"],
+            ["Plan",           sub?.plan === "pro" ? "Waptrix Pro" : (sub?.trial_ends_at && new Date(sub.trial_ends_at) > new Date()) ? "Free Trial" : "Free"],
             ["Billing Cycle",  sub?.billing_cycle ? CYCLE_LABELS[sub.billing_cycle] : "—"],
             ["Amount",         sub?.amount ? `₹${sub.amount.toLocaleString("en-IN")} + 18% GST` : "—"],
             ["Started",        fmt(sub?.started_at || null)],
-            ["Expires",        sub?.plan === "trial" ? fmt(sub?.trial_ends_at || null) : fmt(sub?.expires_at || null)],
+            ["Expires",        sub?.plan !== "pro" ? fmt(sub?.trial_ends_at || null) : fmt(sub?.expires_at || null)],
             ["Order ID",       sub?.last_order_id || "—"],
             ["Payment ID",     sub?.last_payment_id || "—"],
           ].map(([k, v]) => (
