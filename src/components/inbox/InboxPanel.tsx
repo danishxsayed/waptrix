@@ -222,6 +222,131 @@ function TemplateBubble({ template, resolvedBody, time, statusEl }: { template: 
   );
 }
 
+// ─── WhatsApp-style Audio Player ─────────────────────────────────────────────
+function WhatsAppAudioPlayer({ src, isOutbound }: { src: string; isOutbound: boolean }) {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  const [playing, setPlaying]   = useState(false);
+  const [current, setCurrent]   = useState(0);
+  const [duration, setDuration] = useState(0);
+  const [error, setError]       = useState(false);
+  const [loading, setLoading]   = useState(true);
+  const rafRef = useRef<number | null>(null);
+
+  // Fake waveform bars (WhatsApp style — static heights, animated while playing)
+  const bars = [3,5,8,4,7,10,6,3,8,5,9,4,6,8,3,7,5,9,4,6,8,10,5,3,7,9,4,6,3,5];
+
+  useEffect(() => {
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  function tick() {
+    const a = audioRef.current;
+    if (!a) return;
+    setCurrent(a.currentTime);
+    if (!a.paused) rafRef.current = requestAnimationFrame(tick);
+  }
+
+  function togglePlay() {
+    const a = audioRef.current;
+    if (!a || error) return;
+    if (a.paused) {
+      a.play().then(() => {
+        setPlaying(true);
+        rafRef.current = requestAnimationFrame(tick);
+      }).catch(() => setError(true));
+    } else {
+      a.pause();
+      setPlaying(false);
+    }
+  }
+
+  function seek(e: React.MouseEvent<HTMLDivElement>) {
+    const a = audioRef.current;
+    if (!a || !duration) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pct  = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    a.currentTime = pct * duration;
+    setCurrent(a.currentTime);
+  }
+
+  function fmt(s: number) {
+    if (!isFinite(s)) return "0:00";
+    const m = Math.floor(s / 60);
+    const sec = Math.floor(s % 60);
+    return `${m}:${sec.toString().padStart(2, "0")}`;
+  }
+
+  const progress = duration > 0 ? current / duration : 0;
+  const activeBars = Math.round(progress * bars.length);
+
+  const bg      = isOutbound ? "bg-jade/90"          : "bg-surface";
+  const playBg  = isOutbound ? "bg-white/20 hover:bg-white/30" : "bg-jade/10 hover:bg-jade/20";
+  const iconCol = isOutbound ? "text-white"           : "text-jade";
+  const barAct  = isOutbound ? "bg-white"             : "bg-jade";
+  const barInact = isOutbound ? "bg-white/40"         : "bg-border";
+  const timeCol = isOutbound ? "text-white/70"        : "text-text-muted";
+
+  return (
+    <div className={`flex items-center gap-2.5 px-3 py-2.5 rounded-2xl mb-1 w-[230px] ${bg}`}>
+      {/* Hidden audio element */}
+      <audio
+        ref={audioRef}
+        src={src}
+        onLoadedMetadata={() => { setDuration(audioRef.current?.duration ?? 0); setLoading(false); }}
+        onEnded={() => { setPlaying(false); setCurrent(0); }}
+        onError={() => { setError(true); setLoading(false); }}
+        preload="metadata"
+      />
+
+      {/* Play / Pause button */}
+      <button
+        onClick={togglePlay}
+        disabled={error || loading}
+        className={`flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all ${playBg} ${error ? "opacity-40 cursor-not-allowed" : ""}`}
+      >
+        {loading ? (
+          <Loader2 className={`w-4 h-4 animate-spin ${iconCol}`} />
+        ) : playing ? (
+          <svg className={`w-4 h-4 ${iconCol}`} viewBox="0 0 24 24" fill="currentColor">
+            <rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/>
+          </svg>
+        ) : (
+          <svg className={`w-4 h-4 ${iconCol} ml-0.5`} viewBox="0 0 24 24" fill="currentColor">
+            <path d="M8 5v14l11-7z"/>
+          </svg>
+        )}
+      </button>
+
+      {/* Waveform + time */}
+      <div className="flex-1 flex flex-col gap-1.5">
+        {/* Waveform bars — clickable seek */}
+        <div
+          className="flex items-end gap-[2px] h-6 cursor-pointer"
+          onClick={seek}
+        >
+          {bars.map((h, i) => (
+            <div
+              key={i}
+              style={{ height: `${h * 2}px`, minWidth: "3px" }}
+              className={`flex-1 rounded-full transition-colors ${
+                i < activeBars ? barAct : barInact
+              } ${playing && i === activeBars ? "animate-pulse" : ""}`}
+            />
+          ))}
+        </div>
+
+        {/* Time */}
+        <span className={`text-[10px] ${timeCol} leading-none`}>
+          {playing || current > 0 ? fmt(current) : fmt(duration)}
+        </span>
+      </div>
+
+      {/* Mic icon */}
+      <Mic className={`flex-shrink-0 w-3.5 h-3.5 ${isOutbound ? "text-white/50" : "text-text-muted"}`} />
+    </div>
+  );
+}
+
 /** Parse WhatsApp markdown into safe HTML spans.
  *  Handles: *bold*, _italic_, ~strikethrough~, ```monospace``` */
 function formatWhatsAppText(text: string): React.ReactNode {
@@ -2270,12 +2395,10 @@ export default function InboxPanel({
                               </div>
                             )}
                             {(msg.type === "audio" || msg.content === "[audio]") && (msg.media_id || msg.media_url) && (
-                              <div className="mb-2">
-                                <audio controls className="w-full max-w-[220px]"
-                                  src={msg.media_url || `/api/whatsapp/media/${msg.media_id}`}
-                                  onError={(e) => { (e.target as HTMLAudioElement).style.display = 'none'; }}
-                                />
-                              </div>
+                              <WhatsAppAudioPlayer
+                                src={msg.media_url || `/api/whatsapp/media/${msg.media_id}`}
+                                isOutbound={msg.direction === "outbound"}
+                              />
                             )}
                             {(msg.type === "audio" || msg.content === "[audio]") && !msg.media_id && !msg.media_url && (
                               <p className="text-sm italic text-text-muted mb-2">🎤 Audio message</p>
