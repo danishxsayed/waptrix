@@ -410,17 +410,23 @@ export async function POST(
   const isLastBatch = batchIndex === totalBatches - 1;
 
   if (isLastBatch) {
-    // Count directly from message_logs — ground truth regardless of Redis availability
+    // Give other in-flight batches a moment to finish writing their message_logs
+    await new Promise(res => setTimeout(res, 3000));
+
+    // Count from both sources and take the max — whichever is higher is more accurate.
+    // Redis is incremented per-send (never loses counts), but could be cleared.
+    // message_logs is the DB ground truth, but may lag if earlier batch writes are slow.
     const [{ count: dbSent }, { count: dbFailed }] = await Promise.all([
       db.from('message_logs').select('*', { count: 'exact', head: true })
-        .eq('campaign_id', campaignId).eq('status', 'sent'),
+        .eq('campaign_id', campaignId).neq('status', 'failed'),
       db.from('message_logs').select('*', { count: 'exact', head: true })
         .eq('campaign_id', campaignId).eq('status', 'failed'),
     ]);
-    // Fall back to Redis counters only if DB count is unavailable
     const stats = await getCampaignStats(campaignId);
-    const finalSent   = (dbSent   ?? 0) > 0 ? (dbSent   ?? 0) : stats.sent;
-    const finalFailed = (dbFailed ?? 0) > 0 ? (dbFailed ?? 0) : stats.failed;
+    // Take the higher of Redis counter vs message_logs count — both should agree, but
+    // if message_logs writes were slow or Redis was reset, the higher value is correct.
+    const finalSent   = Math.max(dbSent   ?? 0, stats.sent);
+    const finalFailed = Math.max(dbFailed ?? 0, stats.failed);
 
     await db.from('campaigns').update({
       status:         'sent',

@@ -79,17 +79,21 @@ export async function GET() {
     // no cron upgrade needed.
     waitUntil(processDueCampaigns(tenantId).catch(console.error));
 
-    // Fix campaigns where sent_count=0 but status='sent' (Redis may have returned 0 during finalization)
-    // Count from message_logs which is the ground truth
+    // Fix campaigns where sent_count is 0 OR clearly too low vs total_contacts
+    // (race condition during finalization can under-count if message_logs writes lag)
     const needsRecount = (data || []).filter(
-      (c: any) => c.status === 'sent' && c.sent_count === 0 && c.total_contacts > 0
+      (c: any) => c.status === 'sent' && c.total_contacts > 0 && (
+        c.sent_count === 0 ||
+        // re-verify if sent+failed < 50% of total (strong sign of undercounting)
+        (c.sent_count + (c.failed_count || 0)) < c.total_contacts * 0.5
+      )
     );
     if (needsRecount.length > 0) {
       const fixed = await Promise.all(
         needsRecount.map(async (c: any) => {
           const [{ count: sentCount }, { count: failedCount }] = await Promise.all([
             db.from('message_logs').select('*', { count: 'exact', head: true })
-              .eq('campaign_id', c.id).eq('status', 'sent'),
+              .eq('campaign_id', c.id).neq('status', 'failed'),
             db.from('message_logs').select('*', { count: 'exact', head: true })
               .eq('campaign_id', c.id).eq('status', 'failed'),
           ]);
