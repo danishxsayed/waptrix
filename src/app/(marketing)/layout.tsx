@@ -9,16 +9,21 @@ import { Menu, X, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client"; // still used for sign-out
 
 function OfferPopup() {
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible]     = useState(false);
   const [animating, setAnimating] = useState(false);
+  const [config, setConfig]       = useState<{ enabled: boolean; image_url: string | null; link_url: string } | null>(null);
 
   useEffect(() => {
-    // Show popup after 1.2s on every page visit (not just first)
-    const timer = setTimeout(() => {
-      setVisible(true);
-      setAnimating(true);
-    }, 1200);
-    return () => clearTimeout(timer);
+    fetch("/api/popup")
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data?.enabled && data?.image_url) {
+          setConfig(data);
+          const timer = setTimeout(() => { setVisible(true); setAnimating(true); }, 1200);
+          return () => clearTimeout(timer);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const close = () => {
@@ -26,7 +31,7 @@ function OfferPopup() {
     setTimeout(() => setVisible(false), 300);
   };
 
-  if (!visible) return null;
+  if (!visible || !config) return null;
 
   return (
     <div
@@ -43,23 +48,21 @@ function OfferPopup() {
         }}
         className="relative max-w-sm w-full"
       >
-        {/* Close button */}
         <button
           onClick={close}
           className="absolute -top-3 -right-3 z-10 bg-white text-[#111B21] rounded-full w-8 h-8 flex items-center justify-center shadow-lg hover:bg-[#EDE8DE] transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
-
-        {/* Offer image */}
-        <Link href="/pricing" onClick={close}>
+        <Link href={config.link_url || "/pricing"} onClick={close}>
           <Image
-            src="/popup-offer.png"
-            alt="Independence Day Offer"
+            src={config.image_url!}
+            alt="Offer"
             width={480}
             height={600}
             className="w-full rounded-2xl shadow-2xl cursor-pointer"
             priority
+            unoptimized
           />
         </Link>
       </div>
