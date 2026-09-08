@@ -119,7 +119,7 @@ function ReadMoreText({
 
   return (
     <p className={`text-sm leading-relaxed whitespace-pre-wrap break-words ${className}`}>
-      {displayText}
+      {formatWhatsAppText(displayText)}
       {isLong && !expanded && (
         <>
           {"… "}
@@ -943,6 +943,10 @@ export default function InboxPanel({
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [isSending, setIsSending] = useState(false);
   const [loadingConvs, setLoadingConvs] = useState(true);
+  const [hasMoreConvs, setHasMoreConvs] = useState(false);
+  const [loadingMoreConvs, setLoadingMoreConvs] = useState(false);
+  const [nextConvCursor, setNextConvCursor] = useState<string | null>(null);
+  const [isSearchingConvs, setIsSearchingConvs] = useState(false);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [loadingMoreMsgs, setLoadingMoreMsgs] = useState(false);
   const [hasMoreMessages, setHasMoreMessages] = useState(false);
@@ -1082,6 +1086,7 @@ export default function InboxPanel({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
+  const convListSentinelRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const activeConvRef = useRef<Conversation | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
@@ -1320,17 +1325,41 @@ export default function InboxPanel({
     };
   }, []);
 
-  // ── Fetch conversations
+  // ── Fetch first page of conversations (resets the list)
   const fetchConversations = useCallback(async () => {
-    const res = await fetch("/api/conversations");
+    const res = await fetch("/api/conversations?limit=50");
     if (res.ok) {
-      const data: Conversation[] = await res.json();
-      setConversations(data);
-      const total = data.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+      const data = await res.json();
+      const convs: Conversation[] = data.conversations ?? data;
+      setConversations(convs);
+      setHasMoreConvs(data.hasMore ?? false);
+      setNextConvCursor(data.nextCursor ?? null);
+      const total = convs.reduce((sum, c) => sum + (c.unread_count || 0), 0);
       onUnreadChange?.(total);
     }
     setLoadingConvs(false);
   }, [onUnreadChange]);
+
+  // ── Load the next page (appends, never replaces)
+  const loadMoreConversations = useCallback(async () => {
+    if (!hasMoreConvs || loadingMoreConvs || !nextConvCursor) return;
+    setLoadingMoreConvs(true);
+    const res = await fetch(
+      `/api/conversations?limit=50&cursor=${encodeURIComponent(nextConvCursor)}`
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const more: Conversation[] = data.conversations ?? [];
+      setConversations(prev => {
+        const existingIds = new Set(prev.map(c => c.id));
+        const newOnes = more.filter(c => !existingIds.has(c.id));
+        return [...prev, ...newOnes];
+      });
+      setHasMoreConvs(data.hasMore ?? false);
+      setNextConvCursor(data.nextCursor ?? null);
+    }
+    setLoadingMoreConvs(false);
+  }, [hasMoreConvs, loadingMoreConvs, nextConvCursor]);
 
   // ── Fetch messages for active conversation (initial load — most recent 20)
   const fetchMessages = useCallback(async (convId: string) => {
@@ -1419,6 +1448,44 @@ export default function InboxPanel({
     });
   }, [fetchConversations, fetchTemplates]);
 
+  // ── Infinite scroll: load more conversations when sentinel comes into view
+  useEffect(() => {
+    const sentinel = convListSentinelRef.current;
+    if (!sentinel) return;
+    const observer = new IntersectionObserver(
+      (entries) => { if (entries[0].isIntersecting) loadMoreConversations(); },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [loadMoreConversations]);
+
+  // ── Server-side search when query is long enough (debounced 400ms)
+  useEffect(() => {
+    if (searchQuery.length < 2) {
+      // When search is cleared, reload the first page
+      if (searchQuery.length === 0 && !loadingConvs) {
+        fetchConversations();
+      }
+      return;
+    }
+    setIsSearchingConvs(true);
+    const timer = setTimeout(async () => {
+      const res = await fetch(
+        `/api/conversations?search=${encodeURIComponent(searchQuery)}&limit=50`
+      );
+      if (res.ok) {
+        const data = await res.json();
+        setConversations(data.conversations ?? data);
+        setHasMoreConvs(false); // infinite scroll off during search
+        setNextConvCursor(null);
+      }
+      setIsSearchingConvs(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchQuery]);
+
   // ── Auto-select conversation when initialPhone is provided (from contacts page)
   const didAutoSelect = useRef(false);
   useEffect(() => {
@@ -1454,19 +1521,24 @@ export default function InboxPanel({
   // ── Polling fallback — guarantees updates even if Supabase Realtime is down
   useEffect(() => {
     const poll = async () => {
-      // Refresh conversations and check for new unread
-      const res = await fetch('/api/conversations');
+      // Refresh only the first page (latest conversations) for unread badge + merge
+      const res = await fetch('/api/conversations?limit=50');
       if (!res.ok) return;
-      const fresh: Conversation[] = await res.json();
+      const payload = await res.json();
+      const fresh: Conversation[] = payload.conversations ?? payload;
 
       const newTotal = fresh.reduce((s, c) => s + (c.unread_count || 0), 0);
 
       setConversations(prev => {
         const prevUnread = prev.reduce((s, c) => s + (c.unread_count || 0), 0);
         if (newTotal > prevUnread) playNotificationSound();
-        const changed = JSON.stringify(fresh.map(c => `${c.id}:${c.last_message_at}:${c.unread_count}`))
-                     !== JSON.stringify(prev.map(c => `${c.id}:${c.last_message_at}:${c.unread_count}`));
-        return changed ? fresh : prev;
+        // MERGE: update existing conversations in-place, add genuinely new ones at top.
+        // NEVER remove older conversations that are beyond the first page.
+        const freshMap = new Map(fresh.map(c => [c.id, c]));
+        const updated = prev.map(c => freshMap.has(c.id) ? { ...c, ...freshMap.get(c.id) } : c);
+        const existingIds = new Set(prev.map(c => c.id));
+        const brandNew = fresh.filter(c => !existingIds.has(c.id));
+        return brandNew.length > 0 ? [...brandNew, ...updated] : updated;
       });
 
       // Always sync sidebar badge with latest server count
@@ -1569,7 +1641,27 @@ export default function InboxPanel({
           setConversations((prev) => {
             const exists = prev.find((c) => c.id === newMsg.conversation_id);
             if (!exists) {
-              fetchConversations();
+              // New conversation not in our list — fetch it individually and prepend
+              fetch(`/api/conversations?search=${newMsg.conversation_id}&limit=1`)
+                .then(r => r.json())
+                .then(d => {
+                  const convs: Conversation[] = d.conversations ?? [];
+                  if (convs.length > 0) {
+                    setConversations(p => p.find(c => c.id === convs[0].id) ? p : [convs[0], ...p]);
+                  } else {
+                    // fallback: reload first page and merge
+                    fetch('/api/conversations?limit=50').then(r => r.json()).then(dd => {
+                      const fresh: Conversation[] = dd.conversations ?? dd;
+                      setConversations(p => {
+                        const freshMap = new Map(fresh.map(c => [c.id, c]));
+                        const updated = p.map(c => freshMap.has(c.id) ? { ...c, ...freshMap.get(c.id) } : c);
+                        const existingIds = new Set(p.map(c => c.id));
+                        const brandNew = fresh.filter(c => !existingIds.has(c.id));
+                        return brandNew.length > 0 ? [...brandNew, ...updated] : updated;
+                      });
+                    }).catch(() => {});
+                  }
+                }).catch(() => {});
               return prev;
             }
             return prev
@@ -1863,9 +1955,11 @@ export default function InboxPanel({
     // "Assigned to me" quick filter
     if (assignedToMe && userId && c.assigned_to !== userId) return false;
 
-    // Search
-    const q = searchQuery.toLowerCase();
-    if (q && !c.contact_name.toLowerCase().includes(q) && !c.contact_phone.includes(q)) return false;
+    // Search — server handles it when query is ≥ 2 chars; local filter for shorter queries only
+    if (searchQuery.length < 2) {
+      const q = searchQuery.toLowerCase();
+      if (q && !c.contact_name.toLowerCase().includes(q) && !c.contact_phone.includes(q)) return false;
+    }
 
     const convStatus = c.status || 'open';
 
@@ -2129,7 +2223,13 @@ export default function InboxPanel({
                 </p>
               </div>
             ) : (
-              sortedConversations.map((conv) => (
+              <>
+              {isSearchingConvs && (
+                <div className="flex items-center justify-center py-3 gap-2 text-text-muted text-xs">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" /> Searching...
+                </div>
+              )}
+              {sortedConversations.map((conv) => (
                 <div
                   key={conv.id}
                   onClick={() => {
@@ -2183,6 +2283,17 @@ export default function InboxPanel({
                   </div>
                 </div>
               ))
+              }
+              {/* Infinite scroll sentinel — triggers loadMoreConversations when visible */}
+              {hasMoreConvs && !searchQuery && (
+                <div ref={convListSentinelRef} className="flex items-center justify-center py-4">
+                  {loadingMoreConvs
+                    ? <Loader2 className="w-4 h-4 text-jade animate-spin" />
+                    : <span className="text-[11px] text-text-muted">Load more…</span>
+                  }
+                </div>
+              )}
+              </>
             )}
           </div>
         </div>
@@ -2474,8 +2585,8 @@ export default function InboxPanel({
                                   statusEl={msg.direction === 'outbound' ? <StatusIcon status={msg.status} /> : undefined}
                                 />
                               ) : (
-                                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words opacity-70 italic">
-                                  {tplName ? `Template: ${tplName}` : msg.content}
+                                <p className="text-sm leading-relaxed whitespace-pre-wrap break-words opacity-70">
+                                  {tplName ? `Template: ${tplName}` : formatWhatsAppText(msg.content || '')}
                                 </p>
                               );
                             })()}

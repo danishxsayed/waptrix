@@ -46,7 +46,24 @@ export async function DELETE(req: Request) {
   }
 }
 
-export async function GET() {
+/**
+ * GET /api/conversations
+ *
+ * Supports cursor-based pagination for scalable infinite scroll.
+ *
+ * Query params:
+ *   limit  – page size (default 50, max 100)
+ *   cursor – ISO timestamp of the last conversation's last_message_at from
+ *            the previous page; omit for the first page
+ *   search – filter by contact_name or contact_phone (server-side)
+ *
+ * Response:
+ *   { conversations: [...], hasMore: boolean, nextCursor: string | null }
+ *
+ * The "hasMore" flag tells the client whether another page exists.
+ * Pass nextCursor as ?cursor= in the next request to load it.
+ */
+export async function GET(req: Request) {
   try {
     const user = await getAuthUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -54,29 +71,42 @@ export async function GET() {
     const tenantId = await getEffectiveTenantId(user.id);
     const db = serviceDb();
 
-    // Only show conversations where the customer has sent at least one inbound message
-    const { data: inboundRows } = await db
-      .from('chat_messages')
-      .select('conversation_id')
-      .eq('tenant_id', tenantId)
-      .eq('direction', 'inbound');
+    const { searchParams } = new URL(req.url);
+    const limit  = Math.min(parseInt(searchParams.get('limit')  || '50', 10), 100);
+    const cursor = searchParams.get('cursor'); // ISO timestamp — load before this
+    const search = (searchParams.get('search') || '').trim();
 
-    const inboundConvIds = [...new Set((inboundRows ?? []).map((r: any) => r.conversation_id))];
-
-    if (inboundConvIds.length === 0) {
-      return NextResponse.json([]);
-    }
-
-    const { data, error } = await db
+    // Build query — fetch limit+1 so we can detect whether a next page exists
+    let query = db
       .from('conversations')
       .select('*')
       .eq('tenant_id', tenantId)
-      .in('id', inboundConvIds)
       .order('last_message_at', { ascending: false })
-      .limit(100);
+      .limit(limit + 1);
 
+    // Cursor: conversations older than the last one on the previous page
+    if (cursor) {
+      query = query.lt('last_message_at', cursor);
+    }
+
+    // Server-side search across name and phone
+    if (search) {
+      query = query.or(
+        `contact_name.ilike.%${search}%,contact_phone.ilike.%${search}%`
+      );
+    }
+
+    const { data, error } = await query;
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data ?? []);
+
+    const rows = data ?? [];
+    const hasMore = rows.length > limit;
+    const conversations = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore
+      ? conversations[conversations.length - 1].last_message_at
+      : null;
+
+    return NextResponse.json({ conversations, hasMore, nextCursor });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

@@ -1,5 +1,11 @@
 # Implementation History
 
+## [2026-09-08] - Inbox Formatting, Pagination & Server Startup
+- **Dev Server**: Started the Next.js development server running on port 3001 (`npm run dev`).
+- **Inbox WhatsApp Formatting**: Added WhatsApp markdown formatting (`formatWhatsAppText`) to template bubbles and fallback message content.
+- **Conversation List Search & Pagination**: Implemented infinite scroll pagination with `IntersectionObserver` sentinel and debounced server-side search in conversation lists.
+- **Campaign Template Name Fix**: Ensured `template_name` is saved in `chat_messages` during batch campaign processing.
+
 ## [2026-09-03] - Server Startup
 - **Dev Server**: Started the Next.js development server running on port 3001 (`npm run dev`).
 
