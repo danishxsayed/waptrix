@@ -15,7 +15,7 @@
 
 import { Client as QStashClient } from '@upstash/qstash';
 import { createClient } from '@supabase/supabase-js';
-import { getCachedContacts } from './redis';
+import { getCachedContacts, invalidateContacts } from './redis';
 
 const BATCH_SIZE = 50;
 
@@ -106,7 +106,11 @@ export async function enqueueCampaignBatches(campaignId: string): Promise<void> 
     return;
   }
 
-  // 2. Fetch contacts (with Redis cache)
+  // 2. Fetch contacts — always invalidate cache first so a new upload
+  //    (or a re-run of the same segment) always gets the current DB rows,
+  //    not a stale cached list from a previous campaign on the same segment.
+  await invalidateContacts(campaign.segment_id, campaign.tenant_id);
+
   const contacts = await getCachedContacts(
     campaign.segment_id,
     campaign.tenant_id,
