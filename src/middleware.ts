@@ -108,49 +108,75 @@ export async function middleware(request: NextRequest) {
     let userRole = roleCookie?.value || 'owner'
 
     if (!cacheValid) {
-      const { createClient: createServiceClient } = await import('@supabase/supabase-js')
-      const serviceDb = createServiceClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_KEY!
-      )
+      try {
+        const { createClient: createServiceClient } = await import('@supabase/supabase-js')
+        const serviceDb = createServiceClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_KEY!
+        )
 
-      const { data: memberRow } = await serviceDb
-        .from('team_members')
-        .select('role, owner_tenant_id')
-        .eq('member_user_id', userId)
-        .eq('status', 'active')
-        .maybeSingle()
+        const timeout = <T>(promise: Promise<T>, ms: number): Promise<T> =>
+          Promise.race([promise, new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), ms))])
 
-      userRole = memberRow ? (memberRow.role as string) : 'owner'
-      const isTeamMember = !!memberRow
-      const tenantId = memberRow ? memberRow.owner_tenant_id : userId
+        const [memberResult, tenantResult] = await timeout(
+          Promise.all([
+            serviceDb
+              .from('team_members')
+              .select('role, owner_tenant_id')
+              .eq('member_user_id', userId)
+              .eq('status', 'active')
+              .maybeSingle(),
+            serviceDb
+              .from('tenants')
+              .select('plan, trial_ends_at, plan_expires_at')
+              .eq('id', userId)
+              .maybeSingle(),
+          ]),
+          1000
+        )
 
-      const { data: tenant } = await serviceDb
-        .from('tenants')
-        .select('plan, trial_ends_at, plan_expires_at')
-        .eq('id', tenantId)
-        .maybeSingle()
+        const memberRow = memberResult.data
+        userRole = memberRow ? (memberRow.role as string) : 'owner'
+        const isTeamMember = !!memberRow
+        const tenantId = memberRow ? memberRow.owner_tenant_id : userId
 
-      supabaseResponse.cookies.set('waptrix_plan_ok', userId, {
-        httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
-      })
-      supabaseResponse.cookies.set('waptrix_role', userRole, {
-        httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
-      })
-
-      if (tenant) {
-        const now = new Date()
-        const isPro = tenant.plan === 'pro' && tenant.plan_expires_at && new Date(tenant.plan_expires_at) > now
-        const inTrial = tenant.plan === 'trial' && tenant.trial_ends_at && new Date(tenant.trial_ends_at) > now
-        const hasAccess = isPro || inTrial
-
-        if (!hasAccess && !isTeamMember) {
-          const url = request.nextUrl.clone()
-          url.host = hostname.replace(/^app\./, '')
-          url.pathname = '/pricing'
-          url.searchParams.set('expired', '1')
-          return NextResponse.redirect(url)
+        // If member, re-fetch tenant with correct tenantId
+        let tenant = tenantResult.data
+        if (isTeamMember) {
+          const { data: ownerTenant } = await timeout(
+            serviceDb
+              .from('tenants')
+              .select('plan, trial_ends_at, plan_expires_at')
+              .eq('id', tenantId)
+              .maybeSingle(),
+            800
+          )
+          tenant = ownerTenant
         }
+
+        supabaseResponse.cookies.set('waptrix_plan_ok', userId, {
+          httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
+        })
+        supabaseResponse.cookies.set('waptrix_role', userRole, {
+          httpOnly: true, maxAge: 300, path: '/', sameSite: 'lax',
+        })
+
+        if (tenant) {
+          const now = new Date()
+          const isPro = tenant.plan === 'pro' && tenant.plan_expires_at && new Date(tenant.plan_expires_at) > now
+          const inTrial = tenant.plan === 'trial' && tenant.trial_ends_at && new Date(tenant.trial_ends_at) > now
+          const hasAccess = isPro || inTrial
+
+          if (!hasAccess && !isTeamMember) {
+            const url = request.nextUrl.clone()
+            url.host = hostname.replace(/^app\./, '')
+            url.pathname = '/pricing'
+            url.searchParams.set('expired', '1')
+            return NextResponse.redirect(url)
+          }
+        }
+      } catch {
+        // DB call timed out or failed — pass through, let the page handle auth
       }
     }
 
