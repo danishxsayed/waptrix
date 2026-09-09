@@ -55,13 +55,20 @@ export async function POST(request: Request) {
       process.env.SUPABASE_SERVICE_KEY!
     );
 
-    const { data, error } = await serviceClient
-      .from('contacts')
-      .upsert(formattedContacts, { onConflict: 'tenant_id,phone' })
-      .select();
+    // Supabase PostgREST silently caps upserts at ~1000 rows per request.
+    // Batch in chunks of 500 to guarantee all contacts are saved.
+    const CHUNK = 500;
+    let totalSaved = 0;
+    for (let i = 0; i < formattedContacts.length; i += CHUNK) {
+      const chunk = formattedContacts.slice(i, i + CHUNK);
+      const { error } = await serviceClient
+        .from('contacts')
+        .upsert(chunk, { onConflict: 'tenant_id,phone' });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      totalSaved += chunk.length;
+    }
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data);
+    return NextResponse.json({ imported: totalSaved });
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
