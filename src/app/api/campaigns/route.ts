@@ -6,6 +6,7 @@ import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { waitUntil } from '@vercel/functions';
 import { enqueueCampaignBatches } from '@/lib/campaign-queue';
+import { Client as QStashClient } from '@upstash/qstash';
 import { getEffectiveTenantId } from '@/lib/tenant';
 
 function serviceClient() {
@@ -170,14 +171,31 @@ export async function POST(req: Request) {
 
     if (isImmediate) {
       // Enqueue batches via QStash — each batch runs in its own Vercel function
-      // No timeout risk, auto-retry on failure
       waitUntil(
         enqueueCampaignBatches(campaign.id).catch((err) =>
           console.error(`Failed to enqueue campaign ${campaign.id}:`, err.message)
         )
       );
+    } else {
+      // Scheduled: publish a single QStash message with notBefore set to the
+      // scheduled time. QStash holds it and delivers exactly on time — no cron needed.
+      waitUntil((async () => {
+        try {
+          const appUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${process.env.VERCEL_URL}`;
+          const notBefore = Math.floor(new Date(finalScheduledAt).getTime() / 1000);
+          const qstash = new QStashClient({ token: process.env.QSTASH_TOKEN! });
+          await qstash.publishJSON({
+            url: `${appUrl}/api/campaigns/${campaign.id}/trigger`,
+            body: { campaignId: campaign.id },
+            notBefore,
+            retries: 3,
+          });
+          console.log(`[campaigns] Scheduled campaign ${campaign.id} via QStash notBefore=${notBefore}`);
+        } catch (err: any) {
+          console.error(`[campaigns] Failed to schedule campaign ${campaign.id}:`, err.message);
+        }
+      })());
     }
-    // Scheduled campaigns are picked up every minute by /api/worker/campaigns (Vercel Cron)
 
     return NextResponse.json(campaign);
   } catch (err: any) {

@@ -26,6 +26,7 @@ function isAppPublic(pathname: string): boolean {
   if (APP_PUBLIC_PATHS.includes(pathname)) return true;
   if (APP_PUBLIC_PREFIXES.some(p => pathname.startsWith(p))) return true;
   if (pathname.includes('/process-batch')) return true;
+  if (pathname.includes('/trigger')) return true;
   return false;
 }
 

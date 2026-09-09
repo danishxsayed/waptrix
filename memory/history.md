@@ -1,6 +1,10 @@
 # Implementation History
 
-## [2026-09-09] - Campaign Timestamps, Inbox Campaign Badges & Contacts PostgREST Pagination Fix
+## [2026-09-09] - QStash Scheduled Campaign Delays, Campaign Timestamps & Inbox Badges
+- **QStash Direct Scheduled Campaign Trigger**:
+  - Refactored `POST /api/campaigns` to schedule future campaigns directly via QStash `publishJSON` using `notBefore` timestamp targeting the scheduled execution time.
+  - Created `POST /api/campaigns/[id]/trigger` callback endpoint to verify campaign status (`scheduled` -> `queued`) and trigger `enqueueCampaignBatches()`.
+  - Updated `src/middleware.ts` to allow unauthenticated callbacks to `/trigger`.
 - **Campaign Card Timestamps**: Added sent date/time (`completed_at`) and fallback created date/time on campaign cards in `src/app/(dashboard)/campaigns/page.tsx`.
 - **Inbox Campaign Tagging & Filter**:
   - Tracked `last_campaign_id` and `last_campaign_name` on conversation records in `src/app/api/campaigns/[id]/process-batch/route.ts`.
