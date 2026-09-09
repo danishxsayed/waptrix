@@ -6,7 +6,6 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Mail, Lock, ArrowRight, CheckCircle, Eye, EyeOff, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { createClient } from '@/lib/supabase/client';
 
 function loadCashfree(): Promise<any> {
   const mode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox";
@@ -45,28 +44,30 @@ export default function LoginPage() {
     setError(null);
 
     try {
-      const supabase = createClient();
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email: formData.email,
-        password: formData.password,
+      // Login via server route — it sets Set-Cookie headers with the correct
+      // shared domain (.waptrix.in), cleanly overwriting any stale browser
+      // cookies that previously caused empty-dashboard bugs on re-login.
+      const loginRes = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: formData.email, password: formData.password }),
+        credentials: "include",
       });
+      const loginData = await loginRes.json();
 
-      if (authError) {
-        setError(authError.message);
+      if (!loginRes.ok) {
+        setError(loginData.error || "Login failed");
         return;
       }
 
       // If a plan was selected before login → initiate payment directly
       if (planParam) {
         setStatusMsg("Logged in! Creating your payment session…");
-        const { data: { session: newSession } } = await supabase.auth.getSession();
         const res = await fetch("/api/payments/initiate", {
           method:  "POST",
-          headers: {
-            "Content-Type":  "application/json",
-            "Authorization": `Bearer ${newSession?.access_token || ""}`,
-          },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ planId: planParam }),
+          credentials: "include",
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "We couldn't create your payment session. Please try again.");
