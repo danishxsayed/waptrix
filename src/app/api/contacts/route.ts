@@ -33,15 +33,29 @@ export async function GET() {
     const tenantId = await getEffectiveTenantId(user.id);
     const db = serviceDb();
 
-    const { data, error } = await db
-      .from('contacts')
-      .select('*')
-      .eq('tenant_id', tenantId)
-      .order('created_at', { ascending: false })
-      .limit(100000); // Supabase PostgREST defaults to 1000 rows — override it
+    // Supabase PostgREST enforces a server-side max-rows cap (typically 1000).
+    // Fetch all contacts by paginating in chunks of 1000 until exhausted.
+    const PAGE = 1000;
+    let allContacts: any[] = [];
+    let from = 0;
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json(data);
+    while (true) {
+      const { data, error } = await db
+        .from('contacts')
+        .select('*')
+        .eq('tenant_id', tenantId)
+        .order('created_at', { ascending: false })
+        .range(from, from + PAGE - 1);
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      if (!data || data.length === 0) break;
+
+      allContacts = allContacts.concat(data);
+      if (data.length < PAGE) break; // last page
+      from += PAGE;
+    }
+
+    return NextResponse.json(allContacts);
   } catch (err: any) {
     return NextResponse.json({ error: err.message }, { status: 500 });
   }

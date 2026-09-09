@@ -1,5 +1,8 @@
 # Implementation History
 
+## [2026-09-09] - Contacts PostgREST Pagination Fix
+- **Contacts API Pagination**: Refactored `GET /api/contacts` to fetch contacts in paginated chunks of 1000 using `.range(from, from + PAGE - 1)` in a loop until exhausted, bypassing Supabase PostgREST default max-rows limit (1000 rows) and ensuring all contacts are returned.
+
 ## [2026-09-08] - Inbox Formatting, Pagination & Server Startup
 - **Dev Server**: Started the Next.js development server running on port 3001 (`npm run dev`).
 - **Inbox WhatsApp Formatting**: Added WhatsApp markdown formatting (`formatWhatsAppText`) to template bubbles and fallback message content.
