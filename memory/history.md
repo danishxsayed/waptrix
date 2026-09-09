@@ -1,6 +1,10 @@
 # Implementation History
 
-## [2026-09-09] - Contacts PostgREST Pagination Fix
+## [2026-09-09] - Campaign Timestamps, Inbox Campaign Badges & Contacts PostgREST Pagination Fix
+- **Campaign Card Timestamps**: Added sent date/time (`completed_at`) and fallback created date/time on campaign cards in `src/app/(dashboard)/campaigns/page.tsx`.
+- **Inbox Campaign Tagging & Filter**:
+  - Tracked `last_campaign_id` and `last_campaign_name` on conversation records in `src/app/api/campaigns/[id]/process-batch/route.ts`.
+  - Added campaign chip badges to conversation cards in `InboxPanel.tsx` and implemented single-click filtering by campaign with active filter banner dismissal.
 - **Contacts API Pagination**: Refactored `GET /api/contacts` to fetch contacts in paginated chunks of 1000 using `.range(from, from + PAGE - 1)` in a loop until exhausted, bypassing Supabase PostgREST default max-rows limit (1000 rows) and ensuring all contacts are returned.
 
 ## [2026-09-08] - Inbox Formatting, Pagination & Server Startup

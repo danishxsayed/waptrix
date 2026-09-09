@@ -24,6 +24,8 @@ interface Conversation {
   status: string;
   assigned_to?: string | null;
   assigned_name?: string | null;
+  last_campaign_id?: string | null;
+  last_campaign_name?: string | null;
 }
 
 interface TeamMember {
@@ -965,6 +967,7 @@ export default function InboxPanel({
   const [pendingFilters, setPendingFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
   // "Assigned to me" quick-filter — defaults ON for agents
   const [assignedToMe, setAssignedToMe] = useState(false);
+  const [campaignFilter, setCampaignFilter] = useState<string | null>(null); // campaign name to filter by
   useEffect(() => { if (isAgent) setAssignedToMe(true); }, [isAgent]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   // phone (normalized, no +) → segment name — built from contacts+segments fetch
@@ -1988,6 +1991,9 @@ export default function InboxPanel({
       if (!hasMatch) return false;
     }
 
+    // Campaign filter — show only conversations from a specific campaign
+    if (campaignFilter && c.last_campaign_name !== campaignFilter) return false;
+
     // Last Message Time — date range on last_message_at
     if (appliedFilters.lastMsgFrom) {
       if (new Date(c.last_message_at) < new Date(appliedFilters.lastMsgFrom)) return false;
@@ -2107,6 +2113,18 @@ export default function InboxPanel({
               <span>Assigned to me</span>
               {assignedToMe && <span className="ml-auto w-2 h-2 rounded-full bg-[#25D366]" />}
             </button>
+
+            {/* Active campaign filter chip */}
+            {campaignFilter && (
+              <button
+                onClick={() => setCampaignFilter(null)}
+                className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium bg-amber-400/15 border-amber-400/30 text-amber-700 hover:bg-amber-400/25 transition-colors"
+              >
+                <span>📢</span>
+                <span className="truncate flex-1 text-left">{campaignFilter}</span>
+                <span className="ml-auto text-amber-500 font-bold">✕</span>
+              </button>
+            )}
 
             <div className="flex items-center gap-2">
               {/* Filter button */}
@@ -2280,6 +2298,25 @@ export default function InboxPanel({
                         </span>
                       )}
                     </div>
+                    {conv.last_campaign_name && (
+                      <div className="mt-1">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCampaignFilter(prev => prev === conv.last_campaign_name ? null : conv.last_campaign_name!);
+                          }}
+                          className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold truncate max-w-full transition-colors ${
+                            campaignFilter === conv.last_campaign_name
+                              ? 'bg-amber-400/30 text-amber-700 ring-1 ring-amber-400'
+                              : 'bg-amber-400/15 text-amber-600 hover:bg-amber-400/25'
+                          }`}
+                          title={`Campaign: ${conv.last_campaign_name} — click to filter`}
+                        >
+                          <span>📢</span>
+                          <span className="truncate">{conv.last_campaign_name}</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               ))

@@ -222,7 +222,7 @@ export async function POST(
   let batchFailed = 0;
   const logInserts: any[]  = [];
   const msgInserts: any[]  = [];
-  const convUpdates: { id: string; name: string; lastMsg: string }[] = [];
+  const convUpdates: { id: string; name: string; lastMsg: string; campaignId: string; campaignName: string }[] = [];
 
   // Process contacts in parallel chunks
   for (let i = 0; i < pendingContacts.length; i += CONCURRENCY) {
@@ -281,7 +281,7 @@ export async function POST(
           .maybeSingle();
 
         if (existingConv) {
-          convUpdates.push({ id: existingConv.id, name: contact.name || normalizedPhone, lastMsg: resolvedContent });
+          convUpdates.push({ id: existingConv.id, name: contact.name || normalizedPhone, lastMsg: resolvedContent, campaignId: campaignId, campaignName: campaign.name || campaignId });
           msgInserts.push({
             tenant_id:       campaign.tenant_id,
             conversation_id: existingConv.id,
@@ -297,13 +297,15 @@ export async function POST(
           const { data: newConv } = await db
             .from('conversations')
             .insert({
-              tenant_id:       campaign.tenant_id,
-              contact_phone:   normalizedPhone,
-              contact_name:    contact.name || normalizedPhone,
-              last_message:    resolvedContent,
-              last_message_at: now,
-              unread_count:    0,
-              status:          'open',
+              tenant_id:          campaign.tenant_id,
+              contact_phone:      normalizedPhone,
+              contact_name:       contact.name || normalizedPhone,
+              last_message:       resolvedContent,
+              last_message_at:    now,
+              unread_count:       0,
+              status:             'open',
+              last_campaign_id:   campaignId,
+              last_campaign_name: campaign.name || campaignId,
             })
             .select('id')
             .single();
@@ -382,9 +384,11 @@ export async function POST(
   await Promise.all(
     convUpdates.map((upd) =>
       db.from('conversations').update({
-        contact_name:    upd.name,
-        last_message:    upd.lastMsg,
-        last_message_at: now,
+        contact_name:       upd.name,
+        last_message:       upd.lastMsg,
+        last_message_at:    now,
+        last_campaign_id:   upd.campaignId,
+        last_campaign_name: upd.campaignName,
       }).eq('id', upd.id)
     )
   );

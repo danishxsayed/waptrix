@@ -200,6 +200,18 @@ export default function CampaignsPage() {
                       Launches {new Date(campaign.scheduled_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
                     </span>
                   )}
+                  {campaign.completed_at && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      Sent {new Date(campaign.completed_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                  )}
+                  {!campaign.completed_at && campaign.created_at && (
+                    <span className="flex items-center gap-1">
+                      <Calendar className="w-3 h-3" />
+                      Created {new Date(campaign.created_at).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
