@@ -114,12 +114,13 @@ async function addMessageWithFallback(
   direction: 'inbound' | 'outbound' = 'inbound',
 ): Promise<void> {
   try {
+    // Try Custom type first — works without needing GHL native WhatsApp channel
     const res = await fetch(`${GHL_BASE}/conversations/messages`, {
       method: 'POST',
       headers: ghlHeaders(token),
       body: JSON.stringify({
         conversationId,
-        type: 'WhatsApp',
+        type: 'Custom',
         message: messageBody,
         direction,
         date: new Date().toISOString(),
@@ -130,14 +131,15 @@ async function addMessageWithFallback(
       const errText = await res.text().catch(() => '');
       console.error('[ghl] Failed to add message:', res.status, errText);
 
-      // Fallback: add as a contact note so message is visible regardless
+      // Fallback: add as a contact note so message is always visible in GHL
       await fetch(`${GHL_BASE}/contacts/${contactId}/notes`, {
         method: 'POST',
         headers: ghlHeaders(token),
         body: JSON.stringify({
-          body: `📲 WhatsApp ${direction}: ${messageBody}`,
+          body: `📲 WhatsApp ${direction === 'inbound' ? '(reply)' : '(sent)'}: ${messageBody}`,
+          userId: '',
         }),
-      }).catch(() => {});
+      }).catch((e) => console.error('[ghl] note fallback failed:', e.message));
     }
   } catch (err: any) {
     console.error('[ghl] addMessage error:', err.message);
