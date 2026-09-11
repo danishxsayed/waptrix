@@ -52,6 +52,7 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Implemented error detection for unregistered WhatsApp numbers (Graph API error 100 / nonexisting field) returning a `{ needs_registration: true }` payload which triggers a dedicated UI warning alert and register redirection action in the settings page.
   - Created `/api/whatsapp/profile/picture` (POST to upload JPEG/PNG avatar assets up to 5MB, register the resulting media handle with Meta, and set it as the WhatsApp Business Profile picture).
   - Unified all Meta API Graph routes to default to the permanent `META_SYSTEM_TOKEN` with fallback retry options using individual user tokens to prevent access token validation issues.
+  - **GoHighLevel (GHL) Integration**: Supports syncing inbound and outbound WhatsApp conversations into GoHighLevel using GHL Private Integration tokens (configured via `/api/settings/ghl` and managed in Settings UI). Automatically upserts contacts by phone number, matches or creates GHL conversations, and posts messages via `src/lib/ghl.ts` on `message.received` and `message.sent` webhook events without triggering paid GHL workflows.
 - **Landing Page & Error Resilience**:
   - Implemented a fully responsive, SEO-optimized landing page at `public/index.html` styling the site to match the dark glassmorphic design token system.
   - Implemented frontend error boundaries across all dashboard pages (Analytics, Campaigns, Contacts, Templates, and Home dashboard) with user-friendly retry buttons, toast alerts, and launch boundaries.

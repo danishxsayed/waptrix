@@ -6,6 +6,7 @@
 
 import { createHmac, randomBytes } from 'crypto';
 import { createClient } from '@supabase/supabase-js';
+import { syncToGHL } from './ghl';
 
 export type WebhookEvent =
   | 'message.received'
@@ -72,6 +73,20 @@ export async function fireWebhook(
 
       url = tenant?.webhook_url;
       secret = tenant?.webhook_secret;
+    }
+
+    // Sync to GHL for inbound/outbound messages (free — uses Private Integration API)
+    if (payload.event === 'message.received' || payload.event === 'message.sent') {
+      const direction = payload.message?.direction ?? 'inbound';
+      if (payload.contact?.phone && payload.message?.content) {
+        syncToGHL(
+          tenantId,
+          payload.contact.phone,
+          payload.message.content,
+          payload.contact.name,
+          direction,
+        ).catch(() => {});
+      }
     }
 
     if (!url) return; // no webhook configured — skip silently

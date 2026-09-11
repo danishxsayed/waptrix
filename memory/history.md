@@ -1,5 +1,13 @@
 # Implementation History
 
+## [2026-09-11] - GoHighLevel Integration & Server Startup
+- **GoHighLevel Private Integration**:
+  - Built `src/lib/ghl.ts` to sync inbound/outbound WhatsApp messages into GoHighLevel using GHL API v2 and Private Integration tokens (upserting contacts by phone, resolving conversations, and posting messages).
+  - Created `/api/settings/ghl` endpoint to get (masked), set (with token/location validation), and delete GHL credentials on tenants table (`ghl_token`, `ghl_location_id`).
+  - Added GoHighLevel settings section with connection status, token inputs, and disconnect controls in `src/app/(dashboard)/settings/page.tsx`.
+  - Updated `src/lib/outbound-webhook.ts` to automatically trigger `syncToGHL` on `message.received` and `message.sent` events.
+- **Dev Server**: Started the Next.js development server running on port 3001 (`npm run dev`).
+
 ## [2026-09-09] - QStash Scheduled Campaign Delays, Campaign Timestamps & Inbox Badges
 - **QStash Direct Scheduled Campaign Trigger**:
   - Refactored `POST /api/campaigns` to schedule future campaigns directly via QStash `publishJSON` using `notBefore` timestamp targeting the scheduled execution time.
