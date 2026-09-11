@@ -33,7 +33,7 @@ async function upsertContact(
     if (searchRes.ok) {
       const searchData = await searchRes.json();
       const existing = searchData?.contact;
-      if (existing?.id) return existing.id;
+      if (existing?.id) return existing.id; // existing contact — don't modify tags
     }
 
     // Create new contact
@@ -41,6 +41,7 @@ async function upsertContact(
       locationId,
       phone,
       source: 'WhatsApp via Waptrix',
+      tags: ['Waptrix'],
     };
     if (name) {
       const parts = name.trim().split(/\s+/);
@@ -60,7 +61,8 @@ async function upsertContact(
     }
 
     const createData = await createRes.json();
-    return createData?.contact?.id ?? null;
+    const newContactId = createData?.contact?.id ?? null;
+    return newContactId;
   } catch (err: any) {
     console.error('[ghl] upsertContact error:', err.message);
     return null;
