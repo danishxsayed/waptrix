@@ -55,10 +55,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Both token and location ID are required' }, { status: 400 });
   }
 
-  // Verify the token works by calling GHL API
+  // Verify the token works using contacts search (uses contacts.write scope)
   try {
     const verifyRes = await fetch(
-      `https://services.leadconnectorhq.com/locations/${ghl_location_id}`,
+      `https://services.leadconnectorhq.com/contacts/?locationId=${ghl_location_id}&limit=1`,
       {
         headers: {
           'Authorization': `Bearer ${ghl_token}`,
@@ -67,7 +67,12 @@ export async function POST(req: Request) {
       }
     );
     if (!verifyRes.ok) {
-      return NextResponse.json({ error: 'Invalid token or location ID — GHL returned an error' }, { status: 400 });
+      const errText = await verifyRes.text().catch(() => '');
+      console.error('[ghl settings] verify failed:', verifyRes.status, errText);
+      return NextResponse.json(
+        { error: `GHL rejected the token (${verifyRes.status}). Check your token and Location ID are correct.` },
+        { status: 400 }
+      );
     }
   } catch {
     return NextResponse.json({ error: 'Could not reach GoHighLevel API to verify credentials' }, { status: 400 });
