@@ -105,11 +105,12 @@ async function getOrCreateConversation(
   }
 }
 
-/** Post an inbound WhatsApp message into a GHL conversation. */
-async function addMessage(
+/** Post a WhatsApp message into a GHL conversation, with note fallback. */
+async function addMessageWithFallback(
   token: string,
   conversationId: string,
-  body: string,
+  contactId: string,
+  messageBody: string,
   direction: 'inbound' | 'outbound' = 'inbound',
 ): Promise<void> {
   try {
@@ -119,12 +120,24 @@ async function addMessage(
       body: JSON.stringify({
         conversationId,
         type: 'WhatsApp',
-        message: body,
-        direction: direction === 'inbound' ? 'inbound' : 'outbound',
+        message: messageBody,
+        direction,
+        date: new Date().toISOString(),
       }),
     });
+
     if (!res.ok) {
-      console.error('[ghl] Failed to add message:', await res.text());
+      const errText = await res.text().catch(() => '');
+      console.error('[ghl] Failed to add message:', res.status, errText);
+
+      // Fallback: add as a contact note so message is visible regardless
+      await fetch(`${GHL_BASE}/contacts/${contactId}/notes`, {
+        method: 'POST',
+        headers: ghlHeaders(token),
+        body: JSON.stringify({
+          body: `📲 WhatsApp ${direction}: ${messageBody}`,
+        }),
+      }).catch(() => {});
     }
   } catch (err: any) {
     console.error('[ghl] addMessage error:', err.message);
@@ -165,7 +178,7 @@ export async function syncToGHL(
     const conversationId = await getOrCreateConversation(token, locationId, contactId);
     if (!conversationId) return;
 
-    await addMessage(token, conversationId, messageBody, direction);
+    await addMessageWithFallback(token, conversationId, contactId, messageBody, direction);
   } catch {
     // Never let GHL errors affect the main flow
   }
