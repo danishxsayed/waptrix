@@ -972,19 +972,41 @@ export default function SettingsPage() {
                 <p className="text-xs text-text-muted mt-0.5">Location ID: {ghlLocationId}</p>
                 <p className="text-xs text-text-muted">Inbound WhatsApp messages are being synced to GHL automatically.</p>
               </div>
-              <button
-                onClick={async () => {
-                  if (!confirm('Disconnect GoHighLevel? Messages will no longer sync.')) return;
-                  await fetch('/api/settings/ghl', { method: 'DELETE' });
-                  setGhlConnected(false);
-                  setGhlToken('');
-                  setGhlLocationId('');
-                  setGhlMsg({ type: 'success', text: 'GoHighLevel disconnected.' });
-                }}
-                className="btn-secondary text-xs text-red-500 flex items-center gap-1.5"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Disconnect
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    setGhlSaving(true); setGhlMsg(null);
+                    try {
+                      const res = await fetch('/api/settings/ghl/test', { method: 'POST' });
+                      const d = await res.json();
+                      setGhlMsg({
+                        type: d.success ? 'success' : 'error',
+                        text: d.message || (d.success ? 'Test passed!' : JSON.stringify(d.steps)),
+                      });
+                    } catch (e: any) {
+                      setGhlMsg({ type: 'error', text: e.message });
+                    } finally { setGhlSaving(false); }
+                  }}
+                  disabled={ghlSaving}
+                  className="btn-secondary text-xs flex items-center gap-1.5"
+                >
+                  {ghlSaving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCcw className="w-3.5 h-3.5" />}
+                  Test
+                </button>
+                <button
+                  onClick={async () => {
+                    if (!confirm('Disconnect GoHighLevel? Messages will no longer sync.')) return;
+                    await fetch('/api/settings/ghl', { method: 'DELETE' });
+                    setGhlConnected(false);
+                    setGhlToken('');
+                    setGhlLocationId('');
+                    setGhlMsg({ type: 'success', text: 'GoHighLevel disconnected.' });
+                  }}
+                  className="btn-secondary text-xs text-red-500 flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" /> Disconnect
+                </button>
+              </div>
             </div>
           ) : (
             <>
