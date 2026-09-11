@@ -2,7 +2,7 @@
 
 ## [2026-09-11] - GoHighLevel Integration & Server Startup
 - **GoHighLevel Private Integration**:
-  - Built `src/lib/ghl.ts` to sync inbound/outbound WhatsApp messages into GoHighLevel using GHL API v2 and Private Integration tokens (upserting contacts by phone, resolving conversations, posting messages as `Custom` type with fallback to contact notes).
+  - Built `src/lib/ghl.ts` to sync inbound/outbound WhatsApp messages into GoHighLevel using GHL API v2 and Private Integration tokens (upserting contacts by phone and saving messages as contact notes, compatible across all GHL plans with `contacts.write` scope).
   - Created `/api/settings/ghl` endpoint to get (masked), save directly to the tenants table (`ghl_token`, `ghl_location_id`), and delete GHL credentials.
   - Added GoHighLevel settings section with connection status, token inputs, and disconnect controls in `src/app/(dashboard)/settings/page.tsx`.
   - Updated `src/lib/outbound-webhook.ts` to automatically trigger `syncToGHL` on `message.received` and `message.sent` events.
