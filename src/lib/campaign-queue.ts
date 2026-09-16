@@ -109,21 +109,38 @@ export async function enqueueCampaignBatches(campaignId: string): Promise<void> 
   // 2. Fetch contacts — always invalidate cache first so a new upload
   //    (or a re-run of the same segment) always gets the current DB rows,
   //    not a stale cached list from a previous campaign on the same segment.
-  await invalidateContacts(campaign.segment_id, campaign.tenant_id);
+  const isAllContacts = !campaign.segment_id || campaign.segment_id === 'all';
+  await invalidateContacts(campaign.segment_id ?? 'all', campaign.tenant_id);
 
   const contacts = await getCachedContacts(
-    campaign.segment_id,
+    campaign.segment_id ?? 'all',
     campaign.tenant_id,
     async () => {
-      const { data, error } = await db
+      let query = db
         .from('contacts')
         .select('id, phone, name, email, custom1, custom2, custom3, opted_in')
         .eq('tenant_id', campaign.tenant_id)
-        .eq('segment_id', campaign.segment_id)
         .or('opted_in.is.null,opted_in.eq.true');
-      if (error) console.error(`[campaign-queue] DB error fetching contacts:`, error.message);
-      console.log(`[campaign-queue] Fetched ${data?.length ?? 0} contacts for campaign ${campaignId} (segment ${campaign.segment_id})`);
-      return data ?? [];
+
+      if (!isAllContacts) {
+        query = query.eq('segment_id', campaign.segment_id);
+      }
+
+      // Paginate to bypass Supabase 1000-row limit
+      const PAGE = 1000;
+      let allContacts: any[] = [];
+      let from = 0;
+      while (true) {
+        const { data, error } = await query.range(from, from + PAGE - 1);
+        if (error) { console.error(`[campaign-queue] DB error fetching contacts:`, error.message); break; }
+        if (!data || data.length === 0) break;
+        allContacts = allContacts.concat(data);
+        if (data.length < PAGE) break;
+        from += PAGE;
+      }
+
+      console.log(`[campaign-queue] Fetched ${allContacts.length} contacts for campaign ${campaignId} (${isAllContacts ? 'all contacts' : `segment ${campaign.segment_id}`})`);
+      return allContacts;
     }
   );
 

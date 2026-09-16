@@ -141,6 +141,7 @@ export async function POST(req: Request) {
     if (!name)       return NextResponse.json({ error: 'Campaign name is required' },    { status: 400 });
     if (!templateId) return NextResponse.json({ error: 'Template is required' },         { status: 400 });
     if (!segmentId)  return NextResponse.json({ error: 'Segment/audience is required' }, { status: 400 });
+    // 'all' is a valid special value meaning "All Contacts" — no segment lookup needed
 
     const { variable_mapping, send_now, scheduled_at } = body;
 

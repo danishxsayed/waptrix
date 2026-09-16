@@ -1368,11 +1368,11 @@ export default function InboxPanel({
   const fetchMessages = useCallback(async (convId: string) => {
     setLoadingMsgs(true);
     setHasMoreMessages(false);
-    const res = await fetch(`/api/conversations/${convId}/messages?limit=20`);
+    const res = await fetch(`/api/conversations/${convId}/messages?limit=50`);
     if (res.ok) {
       const data: ChatMessage[] = await res.json();
       setMessages(data);
-      setHasMoreMessages(data.length === 20);
+      setHasMoreMessages(data.length === 50);
       // Always scroll to bottom (most recent) when loading a conversation
       setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: 'instant' }), 50);
     }
@@ -1388,12 +1388,12 @@ export default function InboxPanel({
     const container = messagesContainerRef.current;
     const prevScrollHeight = container?.scrollHeight ?? 0;
     const res = await fetch(
-      `/api/conversations/${activeConv.id}/messages?limit=20&before=${encodeURIComponent(oldest.created_at)}`
+      `/api/conversations/${activeConv.id}/messages?limit=50&before=${encodeURIComponent(oldest.created_at)}`
     );
     if (res.ok) {
       const older: ChatMessage[] = await res.json();
       setMessages(prev => [...older, ...prev]);
-      setHasMoreMessages(older.length === 20);
+      setHasMoreMessages(older.length === 50);
       // Restore scroll position so older messages appear above without jumping
       setTimeout(() => {
         if (container) {
@@ -2425,7 +2425,17 @@ export default function InboxPanel({
                 }
               }}
             >
-              {/* Load more indicator at top */}
+                      {/* Load older messages button */}
+              {hasMoreMessages && !loadingMoreMsgs && (
+                <div className="flex items-center justify-center py-2">
+                  <button
+                    onClick={loadMoreMessages}
+                    className="text-xs text-jade font-semibold px-4 py-1.5 rounded-full bg-jade/10 hover:bg-jade/20 transition-colors flex items-center gap-1.5"
+                  >
+                    <RefreshCcw className="w-3 h-3" /> Load older messages
+                  </button>
+                </div>
+              )}
               {loadingMoreMsgs && (
                 <div className="flex items-center justify-center py-2">
                   <Loader2 className="w-4 h-4 text-jade animate-spin mr-2" />

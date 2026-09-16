@@ -281,6 +281,7 @@ export default function CampaignWizard({
   const [step, setStep] = useState(1);
   const [templates, setTemplates] = useState<any[]>([]);
   const [segments, setSegments] = useState<any[]>([]);
+  const [allContactsCount, setAllContactsCount] = useState<number | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [launchError, setLaunchError] = useState("");
@@ -309,12 +310,14 @@ export default function CampaignWizard({
     setIsLoadingData(true);
     setLoadError("");
     try {
-      const [tRes, sRes] = await Promise.all([
+      const [tRes, sRes, cRes] = await Promise.all([
         axios.get("/api/templates"),
         axios.get("/api/contacts/segments"),
+        axios.get("/api/contacts/count"),
       ]);
       setTemplates((tRes.data || []).filter((t: any) => t.meta_status === "APPROVED"));
       setSegments(sRes.data || []);
+      setAllContactsCount(cRes.data?.count ?? null);
     } catch (err: any) {
       setLoadError(err.response?.data?.error || "Failed to load data. Please retry.");
     } finally {
@@ -400,7 +403,9 @@ export default function CampaignWizard({
   };
 
   const selectedTemplate = templates.find(t => t.id === formData.template_id);
-  const selectedSegment = segments.find(s => s.id === formData.segment_id);
+  const isAllContacts = formData.segment_id === 'all';
+  const selectedSegment = isAllContacts ? null : segments.find(s => s.id === formData.segment_id);
+  const audienceLabel = isAllContacts ? `All Contacts (${allContactsCount ?? '…'})` : (selectedSegment?.name || '—');
   const variables: string[] = selectedTemplate ? (selectedTemplate.body.match(/{{\d+}}/g) || []) : [];
 
   const fieldLabels: Record<string, string> = {
@@ -489,34 +494,63 @@ export default function CampaignWizard({
               {step === 2 && (
                 <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                   <SectionHeader icon={Users} title="Target Audience" sub="Choose which contacts receive this campaign" />
-                  {segments.length === 0 ? (
-                    <EmptyState icon={Users} title="No segments found" sub="Go to Contacts → create a segment first." />
-                  ) : (
-                    <div className="space-y-3">
-                      {segments.map(s => (
-                        <button
-                          key={s.id}
-                          onClick={() => setFormData(p => ({ ...p, segment_id: s.id }))}
-                          className={`w-full p-4 rounded-2xl border text-left transition-all flex items-center justify-between gap-4 ${
-                            formData.segment_id === s.id
-                              ? "bg-jade/5 border-jade"
-                              : "bg-card border-border hover:border-jade/30"
-                          }`}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className={`w-10 h-10 rounded-full flex items-center justify-center ${formData.segment_id === s.id ? "bg-jade/10" : "bg-surface"}`}>
-                              <Users className={`w-5 h-5 ${formData.segment_id === s.id ? "text-jade" : "text-text-muted"}`} />
-                            </div>
-                            <div>
-                              <p className="font-bold text-sm">{s.name}</p>
-                              <p className="text-[11px] text-text-muted mt-0.5">{s.contact_count ?? "All"} contacts</p>
-                            </div>
+                  <div className="space-y-3">
+                    {/* All Contacts option */}
+                    <button
+                      onClick={() => setFormData(p => ({ ...p, segment_id: 'all' }))}
+                      className={`w-full p-4 rounded-2xl border text-left transition-all flex items-center justify-between gap-4 ${
+                        formData.segment_id === 'all'
+                          ? "bg-jade/5 border-jade"
+                          : "bg-card border-border hover:border-jade/30"
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center ${formData.segment_id === 'all' ? "bg-jade/10" : "bg-surface"}`}>
+                          <Users className={`w-5 h-5 ${formData.segment_id === 'all' ? "text-jade" : "text-text-muted"}`} />
+                        </div>
+                        <div>
+                          <p className="font-bold text-sm">All Contacts</p>
+                          <p className="text-[11px] text-text-muted mt-0.5">
+                            {allContactsCount !== null ? `${allContactsCount.toLocaleString()} eligible contacts` : 'All opted-in contacts'}
+                          </p>
+                        </div>
+                      </div>
+                      {formData.segment_id === 'all' && <CheckCircle2 className="w-5 h-5 text-jade shrink-0" />}
+                    </button>
+
+                    {/* Divider */}
+                    {segments.length > 0 && (
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-px bg-border" />
+                        <span className="text-[10px] text-text-muted uppercase tracking-wider font-bold">or select segment</span>
+                        <div className="flex-1 h-px bg-border" />
+                      </div>
+                    )}
+
+                    {/* Segment options */}
+                    {segments.map(s => (
+                      <button
+                        key={s.id}
+                        onClick={() => setFormData(p => ({ ...p, segment_id: s.id }))}
+                        className={`w-full p-4 rounded-2xl border text-left transition-all flex items-center justify-between gap-4 ${
+                          formData.segment_id === s.id
+                            ? "bg-jade/5 border-jade"
+                            : "bg-card border-border hover:border-jade/30"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${formData.segment_id === s.id ? "bg-jade/10" : "bg-surface"}`}>
+                            <Users className={`w-5 h-5 ${formData.segment_id === s.id ? "text-jade" : "text-text-muted"}`} />
                           </div>
-                          {formData.segment_id === s.id && <CheckCircle2 className="w-5 h-5 text-jade shrink-0" />}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                          <div>
+                            <p className="font-bold text-sm">{s.name}</p>
+                            <p className="text-[11px] text-text-muted mt-0.5">{s.contact_count ?? "—"} contacts</p>
+                          </div>
+                        </div>
+                        {formData.segment_id === s.id && <CheckCircle2 className="w-5 h-5 text-jade shrink-0" />}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               )}
 
@@ -784,7 +818,7 @@ export default function CampaignWizard({
                     <div className="divide-y divide-border/50">
                       {[
                         ["Campaign", formData.name],
-                        ["Audience", selectedSegment?.name || "—"],
+                        ["Audience", audienceLabel],
                         ["Template", selectedTemplate?.name || "—"],
                         ["Schedule", formData.send_now ? "Immediately" : (formData.scheduled_at ? (() => {
                           const d = new Date(wallClockToUTC(formData.scheduled_at, formData.timezone));

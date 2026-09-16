@@ -58,12 +58,17 @@ export async function executeCampaignSend(campaignId: string): Promise<void> {
     return;
   }
 
-  // Fetch contacts in this segment
-  const { data: contacts } = await db
+  // Fetch contacts — support 'all' special value for All Contacts
+  const isAllContacts = !campaign.segment_id || campaign.segment_id === 'all';
+  let query = db
     .from('contacts')
     .select('id, phone, name, email, custom1, custom2, custom3')
     .eq('tenant_id', campaign.tenant_id)
-    .eq('segment_id', campaign.segment_id);
+    .or('opted_in.is.null,opted_in.eq.true');
+  if (!isAllContacts) {
+    query = query.eq('segment_id', campaign.segment_id);
+  }
+  const { data: contacts } = await query;
 
   if (!contacts || contacts.length === 0) {
     await db.from('campaigns').update({
