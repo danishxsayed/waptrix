@@ -105,9 +105,11 @@ export async function POST(req: Request) {
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const body = await req.json();
-    const { code, wabaId: rawWabaId, phoneNumberId: rawPhoneNumberId } = body;
+    const { code, wabaId: rawWabaId, phoneNumberId: rawPhoneNumberId, redirectUri: clientRedirectUri } = body;
 
-    const redirectUri = `${process.env.NEXT_PUBLIC_APP_URL}/connect`;
+    // Prefer the redirect_uri sent by the client (window.location.origin) — it must exactly
+    // match what was used in the OAuth dialog, which is also built from the browser origin.
+    const redirectUri = clientRedirectUri || `${process.env.NEXT_PUBLIC_APP_URL}/connect`;
     const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
     // Step 1: Get a short-lived token (from OAuth code or existing DB token)

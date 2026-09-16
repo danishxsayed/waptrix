@@ -73,7 +73,7 @@ export default function ConnectPage() {
       const res = await fetch('/api/whatsapp/oauth-connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, wabaId, phoneNumberId: phoneId }),
+        body: JSON.stringify({ code, wabaId, phoneNumberId: phoneId, redirectUri: `${window.location.origin}/connect` }),
       });
       const data = await res.json();
       if (data.error) {
@@ -121,7 +121,7 @@ export default function ConnectPage() {
       const res = await fetch('/api/whatsapp/oauth-connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: pendingCode, wabaId: 'from-phone-id', phoneNumberId: trimmedId }),
+        body: JSON.stringify({ code: pendingCode, wabaId: 'from-phone-id', phoneNumberId: trimmedId, redirectUri: `${window.location.origin}/connect` }),
       });
       const data = await res.json();
       if (data.error) {
