@@ -62,9 +62,11 @@ interface Log {
   status: string;
   sent_at: string | null;
   created_at: string;
+  replied_at: string | null;
   error?: string;
   error_message?: string;
   error_detail?: string;
+  contact?: { name?: string } | null;
 }
 
 export default function CampaignDetailPage() {
@@ -78,7 +80,7 @@ export default function CampaignDetailPage() {
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [error, setError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
-  const [logFilter, setLogFilter] = useState<"all" | "sent" | "delivered" | "read" | "failed">("all");
+  const [logFilter, setLogFilter] = useState<"all" | "sent" | "delivered" | "read" | "replied" | "failed">("all");
   const [logSearch, setLogSearch] = useState("");
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -254,8 +256,13 @@ export default function CampaignDetailPage() {
   const total = campaign.total_contacts || 1;
 
   const filteredLogs = logs.filter((log) => {
-    const matchesFilter = logFilter === "all" || (log.status || "").toLowerCase() === logFilter;
-    const matchesSearch = !logSearch || log.phone.includes(logSearch);
+    const matchesFilter =
+      logFilter === "all" ||
+      (logFilter === "replied" ? !!log.replied_at : (log.status || "").toLowerCase() === logFilter);
+    const matchesSearch =
+      !logSearch ||
+      log.phone.includes(logSearch) ||
+      (log.contact?.name || "").toLowerCase().includes(logSearch.toLowerCase());
     return matchesFilter && matchesSearch;
   });
 
@@ -264,6 +271,7 @@ export default function CampaignDetailPage() {
     sent: logs.filter((l) => (l.status || "").toLowerCase() === "sent").length,
     delivered: logs.filter((l) => (l.status || "").toLowerCase() === "delivered").length,
     read: logs.filter((l) => (l.status || "").toLowerCase() === "read").length,
+    replied: logs.filter((l) => !!l.replied_at).length,
     failed: logs.filter((l) => (l.status || "").toLowerCase() === "failed").length,
   };
 
@@ -470,7 +478,7 @@ export default function CampaignDetailPage() {
           <div className="relative">
             <input
               type="text"
-              placeholder="Search phone…"
+              placeholder="Search name or phone…"
               value={logSearch}
               onChange={(e) => setLogSearch(e.target.value)}
               className="input-field text-xs pl-3 pr-8 py-1.5 w-44"
@@ -485,7 +493,7 @@ export default function CampaignDetailPage() {
 
         {/* Filter tabs */}
         <div className="flex items-center gap-1 flex-wrap">
-          {(["all", "sent", "delivered", "read", "failed"] as const).map((f) => (
+          {(["all", "sent", "delivered", "read", "replied", "failed"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setLogFilter(f)}
@@ -520,7 +528,7 @@ export default function CampaignDetailPage() {
             </p>
             <p className="text-xs text-text-muted max-w-sm mx-auto">
               {logSearch
-                ? "Try a different phone number."
+                ? "Try a different name or phone number."
                 : "This campaign might be queued or hasn't started sending yet."}
             </p>
           </div>
@@ -529,9 +537,10 @@ export default function CampaignDetailPage() {
             <table className="w-full text-xs">
               <thead>
                 <tr className="border-b border-border/50 bg-surface/60">
-                  <th className="text-left px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">Phone</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">Contact</th>
                   <th className="text-left px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">Status</th>
                   <th className="text-left px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">Sent At</th>
+                  <th className="text-left px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">Replied At</th>
                   <th className="text-left px-4 py-2.5 text-[10px] font-bold uppercase tracking-widest text-text-muted">Error</th>
                   <th className="px-4 py-2.5 w-8" />
                 </tr>
@@ -541,17 +550,35 @@ export default function CampaignDetailPage() {
                   const hasFailed = (log.status || "").toLowerCase() === "failed";
                   const errorMsg = log.error || log.error_message || log.error_detail;
                   const isExpanded = expandedLogId === log.id;
+                  const contactName = log.contact?.name;
                   return (
                     <React.Fragment key={log.id}>
                       <tr
                         className={`hover:bg-surface/40 transition-colors ${hasFailed ? "bg-rose-500/3" : ""}`}
                       >
-                        <td className="px-4 py-3 font-mono font-medium text-text-primary">{log.phone}</td>
-                        <td className="px-4 py-3">{getLogStatusBadge(log.status)}</td>
+                        <td className="px-4 py-3">
+                          {contactName && <p className="font-medium text-text-primary text-xs">{contactName}</p>}
+                          <p className="font-mono text-text-muted text-[10px]">{log.phone}</p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {getLogStatusBadge(log.status)}
+                            {log.replied_at && (
+                              <span className="bg-violet-500/10 text-violet-400 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border border-violet-500/20 flex items-center gap-1 shrink-0">
+                                <MessageCircleReply className="w-2.5 h-2.5" /> Replied
+                              </span>
+                            )}
+                          </div>
+                        </td>
                         <td className="px-4 py-3 text-text-muted">
                           {log.sent_at
                             ? new Date(log.sent_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
                             : new Date(log.created_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })}
+                        </td>
+                        <td className="px-4 py-3 text-text-muted">
+                          {log.replied_at
+                            ? new Date(log.replied_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
+                            : <span className="text-text-muted/40">—</span>}
                         </td>
                         <td className="px-4 py-3 text-text-muted max-w-[200px] truncate">
                           {hasFailed && errorMsg ? (
@@ -571,7 +598,7 @@ export default function CampaignDetailPage() {
                       </tr>
                       {isExpanded && hasFailed && errorMsg && (
                         <tr className="bg-rose-500/5">
-                          <td colSpan={5} className="px-4 pb-3 pt-1">
+                          <td colSpan={6} className="px-4 pb-3 pt-1">
                             <div className="p-3 bg-rose-500/8 border border-rose-500/20 rounded-lg text-[11px] font-mono text-rose-400 break-words">
                               <span className="font-bold uppercase tracking-wider mr-2 text-[9px] bg-rose-500/20 text-rose-300 px-1.5 py-0.5 rounded">Error Detail</span>
                               {errorMsg}

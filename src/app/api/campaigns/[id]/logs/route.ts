@@ -41,9 +41,10 @@ export async function GET(
     }
 
     // Fetch logs by campaign_id only — tenant security already checked above
+    // Join contacts to get contact name for display
     const { data, error } = await db
       .from('message_logs')
-      .select('*')
+      .select('*, contact:contacts(name)')
       .eq('campaign_id', id)
       .order('created_at', { ascending: false })
       .limit(1000);

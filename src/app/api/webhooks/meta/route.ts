@@ -583,6 +583,15 @@ async function handleMessages(db: SupabaseClient, value: any) {
       console.error('chat_messages insert error:', insertErr.message, insertErr.code);
     }
 
+    // If this message is a reply to a campaign message, mark replied_at in message_logs
+    if (repliedToId) {
+      db.from('message_logs')
+        .update({ replied_at: msgTimestamp })
+        .eq('meta_msg_id', repliedToId)
+        .then(() => {})
+        .catch(() => {});
+    }
+
     // Fire CRM outbound webhook (fire-and-forget — never block the main flow)
     fireWebhook(tenantId, {
       event: isNewConversation ? 'conversation.created' : 'message.received',
