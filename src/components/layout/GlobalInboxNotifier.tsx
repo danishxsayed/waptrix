@@ -74,7 +74,10 @@ export default function GlobalInboxNotifier() {
       try {
         const res = await fetch("/api/conversations");
         if (!res.ok) return;
-        const data: { unread_count?: number; status?: string }[] = await res.json();
+        const payload = await res.json();
+        // API returns { conversations: [...], hasMore, nextCursor } — handle both shapes
+        const data: { unread_count?: number; status?: string }[] =
+          Array.isArray(payload) ? payload : (payload.conversations ?? []);
 
         // Only count open conversations (closed ones don't need notifications)
         const total = data
