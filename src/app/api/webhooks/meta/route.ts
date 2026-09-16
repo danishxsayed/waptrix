@@ -469,6 +469,14 @@ async function handleMessages(db: SupabaseClient, value: any) {
     } else if (type === 'button') {
       // Quick reply button tap (from a template message)
       content = msg.button?.text || msg.button?.payload || '[button reply]';
+    } else if (type === 'location') {
+      const loc = msg.location ?? {};
+      content = JSON.stringify({
+        lat:     loc.latitude  ?? 0,
+        lng:     loc.longitude ?? 0,
+        name:    loc.name     ?? '',
+        address: loc.address  ?? '',
+      });
     } else if (type === 'order') {
       content = '[order]';
     } else if (type === 'reaction') {

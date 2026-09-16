@@ -2645,8 +2645,38 @@ export default function InboxPanel({
                               </p>
                             )}
 
+                            {/* Location message */}
+                            {msg.type === "location" && msg.content && (() => {
+                              try {
+                                const loc = JSON.parse(msg.content);
+                                const { lat, lng, name, address } = loc;
+                                const mapUrl = `https://www.openstreetmap.org/?mlat=${lat}&mlon=${lng}#map=15/${lat}/${lng}`;
+                                const staticImg = `https://static-maps.yandex.ru/1.x/?ll=${lng},${lat}&z=15&l=map&size=300,150&pt=${lng},${lat},pm2rdm`;
+                                return (
+                                  <a href={mapUrl} target="_blank" rel="noopener noreferrer" className="block rounded-xl overflow-hidden border border-white/20 hover:opacity-90 transition-opacity" style={{maxWidth:240}}>
+                                    <img
+                                      src={`https://static-maps.yandex.ru/1.x/?ll=${lng},${lat}&z=15&l=map&size=300,150&pt=${lng},${lat},pm2rdm`}
+                                      alt="Location"
+                                      className="w-full object-cover"
+                                      style={{height:120}}
+                                      onError={(e) => {
+                                        // fallback: hide image and show text only
+                                        (e.target as HTMLImageElement).style.display = 'none';
+                                      }}
+                                    />
+                                    <div className="px-3 py-2 bg-black/10">
+                                      <p className="text-xs font-semibold flex items-center gap-1">📍 {name || 'Location'}</p>
+                                      {address && <p className="text-[11px] opacity-70 mt-0.5">{address}</p>}
+                                      <p className="text-[10px] opacity-50 mt-0.5">{lat.toFixed(5)}, {lng.toFixed(5)}</p>
+                                    </div>
+                                  </a>
+                                );
+                              } catch { return <p className="text-sm opacity-70">📍 Location</p>; }
+                            })()}
+
                             {/* Text content — show full text, no truncation for normal messages */}
                             {msg.type !== "template" && msg.type !== "button" &&
+                             msg.type !== "location" &&
                              msg.content !== "[button message]" &&
                              !msg.content?.startsWith("[Template:") &&
                              (msg.type === "text" || (msg.content && !["[image]","[video]","[audio]","[document]","[sticker]"].includes(msg.content))) && (
