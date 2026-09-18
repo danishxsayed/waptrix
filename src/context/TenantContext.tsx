@@ -1,6 +1,8 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 interface TenantData {
   id: string;
@@ -45,12 +47,21 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
   const [agentName, setAgentName] = useState<string | null>(null);
   const [isStaff, setIsStaff]     = useState(false);
   const [loading, setLoading]     = useState(true);
+  const router = useRouter();
 
   const fetchTenantData = async (bust = false) => {
     try {
       const url = bust ? `/api/me?t=${Date.now()}` : '/api/me';
       const res = await fetch(url, bust ? { cache: 'no-store' } : undefined);
-      if (!res.ok) return;
+      if (!res.ok) {
+        // 401 = deleted/invalid session — clear it and redirect to login
+        if (res.status === 401) {
+          const supabase = createClient();
+          await supabase.auth.signOut();
+          router.replace('/login');
+        }
+        return;
+      }
       const data = await res.json();
       if (data.tenant)    setTenant(data.tenant);
       if (data.role)      setRole(data.role);
