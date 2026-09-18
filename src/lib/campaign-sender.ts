@@ -68,13 +68,18 @@ export async function executeCampaignSend(campaignId: string): Promise<void> {
   if (!isAllContacts) {
     query = query.eq('segment_id', campaign.segment_id);
   }
-  // Apply optional tag filter — contacts must have at least one of the selected tags
-  if (Array.isArray(campaign.tag_filter) && campaign.tag_filter.length > 0) {
-    query = query.overlaps('tags', campaign.tag_filter);
-  }
   const { data: contacts } = await query;
+  // Apply optional tag filter — contacts must have at least one of the selected tags
+  // Tags are stored in custom2 as a comma-separated string, so filter in JS
+  const filtered = (Array.isArray(campaign.tag_filter) && campaign.tag_filter.length > 0)
+    ? (contacts || []).filter((c: any) => {
+        if (!c.custom2) return false;
+        const contactTags = c.custom2.split(',').map((t: string) => t.trim()).filter(Boolean);
+        return campaign.tag_filter.some((tag: string) => contactTags.includes(tag));
+      })
+    : contacts;
 
-  if (!contacts || contacts.length === 0) {
+  if (!filtered || filtered.length === 0) {
     await db.from('campaigns').update({
       status:          'sent',
       total_contacts:  0,
@@ -93,7 +98,7 @@ export async function executeCampaignSend(campaignId: string): Promise<void> {
   let sentCount   = 0;
   let failedCount = 0;
 
-  for (const contact of contacts) {
+  for (const contact of filtered) {
     try {
       const runtimeComponents = buildRuntimeComponents(
         template.body || '',
@@ -198,7 +203,7 @@ export async function executeCampaignSend(campaignId: string): Promise<void> {
     status:          'sent',
     sent_count:      sentCount,
     failed_count:    failedCount,
-    total_contacts:  contacts.length,
+    total_contacts:  filtered.length,
     completed_at:    new Date().toISOString(),
   }).eq('id', campaignId);
 

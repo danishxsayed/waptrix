@@ -125,10 +125,6 @@ export async function enqueueCampaignBatches(campaignId: string): Promise<void> 
       if (!isAllContacts) {
         query = query.eq('segment_id', campaign.segment_id);
       }
-      // Apply optional tag filter — contacts must have at least one of the selected tags
-      if (Array.isArray(campaign.tag_filter) && campaign.tag_filter.length > 0) {
-        query = query.overlaps('tags', campaign.tag_filter);
-      }
 
       // Paginate to bypass Supabase 1000-row limit
       const PAGE = 1000;
@@ -143,8 +139,19 @@ export async function enqueueCampaignBatches(campaignId: string): Promise<void> 
         from += PAGE;
       }
 
-      console.log(`[campaign-queue] Fetched ${allContacts.length} contacts for campaign ${campaignId} (${isAllContacts ? 'all contacts' : `segment ${campaign.segment_id}`})`);
-      return allContacts;
+      // Apply optional tag filter — tags stored in custom2 as comma-separated string
+      const tagFilter: string[] = Array.isArray(campaign.tag_filter) && campaign.tag_filter.length > 0
+        ? campaign.tag_filter : [];
+      const result = tagFilter.length > 0
+        ? allContacts.filter((c: any) => {
+            if (!c.custom2) return false;
+            const contactTags = c.custom2.split(',').map((t: string) => t.trim()).filter(Boolean);
+            return tagFilter.some((tag: string) => contactTags.includes(tag));
+          })
+        : allContacts;
+
+      console.log(`[campaign-queue] Fetched ${allContacts.length} contacts for campaign ${campaignId} (${isAllContacts ? 'all contacts' : `segment ${campaign.segment_id}`})${tagFilter.length > 0 ? `, filtered to ${result.length} by tags [${tagFilter.join(', ')}]` : ''}`);
+      return result;
     }
   );
 

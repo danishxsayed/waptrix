@@ -72,12 +72,18 @@ export async function GET(request: Request) {
       if (campaign.segment_id && campaign.segment_id !== 'all') {
         contactsQuery = contactsQuery.eq('segment_id', campaign.segment_id);
       }
-      // Apply optional tag filter — contacts must have at least one of the selected tags
-      if (Array.isArray(campaign.tag_filter) && campaign.tag_filter.length > 0) {
-        contactsQuery = contactsQuery.overlaps('tags', campaign.tag_filter);
-      }
+      const { data: rawContacts } = await contactsQuery;
 
-      const { data: contacts } = await contactsQuery;
+      // Apply optional tag filter — tags stored in custom2 as comma-separated string
+      const tagFilter: string[] = Array.isArray(campaign.tag_filter) && campaign.tag_filter.length > 0
+        ? campaign.tag_filter : [];
+      const contacts = tagFilter.length > 0
+        ? (rawContacts || []).filter((c: any) => {
+            if (!c.custom2) return false;
+            const contactTags = c.custom2.split(',').map((t: string) => t.trim()).filter(Boolean);
+            return tagFilter.some((tag: string) => contactTags.includes(tag));
+          })
+        : rawContacts;
 
       if (contacts && contacts.length > 0) {
         let sentCount = 0;

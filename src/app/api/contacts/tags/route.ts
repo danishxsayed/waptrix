@@ -36,22 +36,23 @@ export async function GET() {
     const tenantId = await getEffectiveTenantId(user.id);
     const db = serviceDb();
 
-    // Fetch only the tags column to keep the payload small
+    // Tags are stored in custom2 as a comma-separated string (e.g. "VIP, CLIENT")
     const { data, error } = await db
       .from('contacts')
-      .select('tags')
+      .select('custom2')
       .eq('tenant_id', tenantId)
-      .not('tags', 'is', null);
+      .not('custom2', 'is', null);
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Flatten and deduplicate
     const tagSet = new Set<string>();
     for (const row of data || []) {
-      if (Array.isArray(row.tags)) {
-        for (const t of row.tags) {
-          if (t && typeof t === 'string') tagSet.add(t.trim());
-        }
+      if (row.custom2 && typeof row.custom2 === 'string') {
+        row.custom2.split(',').forEach((t: string) => {
+          const clean = t.trim();
+          if (clean) tagSet.add(clean);
+        });
       }
     }
 
