@@ -20,8 +20,10 @@ import {
   MessageSquare,
   CheckCircle,
   AlertCircle,
-  ExternalLink
+  ExternalLink,
+  TriangleAlert
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import axios from "axios";
 
@@ -37,7 +39,10 @@ interface WhatsAppProfile {
   last_sync: string | null;
 }
 
+const DELETE_CONFIRM_WORD = "DELETE";
+
 export default function SettingsPage() {
+  const router = useRouter();
   const [copiedCallback, setCopiedCallback] = useState(false);
   const [copiedToken, setCopiedToken] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -92,6 +97,12 @@ export default function SettingsPage() {
   const [crmSecretCopied, setCrmSecretCopied] = useState(false);
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMessage, setPwMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  // Delete account state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   // Real usage stats
   const [usageStats, setUsageStats] = useState<{ totalSent: number; totalContacts: number; activeTemplates: number } | null>(null);
@@ -357,6 +368,25 @@ export default function SettingsPage() {
       setIsRegistering(false);
     }
   }
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== DELETE_CONFIRM_WORD) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/account/delete", { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json();
+        setDeleteError(d.error || "Failed to delete account. Please try again.");
+        return;
+      }
+      router.push("/login?message=" + encodeURIComponent("Your account has been permanently deleted."));
+    } catch (err: any) {
+      setDeleteError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -1134,12 +1164,88 @@ export default function SettingsPage() {
             <h3 className="text-lg font-bold font-syne text-danger">Danger Zone</h3>
             <p className="text-sm text-text-muted mt-1">Permanently delete your account and all associated data.</p>
           </div>
-          <button className="bg-danger/10 hover:bg-danger text-danger hover:text-white border border-danger/20 transition-all font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2">
+          <button
+            onClick={() => { setShowDeleteDialog(true); setDeleteConfirmText(""); setDeleteError(null); }}
+            className="bg-danger/10 hover:bg-danger text-danger hover:text-white border border-danger/20 transition-all font-bold text-sm px-6 py-3 rounded-xl flex items-center gap-2"
+          >
             <Trash2 className="w-4 h-4" />
             Delete Account
           </button>
         </div>
       </section>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div
+          className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"
+          onClick={e => { if (e.target === e.currentTarget) setShowDeleteDialog(false); }}
+        >
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-5">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <TriangleAlert className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-gray-900 text-base">Delete account permanently?</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  This will permanently delete all your data. You cannot recover this account.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-xs text-red-700 space-y-1">
+              <p className="font-semibold">The following will be permanently deleted:</p>
+              <p>• All contacts and segments</p>
+              <p>• All campaigns and message logs</p>
+              <p>• All conversations and chat history</p>
+              <p>• All templates and automations</p>
+              <p>• Your WhatsApp connection and account</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-800 mb-2">
+                Type <span className="font-mono font-bold text-red-600">{DELETE_CONFIRM_WORD}</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder={DELETE_CONFIRM_WORD}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 font-mono"
+                autoFocus
+              />
+            </div>
+
+            {deleteError && (
+              <p className="flex items-center gap-1.5 text-xs text-red-500">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {deleteError}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-gray-200 text-gray-500 hover:bg-gray-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirmText !== DELETE_CONFIRM_WORD}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Deleting...</>
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Delete Account</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
