@@ -3,16 +3,7 @@
 const HEADER = `
   <tr>
     <td style="padding:28px 40px 24px;background:#ffffff;text-align:center;border-bottom:1px solid #E2E8F0;">
-      <table cellpadding="0" cellspacing="0" style="display:inline-table;">
-        <tr>
-          <td style="vertical-align:middle;">
-            <div style="background:#10B981;color:#ffffff;width:34px;height:34px;border-radius:9px;text-align:center;line-height:34px;font-weight:900;font-size:19px;display:inline-block;">W</div>
-          </td>
-          <td style="vertical-align:middle;padding-left:9px;">
-            <span style="color:#0F172A;font-size:19px;font-weight:800;letter-spacing:-0.4px;">Waptrix</span>
-          </td>
-        </tr>
-      </table>
+      <img src="https://app.waptrix.in/Waptrix-logo.svg" alt="Waptrix" width="140" height="auto" style="display:block;margin:0 auto;max-height:48px;object-fit:contain;" />
     </td>
   </tr>`;
 
