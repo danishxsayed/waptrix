@@ -20,6 +20,7 @@ interface FormData {
   description: string;
   template_id: string;
   segment_id: string;
+  tag_filter: string[];
   variable_mapping: Record<string, string>;
   header_media_url: string;
   send_now: boolean;
@@ -281,6 +282,7 @@ export default function CampaignWizard({
   const [step, setStep] = useState(1);
   const [templates, setTemplates] = useState<any[]>([]);
   const [segments, setSegments] = useState<any[]>([]);
+  const [allTags, setAllTags] = useState<string[]>([]);
   const [allContactsCount, setAllContactsCount] = useState<number | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -292,6 +294,7 @@ export default function CampaignWizard({
     description: "",
     template_id: "",
     segment_id: initialSegmentId || "",
+    tag_filter: [],
     variable_mapping: {},
     header_media_url: "",
     send_now: true,
@@ -310,14 +313,16 @@ export default function CampaignWizard({
     setIsLoadingData(true);
     setLoadError("");
     try {
-      const [tRes, sRes, cRes] = await Promise.all([
+      const [tRes, sRes, cRes, tagRes] = await Promise.all([
         axios.get("/api/templates"),
         axios.get("/api/contacts/segments"),
         axios.get("/api/contacts/count"),
+        axios.get("/api/contacts/tags"),
       ]);
       setTemplates((tRes.data || []).filter((t: any) => t.meta_status === "APPROVED"));
       setSegments(sRes.data || []);
       setAllContactsCount(cRes.data?.count ?? null);
+      setAllTags(tagRes.data || []);
     } catch (err: any) {
       setLoadError(err.response?.data?.error || "Failed to load data. Please retry.");
     } finally {
@@ -405,7 +410,10 @@ export default function CampaignWizard({
   const selectedTemplate = templates.find(t => t.id === formData.template_id);
   const isAllContacts = formData.segment_id === 'all';
   const selectedSegment = isAllContacts ? null : segments.find(s => s.id === formData.segment_id);
-  const audienceLabel = isAllContacts ? `All Contacts (${allContactsCount ?? '…'})` : (selectedSegment?.name || '—');
+  const segmentLabel = isAllContacts ? `All Contacts (${allContactsCount ?? '…'})` : (selectedSegment?.name || '—');
+  const audienceLabel = formData.tag_filter.length > 0
+    ? `${segmentLabel} + ${formData.tag_filter.length} tag${formData.tag_filter.length > 1 ? 's' : ''}`
+    : segmentLabel;
   const variables: string[] = selectedTemplate ? (selectedTemplate.body.match(/{{\d+}}/g) || []) : [];
 
   const fieldLabels: Record<string, string> = {
@@ -551,6 +559,57 @@ export default function CampaignWizard({
                       </button>
                     ))}
                   </div>
+
+                  {/* ── Tag filter (optional) ──────────────────────── */}
+                  {allTags.length > 0 && (
+                    <div className="space-y-3 pt-4 border-t border-border">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="text-xs font-bold text-text-muted uppercase tracking-wider">Filter by Tag <span className="font-normal normal-case">(optional)</span></p>
+                          <p className="text-[11px] text-text-muted mt-0.5">
+                            Only contacts with at least one of the selected tags will receive this campaign.
+                          </p>
+                        </div>
+                        {formData.tag_filter.length > 0 && (
+                          <button
+                            onClick={() => setFormData(p => ({ ...p, tag_filter: [] }))}
+                            className="text-[10px] font-bold text-text-muted hover:text-danger transition-colors shrink-0 mt-0.5"
+                          >
+                            Clear
+                          </button>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {allTags.map(tag => {
+                          const selected = formData.tag_filter.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              onClick={() => setFormData(p => ({
+                                ...p,
+                                tag_filter: selected
+                                  ? p.tag_filter.filter(t => t !== tag)
+                                  : [...p.tag_filter, tag],
+                              }))}
+                              className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                                selected
+                                  ? "bg-jade text-background border-jade"
+                                  : "bg-surface border-border text-text-muted hover:border-jade/40 hover:text-jade"
+                              }`}
+                            >
+                              {selected && <span className="mr-1">✓</span>}
+                              {tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {formData.tag_filter.length > 0 && (
+                        <p className="text-[11px] text-jade font-semibold">
+                          Targeting contacts with tag: {formData.tag_filter.join(', ')}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -818,7 +877,8 @@ export default function CampaignWizard({
                     <div className="divide-y divide-border/50">
                       {[
                         ["Campaign", formData.name],
-                        ["Audience", audienceLabel],
+                        ["Audience", segmentLabel],
+                        ...(formData.tag_filter.length > 0 ? [["Tag Filter", formData.tag_filter.join(', ')]] : []),
                         ["Template", selectedTemplate?.name || "—"],
                         ["Schedule", formData.send_now ? "Immediately" : (formData.scheduled_at ? (() => {
                           const d = new Date(wallClockToUTC(formData.scheduled_at, formData.timezone));

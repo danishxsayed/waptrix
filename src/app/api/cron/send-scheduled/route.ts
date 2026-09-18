@@ -69,8 +69,12 @@ export async function GET(request: Request) {
         .select('id, phone, name, email, custom1, custom2, custom3')
         .eq('tenant_id', campaign.tenant_id);
 
-      if (campaign.segment_id) {
+      if (campaign.segment_id && campaign.segment_id !== 'all') {
         contactsQuery = contactsQuery.eq('segment_id', campaign.segment_id);
+      }
+      // Apply optional tag filter — contacts must have at least one of the selected tags
+      if (Array.isArray(campaign.tag_filter) && campaign.tag_filter.length > 0) {
+        contactsQuery = contactsQuery.overlaps('tags', campaign.tag_filter);
       }
 
       const { data: contacts } = await contactsQuery;

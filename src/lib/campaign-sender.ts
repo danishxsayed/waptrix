@@ -68,6 +68,10 @@ export async function executeCampaignSend(campaignId: string): Promise<void> {
   if (!isAllContacts) {
     query = query.eq('segment_id', campaign.segment_id);
   }
+  // Apply optional tag filter — contacts must have at least one of the selected tags
+  if (Array.isArray(campaign.tag_filter) && campaign.tag_filter.length > 0) {
+    query = query.overlaps('tags', campaign.tag_filter);
+  }
   const { data: contacts } = await query;
 
   if (!contacts || contacts.length === 0) {

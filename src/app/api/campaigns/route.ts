@@ -137,6 +137,9 @@ export async function POST(req: Request) {
     const segmentId   = body.segmentId  || body.segment_id;
     const description = body.description || null;
     const autoReplies = body.auto_replies || { enabled: false, rules: [] };
+    const tagFilter   = Array.isArray(body.tag_filter) && body.tag_filter.length > 0
+      ? body.tag_filter
+      : null;
 
     if (!name)       return NextResponse.json({ error: 'Campaign name is required' },    { status: 400 });
     if (!templateId) return NextResponse.json({ error: 'Template is required' },         { status: 400 });
@@ -160,6 +163,7 @@ export async function POST(req: Request) {
         description,
         template_id:      templateId,
         segment_id:       segmentId,
+        tag_filter:       tagFilter,
         variable_mapping: variable_mapping || {},
         scheduled_at:     finalScheduledAt,
         status:           finalStatus,
