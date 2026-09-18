@@ -7,13 +7,14 @@ const MARKETING_PATHS = ['/', '/pricing', '/about', '/contact', '/blog', '/docs'
 const MARKETING_PREFIXES = ['/blog/', '/docs/', '/whatsapp-for-'];
 
 // Routes that are public on app.waptrix.in (no auth needed)
-const APP_PUBLIC_PATHS = ['/login', '/signup', '/accept-invite', '/forgot-password', '/reset-password'];
+const APP_PUBLIC_PATHS = ['/login', '/signup', '/accept-invite', '/forgot-password', '/reset-password', '/verify-email'];
 const APP_PUBLIC_PREFIXES = [
   '/api/auth/',
   '/api/webhooks/',
   '/api/payments/',
   '/api/team/invite',
   '/api/team/create-account',
+  '/auth/',
 ];
 
 function isMarketingPath(pathname: string): boolean {

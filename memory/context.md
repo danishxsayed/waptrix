@@ -117,6 +117,13 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Built an interactive Checkout Modal inside the `/pricing` marketing page (`src/app/(marketing)/pricing/page.tsx`) utilizing the Cashfree JS SDK to collect customer details, process payments, and display order success/failure feedback banners.
 
 ## Recent Session Progress
+- **Account Deletion & Email Verification Flow (2026-09-18)**:
+  - Implemented `/api/account/delete` endpoint cascading deletion across all tenant data (campaigns, logs, messages, contacts, segments, templates, automations, notifications, team members, WhatsApp connections, billing/integrations, and tenant record) and deleting the Supabase Auth user.
+  - Added Danger Zone in `ProfilePage` with modal confirmation requiring typing "DELETE".
+  - Created email verification page `/verify-email` with email provider links, auto-polling every 4s, and resend cooldown.
+  - Built `/auth/callback` route handling OTP token hash and PKCE session exchanges.
+  - Updated `src/middleware.ts` to allow `/verify-email` and `/auth/*` as public routes on the app subdomain.
+  - Fixed missing `RefreshCcw` icon import in `InboxPanel.tsx`.
 - **Inbox Formatting, Pagination & Server Startup (2026-09-08)**:
   - Started the Next.js development server running on port 3001 using `npm run dev`.
   - Added WhatsApp markdown formatting to template bubbles and fallback message content in `InboxPanel.tsx`.

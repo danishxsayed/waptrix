@@ -3,10 +3,15 @@
 import { useState, useEffect } from "react";
 import { useTenant } from "@/context/TenantContext";
 import { createClient } from "@/lib/supabase/client";
-import { UserCircle, Mail, Building2, Lock, Eye, EyeOff, Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import {
+  UserCircle, Mail, Building2, Lock, Eye, EyeOff,
+  Loader2, CheckCircle, AlertCircle, Trash2, TriangleAlert
+} from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function ProfilePage() {
-  const { tenant, role, userId, loading, refresh } = useTenant();
+  const { tenant, role, loading, refresh } = useTenant();
+  const router = useRouter();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -23,17 +28,21 @@ export default function ProfilePage() {
   const [pwSaving, setPwSaving] = useState(false);
   const [pwMsg, setPwMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
-  // Load current agent profile
+  // Delete account state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const DELETE_CONFIRM_WORD = "DELETE";
+
   useEffect(() => {
     async function loadProfile() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
       setEmail(user.email ?? "");
-
-      // Load name from team_members table
-      const db = createClient();
-      const { data: memberRow } = await db
+      const { data: memberRow } = await supabase
         .from("team_members")
         .select("name")
         .eq("member_user_id", user.id)
@@ -55,7 +64,7 @@ export default function ProfilePage() {
       });
       if (res.ok) {
         setSaveMsg({ type: "success", text: "Name updated successfully!" });
-        await refresh(); // update topbar immediately
+        await refresh();
       } else {
         const d = await res.json();
         setSaveMsg({ type: "error", text: d.error || "Failed to update name." });
@@ -85,7 +94,6 @@ export default function ProfilePage() {
     setPwMsg(null);
     try {
       const supabase = createClient();
-      // Re-authenticate with current password first
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) throw new Error("Not authenticated");
 
@@ -108,6 +116,26 @@ export default function ProfilePage() {
     } finally {
       setPwSaving(false);
       setTimeout(() => setPwMsg(null), 4000);
+    }
+  };
+
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== DELETE_CONFIRM_WORD) return;
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      const res = await fetch("/api/account/delete", { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json();
+        setDeleteError(d.error || "Failed to delete account. Please try again.");
+        return;
+      }
+      // Success — redirect to login with confirmation message
+      router.push("/login?message=" + encodeURIComponent("Your account has been permanently deleted."));
+    } catch (err: any) {
+      setDeleteError(err.message || "Something went wrong. Please try again.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -147,7 +175,6 @@ export default function ProfilePage() {
         </h2>
 
         <div className="space-y-4">
-          {/* Name — editable */}
           <div>
             <label className="block text-sm font-medium text-[#111B21] mb-1.5">Display Name</label>
             <div className="flex gap-2">
@@ -174,7 +201,6 @@ export default function ProfilePage() {
             )}
           </div>
 
-          {/* Email — locked */}
           <div>
             <label className="block text-sm font-medium text-[#111B21] mb-1.5">
               Email Address
@@ -187,7 +213,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Organisation — read-only */}
           <div>
             <label className="block text-sm font-medium text-[#111B21] mb-1.5">Organisation</label>
             <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-[#E9EDEF] bg-[#F8F9FA] text-sm text-[#667781]">
@@ -200,14 +225,13 @@ export default function ProfilePage() {
       </div>
 
       {/* Change Password */}
-      <div className="bg-white rounded-2xl border border-[#E9EDEF] p-6 shadow-sm">
+      <div className="bg-white rounded-2xl border border-[#E9EDEF] p-6 mb-6 shadow-sm">
         <h2 className="text-base font-semibold text-[#111B21] mb-5 flex items-center gap-2">
           <Lock className="w-4 h-4 text-[#25D366]" />
           Change Password
         </h2>
 
         <div className="space-y-4">
-          {/* Current password */}
           <div>
             <label className="block text-sm font-medium text-[#111B21] mb-1.5">Current Password</label>
             <div className="relative">
@@ -224,7 +248,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* New password */}
           <div>
             <label className="block text-sm font-medium text-[#111B21] mb-1.5">New Password</label>
             <div className="relative">
@@ -241,7 +264,6 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* Confirm password */}
           <div>
             <label className="block text-sm font-medium text-[#111B21] mb-1.5">Confirm New Password</label>
             <div className="relative">
@@ -275,6 +297,95 @@ export default function ProfilePage() {
           </button>
         </div>
       </div>
+
+      {/* Danger Zone — Delete Account */}
+      <div className="bg-white rounded-2xl border border-red-200 p-6 shadow-sm">
+        <h2 className="text-base font-semibold text-red-600 mb-2 flex items-center gap-2">
+          <TriangleAlert className="w-4 h-4" />
+          Danger Zone
+        </h2>
+        <p className="text-sm text-[#667781] mb-4">
+          Permanently delete your account and all associated data — campaigns, contacts, conversations, and templates.
+          This action <strong className="text-[#111B21]">cannot be undone</strong>.
+        </p>
+        <button
+          onClick={() => { setShowDeleteDialog(true); setDeleteConfirmText(""); setDeleteError(null); }}
+          className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-red-600 border border-red-200 hover:bg-red-50 transition-colors"
+        >
+          <Trash2 className="w-4 h-4" />
+          Delete My Account
+        </button>
+      </div>
+
+      {/* Delete Confirmation Dialog */}
+      {showDeleteDialog && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={e => { if (e.target === e.currentTarget) setShowDeleteDialog(false); }}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 space-y-5">
+            <div className="flex items-start gap-3">
+              <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+                <TriangleAlert className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-[#111B21] text-base">Delete account permanently?</h3>
+                <p className="text-sm text-[#667781] mt-1">
+                  This will permanently delete all your data including contacts, campaigns, conversations, and templates. You cannot recover this account.
+                </p>
+              </div>
+            </div>
+
+            <div className="bg-red-50 border border-red-100 rounded-xl p-3 text-xs text-red-700 space-y-1">
+              <p className="font-semibold">The following will be permanently deleted:</p>
+              <p>• All contacts and segments</p>
+              <p>• All campaigns and message logs</p>
+              <p>• All conversations and chat history</p>
+              <p>• All templates and automations</p>
+              <p>• Your WhatsApp connection and account</p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-[#111B21] mb-2">
+                Type <span className="font-mono font-bold text-red-600">{DELETE_CONFIRM_WORD}</span> to confirm
+              </label>
+              <input
+                type="text"
+                value={deleteConfirmText}
+                onChange={e => setDeleteConfirmText(e.target.value)}
+                placeholder={DELETE_CONFIRM_WORD}
+                className="w-full px-3 py-2.5 rounded-xl border border-[#E9EDEF] text-sm focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-400 font-mono"
+                autoFocus
+              />
+            </div>
+
+            {deleteError && (
+              <p className="flex items-center gap-1.5 text-xs text-red-500">
+                <AlertCircle className="w-3.5 h-3.5" />
+                {deleteError}
+              </p>
+            )}
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowDeleteDialog(false)}
+                disabled={deleting}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold border border-[#E9EDEF] text-[#667781] hover:bg-[#F8F9FA] transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDeleteAccount}
+                disabled={deleting || deleteConfirmText !== DELETE_CONFIRM_WORD}
+                className="flex-1 py-2.5 rounded-xl text-sm font-semibold bg-red-600 text-white hover:bg-red-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+              >
+                {deleting ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Deleting...</>
+                ) : (
+                  <><Trash2 className="w-4 h-4" /> Delete Account</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

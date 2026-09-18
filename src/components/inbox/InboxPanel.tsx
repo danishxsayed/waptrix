@@ -8,7 +8,7 @@ import {
   Clock, FileText, Mic, X, Loader2, Download, Play, Plus, Phone, AlertCircle,
   SlidersHorizontal, ChevronRight, ArrowUpDown, Trash2, CheckSquare, Square,
   Smile, User, Tag, PenLine, ChevronDown, ChevronUp, Info, ExternalLink,
-  StickyNote, CheckCircle2, Zap, Activity, Pencil
+  StickyNote, CheckCircle2, Zap, Activity, Pencil, RefreshCcw
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 

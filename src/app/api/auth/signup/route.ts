@@ -17,8 +17,9 @@ export async function POST(request: Request) {
         data: {
           full_name: name,
           company: company
-        }
-      }
+        },
+        emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      },
     });
 
     if (authError) return NextResponse.json({ error: authError.message }, { status: 400 });

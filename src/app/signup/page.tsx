@@ -71,8 +71,8 @@ export default function SignupPage() {
         return;
       }
 
-      // No plan — go to connect (normal trial flow)
-      router.push("/connect");
+      // No plan — go to email verification page
+      router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
     } catch (err: any) {
       setError(err.message || "Something went wrong");
     } finally {

@@ -1,6 +1,19 @@
 # Implementation History
 
-## [2026-09-11] - GoHighLevel Integration & Server Startup
+## [2026-09-18] - Account Deletion, Email Verification Flow & Inbox Fixes
+- **Account Deletion (Danger Zone)**:
+  - Built `src/app/api/account/delete/route.ts` allowing authenticated users to permanently delete their account and cascade-delete all associated data (campaigns, message logs, chat messages, conversations, contacts, segments, templates, automations, notifications, team members, WhatsApp connections, billing/GHL records, and tenant row) in dependency order using Supabase service role, signing out all active sessions, and deleting the Supabase Auth user via admin API.
+  - Added Danger Zone UI to `src/app/(dashboard)/profile/page.tsx` with a confirmation modal requiring typed "DELETE" confirmation before firing the deletion request and redirecting to login.
+- **Email Verification & Auth Callback Flow**:
+  - Updated signup API `src/app/api/auth/signup/route.ts` to set `emailRedirectTo` pointing to `/auth/callback`.
+  - Updated signup page `src/app/signup/page.tsx` to redirect users without an upfront plan selection to `/verify-email?email=...`.
+  - Built `src/app/verify-email/page.tsx` with smart email provider direct links (Gmail, Outlook, Yahoo, ProtonMail, iCloud), 4-second polling check for `email_confirmed_at`, manual verification check button, and 60-second cooldown for resending verification emails.
+  - Created auth callback route `src/app/auth/callback/route.ts` handling both OTP `token_hash` verification and PKCE `code` exchange with error redirection back to `/verify-email`.
+  - Updated `src/middleware.ts` to add `/verify-email` to `APP_PUBLIC_PATHS` and `/auth/` to `APP_PUBLIC_PREFIXES`.
+- **InboxPanel Fix**:
+  - Added missing `RefreshCcw` icon import in `src/components/inbox/InboxPanel.tsx` for the "Load older messages" button.
+
+
 - **GoHighLevel Private Integration**:
   - Built `src/lib/ghl.ts` to sync inbound/outbound WhatsApp messages into GoHighLevel using GHL API v2 and Private Integration tokens (upserting contacts by phone and saving messages as contact notes, compatible across all GHL plans with `contacts.write` scope).
   - Created `/api/settings/ghl` endpoint to get (masked), save directly to the tenants table (`ghl_token`, `ghl_location_id`), and delete GHL credentials.
