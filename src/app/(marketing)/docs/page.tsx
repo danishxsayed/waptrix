@@ -5,7 +5,7 @@ import { useState } from "react";
 import {
   BookOpen, Send, MessageSquare, FileText, Bot, Users,
   BarChart3, Settings, ChevronRight, ChevronDown, Info,
-  CheckCircle2, AlertTriangle, ExternalLink, Search
+  CheckCircle2, AlertTriangle, ExternalLink, Search, Menu, X
 } from "lucide-react";
 
 // ─── Sidebar structure ───────────────────────────────────────────────────────
@@ -1118,6 +1118,7 @@ export default function DocsPage() {
   const [activeSection, setActiveSection] = useState("gs-overview");
   const [expandedSections, setExpandedSections] = useState<string[]>(["getting-started"]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const docs = DOCS();
 
@@ -1138,91 +1139,142 @@ export default function DocsPage() {
 
   const currentDoc = docs[activeSection as keyof ReturnType<typeof DOCS>];
 
+  const currentLabel = NAV.flatMap(s => s.items).find(i => i.id === activeSection)?.label || "";
+
+  const SidebarContent = () => (
+    <>
+      {/* Search */}
+      <div className="p-4 border-b border-[#E9EDEF]">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#667781]" />
+          <input
+            type="text"
+            placeholder="Search docs..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-9 pr-3 py-2 text-sm bg-[#f5f5f5] border border-[#E9EDEF] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      {/* Nav */}
+      <nav className="flex-1 p-3 overflow-y-auto">
+        {filteredNav.map((section) => {
+          const Icon = section.icon;
+          const isExpanded = expandedSections.includes(section.id) || !!searchQuery;
+          return (
+            <div key={section.id} className="mb-1">
+              <button
+                onClick={() => toggleSection(section.id)}
+                className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-[#EDE8DE] transition-colors text-left"
+              >
+                <Icon className="w-4 h-4 text-[#25D366] flex-shrink-0" />
+                <span className="text-sm font-semibold text-[#111B21] flex-1">{section.title}</span>
+                {isExpanded
+                  ? <ChevronDown className="w-3.5 h-3.5 text-[#667781]" />
+                  : <ChevronRight className="w-3.5 h-3.5 text-[#667781]" />}
+              </button>
+              {isExpanded && (
+                <div className="ml-4 pl-3 border-l-2 border-[#EDE8DE] mt-1 mb-2 space-y-0.5">
+                  {section.items.map((item) => (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        setActiveSection(item.id);
+                        if (!expandedSections.includes(section.id)) setExpandedSections(prev => [...prev, section.id]);
+                        setSidebarOpen(false);
+                      }}
+                      className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${
+                        activeSection === item.id
+                          ? "bg-[#D9FDD3] text-[#075E54] font-semibold"
+                          : "text-[#667781] hover:text-[#111B21] hover:bg-[#f5f5f5]"
+                      }`}
+                    >
+                      {item.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </nav>
+
+      {/* Support box */}
+      <div className="p-4 border-t border-[#E9EDEF] flex-shrink-0">
+        <div className="bg-[#075E54] rounded-xl p-3 text-center">
+          <p className="text-xs font-semibold text-white mb-1">Need help?</p>
+          <p className="text-[10px] text-[#D9FDD3] mb-2">Mon–Sat, 10am–7pm IST</p>
+          <Link href="/contact" className="text-xs bg-[#25D366] text-white font-bold px-3 py-1.5 rounded-full hover:bg-white hover:text-[#075E54] transition-colors inline-block">
+            Contact Support
+          </Link>
+        </div>
+      </div>
+    </>
+  );
+
   return (
     <div className="min-h-screen bg-[#EDE8DE]">
+      {/* ── Mobile top bar ── */}
+      <div className="md:hidden sticky top-0 z-30 bg-white border-b border-[#E9EDEF] px-4 py-3 flex items-center gap-3">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-2 rounded-lg hover:bg-[#EDE8DE] transition-colors text-[#111B21]"
+          aria-label="Open navigation"
+        >
+          <Menu className="w-5 h-5" />
+        </button>
+        <div className="flex items-center gap-2 text-xs text-[#667781] min-w-0">
+          <span className="shrink-0">Docs</span>
+          <ChevronRight className="w-3 h-3 shrink-0" />
+          <span className="text-[#111B21] font-medium truncate">{currentLabel}</span>
+        </div>
+      </div>
+
+      {/* ── Mobile sidebar overlay ── */}
+      {sidebarOpen && (
+        <div className="md:hidden fixed inset-0 z-40 flex">
+          {/* Backdrop */}
+          <div
+            className="absolute inset-0 bg-black/40"
+            onClick={() => setSidebarOpen(false)}
+          />
+          {/* Drawer */}
+          <aside className="relative z-50 w-72 bg-white flex flex-col h-full overflow-hidden shadow-xl">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-[#E9EDEF]">
+              <span className="font-semibold text-[#111B21] text-sm">Documentation</span>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                className="p-1.5 rounded-lg hover:bg-[#EDE8DE] transition-colors"
+                aria-label="Close navigation"
+              >
+                <X className="w-4 h-4 text-[#667781]" />
+              </button>
+            </div>
+            <SidebarContent />
+          </aside>
+        </div>
+      )}
+
       <div className="max-w-7xl mx-auto flex" style={{ minHeight: "calc(100vh - 68px)" }}>
 
-        {/* ── Sidebar ── */}
-        <aside className="w-72 flex-shrink-0 bg-white border-r border-[#E9EDEF] flex flex-col sticky top-[68px] h-[calc(100vh-68px)] overflow-y-auto">
-          {/* Search */}
-          <div className="p-4 border-b border-[#E9EDEF]">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#667781]" />
-              <input
-                type="text"
-                placeholder="Search docs..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-sm bg-[#f5f5f5] border border-[#E9EDEF] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#25D366] focus:border-transparent"
-              />
-            </div>
-          </div>
-
-          {/* Nav */}
-          <nav className="flex-1 p-3">
-            {filteredNav.map((section) => {
-              const Icon = section.icon;
-              const isExpanded = expandedSections.includes(section.id) || !!searchQuery;
-              return (
-                <div key={section.id} className="mb-1">
-                  <button
-                    onClick={() => toggleSection(section.id)}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-[#EDE8DE] transition-colors text-left"
-                  >
-                    <Icon className="w-4 h-4 text-[#25D366] flex-shrink-0" />
-                    <span className="text-sm font-semibold text-[#111B21] flex-1">{section.title}</span>
-                    {isExpanded
-                      ? <ChevronDown className="w-3.5 h-3.5 text-[#667781]" />
-                      : <ChevronRight className="w-3.5 h-3.5 text-[#667781]" />}
-                  </button>
-                  {isExpanded && (
-                    <div className="ml-4 pl-3 border-l-2 border-[#EDE8DE] mt-1 mb-2 space-y-0.5">
-                      {section.items.map((item) => (
-                        <button
-                          key={item.id}
-                          onClick={() => { setActiveSection(item.id); if (!expandedSections.includes(section.id)) setExpandedSections(prev => [...prev, section.id]); }}
-                          className={`w-full text-left px-3 py-1.5 text-xs rounded-lg transition-colors ${
-                            activeSection === item.id
-                              ? "bg-[#D9FDD3] text-[#075E54] font-semibold"
-                              : "text-[#667781] hover:text-[#111B21] hover:bg-[#f5f5f5]"
-                          }`}
-                        >
-                          {item.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </nav>
-
-          {/* Support box */}
-          <div className="p-4 border-t border-[#E9EDEF]">
-            <div className="bg-[#075E54] rounded-xl p-3 text-center">
-              <p className="text-xs font-semibold text-white mb-1">Need help?</p>
-              <p className="text-[10px] text-[#D9FDD3] mb-2">Mon–Sat, 10am–7pm IST</p>
-              <Link href="/contact" className="text-xs bg-[#25D366] text-white font-bold px-3 py-1.5 rounded-full hover:bg-white hover:text-[#075E54] transition-colors inline-block">
-                Contact Support
-              </Link>
-            </div>
-          </div>
+        {/* ── Desktop Sidebar ── */}
+        <aside className="hidden md:flex w-72 flex-shrink-0 bg-white border-r border-[#E9EDEF] flex-col sticky top-[68px] h-[calc(100vh-68px)] overflow-hidden">
+          <SidebarContent />
         </aside>
 
         {/* ── Main Content ── */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="max-w-3xl mx-auto px-8 py-10">
-            {/* Breadcrumb */}
-            <div className="flex items-center gap-2 text-xs text-[#667781] mb-6">
+        <main className="flex-1 min-w-0 overflow-y-auto">
+          <div className="max-w-3xl mx-auto px-4 md:px-8 py-6 md:py-10">
+            {/* Breadcrumb — desktop only (mobile shows in top bar) */}
+            <div className="hidden md:flex items-center gap-2 text-xs text-[#667781] mb-6">
               <span>Docs</span>
               <ChevronRight className="w-3 h-3" />
-              <span className="text-[#111B21] font-medium">
-                {NAV.flatMap(s => s.items).find(i => i.id === activeSection)?.label || ""}
-              </span>
+              <span className="text-[#111B21] font-medium">{currentLabel}</span>
             </div>
 
             {/* Doc content */}
-            <div className="bg-white rounded-2xl border border-[#E9EDEF] p-8 shadow-sm">
+            <div className="bg-white rounded-2xl border border-[#E9EDEF] p-4 md:p-8 shadow-sm">
               {currentDoc || (
                 <div className="text-center py-12 text-[#667781]">
                   <p className="text-lg font-semibold">Page not found</p>
@@ -1243,14 +1295,18 @@ export default function DocsPage() {
                     <div>
                       {prev && (
                         <button onClick={() => setActiveSection(prev.id)} className="flex items-center gap-2 text-sm text-[#667781] hover:text-[#075E54] transition-colors">
-                          <ChevronRight className="w-4 h-4 rotate-180" /> {prev.label}
+                          <ChevronRight className="w-4 h-4 rotate-180" />
+                          <span className="hidden sm:inline">{prev.label}</span>
+                          <span className="sm:hidden">Prev</span>
                         </button>
                       )}
                     </div>
                     <div>
                       {next && (
                         <button onClick={() => setActiveSection(next.id)} className="flex items-center gap-2 text-sm text-[#667781] hover:text-[#075E54] transition-colors">
-                          {next.label} <ChevronRight className="w-4 h-4" />
+                          <span className="hidden sm:inline">{next.label}</span>
+                          <span className="sm:hidden">Next</span>
+                          <ChevronRight className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -1259,7 +1315,7 @@ export default function DocsPage() {
               })()}
             </div>
 
-            {/* Edit on GitHub / feedback */}
+            {/* Feedback */}
             <div className="mt-4 flex items-center justify-center gap-2 text-xs text-[#667781]">
               <a href="mailto:support@waptrix.in" className="flex items-center gap-1 hover:text-[#25D366] transition-colors">
                 <ExternalLink className="w-3 h-3" /> Was this helpful? Email us
