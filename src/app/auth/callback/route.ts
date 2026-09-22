@@ -45,6 +45,68 @@ export async function GET(req: NextRequest) {
     // PKCE flow (OAuth or magic link)
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
+      // After a successful OAuth exchange, provision tenant record if this is
+      // a first-time Google (or other OAuth) signup.
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { createClient: createServiceClient } = await import('@supabase/supabase-js');
+          const serviceClient = createServiceClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL!,
+            process.env.SUPABASE_SERVICE_KEY!
+          );
+
+          // Check if a tenant record already exists for this user
+          const { data: existingTenant } = await serviceClient
+            .from('tenants')
+            .select('id')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (!existingTenant) {
+            // First-time OAuth signup — create tenant record
+            const name =
+              user.user_metadata?.full_name ||
+              user.user_metadata?.name ||
+              user.email?.split('@')[0] ||
+              'User';
+            const email = user.email ?? '';
+            const company = user.user_metadata?.company || '';
+
+            const trialEndsAt = new Date();
+            trialEndsAt.setDate(trialEndsAt.getDate() + 7);
+
+            await serviceClient.from('tenants').insert({
+              id: user.id,
+              name,
+              email,
+              company,
+              plan: 'trial',
+              trial_ends_at: trialEndsAt.toISOString(),
+            });
+
+            // Send welcome email
+            try {
+              const { sendEmail } = await import('@/lib/email/resend');
+              await sendEmail({
+                to: email,
+                subject: "Welcome to Waptrix!",
+                title: "Setup Successful!",
+                message: `Hi ${name}, welcome to Waptrix! 🎉 Your 7-day free trial has started. You have full access to all Pro features — bulk campaigns, automation, analytics, and more. No credit card needed during the trial.\n\nStart by connecting your WhatsApp Business account in the dashboard. Your trial ends on ${trialEndsAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'long', year: 'numeric' })}.`,
+                buttonText: "Go to Dashboard",
+                buttonUrl: `${process.env.NEXT_PUBLIC_APP_URL}/connect`
+              });
+            } catch (emailErr) {
+              console.error("Failed to send welcome email (OAuth):", emailErr);
+              // Don't block the login if the email fails
+            }
+          }
+        }
+      } catch (provisionErr) {
+        console.error("Failed to provision tenant on OAuth signup:", provisionErr);
+        // Don't block the login if provisioning fails
+      }
+
       return NextResponse.redirect(`${origin}${next}`);
     }
     const msg = encodeURIComponent(error.message || 'Verification failed');
