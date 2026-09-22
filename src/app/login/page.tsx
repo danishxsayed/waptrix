@@ -139,7 +139,11 @@ export default function LoginPage() {
 
           {statusMsg && !error && (
             <div className="bg-jade/10 border border-jade/20 text-jade p-4 rounded-xl text-sm font-medium flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+              {isLoading || googleLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+              ) : (
+                <CheckCircle className="w-4 h-4 flex-shrink-0" />
+              )}
               {statusMsg}
             </div>
           )}
