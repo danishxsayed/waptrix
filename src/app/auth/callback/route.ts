@@ -64,6 +64,24 @@ export async function GET(req: NextRequest) {
             .maybeSingle();
 
           if (!existingTenant) {
+            // Also check if a tenant already exists with the same email
+            // (e.g. user has an email/password account and accidentally logs in with Google)
+            const userEmail = user.email ?? '';
+            if (userEmail) {
+              const { data: emailTenant } = await serviceClient
+                .from('tenants')
+                .select('id')
+                .eq('email', userEmail)
+                .maybeSingle();
+
+              if (emailTenant) {
+                // Email already registered with a different method — send to login
+                return NextResponse.redirect(
+                  `${origin}/login?message=${encodeURIComponent('This email is already registered. Please log in with your email and password.')}`
+                );
+              }
+            }
+
             // First-time OAuth signup — create tenant record
             const name =
               user.user_metadata?.full_name ||
