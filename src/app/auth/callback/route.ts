@@ -100,6 +100,12 @@ export async function GET(req: NextRequest) {
               console.error("Failed to send welcome email (OAuth):", emailErr);
               // Don't block the login if the email fails
             }
+
+            // New signup — send to /connect to set up WhatsApp
+            return NextResponse.redirect(`${origin}/connect`);
+          } else {
+            // Returning user — send to dashboard
+            return NextResponse.redirect(`${origin}/dashboard`);
           }
         }
       } catch (provisionErr) {
