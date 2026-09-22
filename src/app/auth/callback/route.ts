@@ -56,6 +56,17 @@ export async function GET(req: NextRequest) {
             process.env.SUPABASE_SERVICE_KEY!
           );
 
+          // If the user has an email/password identity, they registered with email.
+          // Block Google OAuth login for them — they must use email/password.
+          const hasEmailIdentity = user.identities?.some(
+            (identity: any) => identity.provider === 'email'
+          );
+          if (hasEmailIdentity) {
+            return NextResponse.redirect(
+              `${origin}/login?message=${encodeURIComponent('This email is already registered. Please log in with your email and password.')}`
+            );
+          }
+
           // Check if a tenant record already exists for this user
           const { data: existingTenant } = await serviceClient
             .from('tenants')
