@@ -133,8 +133,23 @@ export async function GET(req: NextRequest) {
 
       return NextResponse.redirect(`${origin}${next}`);
     }
-    const msg = encodeURIComponent(error.message || 'Verification failed');
-    return NextResponse.redirect(`${origin}/verify-email?error=${msg}`);
+
+    // If the error suggests the email is already registered with another method,
+    // send the user back to login with a helpful message instead of the error page.
+    const errMsg = error.message || '';
+    const isEmailConflict =
+      errMsg.toLowerCase().includes('already registered') ||
+      errMsg.toLowerCase().includes('already exists') ||
+      errMsg.toLowerCase().includes('email already') ||
+      errMsg.toLowerCase().includes('user already');
+
+    if (isEmailConflict) {
+      return NextResponse.redirect(
+        `${origin}/login?message=${encodeURIComponent('This email is already registered. Please log in with your email and password.')}`
+      );
+    }
+
+    return NextResponse.redirect(`${origin}/verify-email?error=${encodeURIComponent(errMsg || 'Verification failed')}`);
   }
 
   // No code or token — invalid callback
