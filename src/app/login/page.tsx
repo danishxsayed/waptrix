@@ -82,7 +82,10 @@ export default function LoginPage() {
       const loginData = await loginRes.json();
 
       if (!loginRes.ok) {
-        setError(loginData.error || "Login failed");
+        const errMsg = typeof loginData.error === 'string' ? loginData.error
+          : typeof loginData.message === 'string' ? loginData.message
+          : "Login failed";
+        setError(errMsg);
         return;
       }
 
@@ -154,12 +157,13 @@ export default function LoginPage() {
             </div>
           )}
 
-          <form onSubmit={handleLogin} className="space-y-6 relative">
+          <div className={`relative${lastUsed === 'email' ? ' pt-3' : ''}`}>
             {lastUsed === 'email' && (
-              <span className="absolute -top-3 left-1/2 -translate-x-1/2 bg-jade text-background text-[10px] font-bold px-2.5 py-0.5 rounded-full z-10 whitespace-nowrap">
+              <span className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-jade text-background text-[10px] font-bold px-2.5 py-0.5 rounded-full z-10 whitespace-nowrap">
                 Last used
               </span>
             )}
+          <form onSubmit={handleLogin} className="space-y-6">
             <div className="space-y-2">
               <label className="text-xs font-bold text-text-muted uppercase tracking-widest">Work Email</label>
               <div className="relative group">
@@ -215,6 +219,7 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+          </div>
 
           {/* Divider */}
           <div className="flex items-center gap-3">
