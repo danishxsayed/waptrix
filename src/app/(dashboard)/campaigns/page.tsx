@@ -108,6 +108,18 @@ export default function CampaignsPage() {
     }
   };
 
+  const handleResumeCampaign = async (campaignId: string) => {
+    try {
+      await axios.post(`/api/campaigns/${campaignId}/resume`);
+      setCampaigns(prev => prev.map(c => c.id === campaignId ? { ...c, status: 'sending' } : c));
+      setToast({ message: 'Campaign resumed — remaining messages are being sent.', type: 'success' });
+      setTimeout(() => setToast(null), 4000);
+    } catch (err: any) {
+      setToast({ message: err.response?.data?.error || 'Failed to resume campaign.', type: 'error' });
+      setTimeout(() => setToast(null), 4000);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'sending':
@@ -267,6 +279,18 @@ export default function CampaignsPage() {
                         <Activity className="w-3.5 h-3.5 text-jade" />
                         View Delivery Logs
                       </button>
+                      {['sending', 'queued', 'failed'].includes(campaign.status) && (
+                        <button
+                          onClick={() => {
+                            handleResumeCampaign(campaign.id);
+                            setActiveMenuCampaignId(null);
+                          }}
+                          className="w-full text-left px-3 py-2 rounded-lg text-xs font-dm-sans flex items-center gap-2 text-amber-500 hover:bg-amber-500/10 transition-all"
+                        >
+                          <Activity className="w-3.5 h-3.5" />
+                          Resume Campaign
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           handleDeleteCampaign(campaign.id);
