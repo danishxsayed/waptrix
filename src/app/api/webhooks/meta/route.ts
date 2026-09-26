@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic";
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
-import { NextResponse } from 'next/server';
+import { NextResponse, after } from 'next/server';
 import { createHmac } from 'crypto';
 import { getCategoryChangeEmail, getTemplateStatusEmail } from '@/lib/email/template';
 import { fireWebhook } from '@/lib/outbound-webhook';
@@ -926,6 +926,8 @@ async function handleAccountReviewUpdate(db: SupabaseClient, value: any, wabaId:
 
 // ──────────────────────────────────────────────────────────
 // POST — Process incoming WhatsApp events
+// Returns 200 immediately, processes in background via after()
+// to avoid blocking Supabase connections during high-volume campaigns.
 // ──────────────────────────────────────────────────────────
 export async function POST(request: Request) {
   try {
@@ -943,53 +945,61 @@ export async function POST(request: Request) {
       return NextResponse.json({ received: true });
     }
 
-    const db = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_KEY!
-    );
+    // ── Respond to Meta immediately, process in background ──
+    // This prevents 52s response times, Meta retries, and connection pool exhaustion
+    // during high-volume campaigns (thousands of status webhooks in parallel).
+    after(async () => {
+      try {
+        const db = createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL!,
+          process.env.SUPABASE_SERVICE_KEY!
+        );
 
-    for (const entry of body.entry ?? []) {
-      const wabaId: string = entry.id ?? '';
+        for (const entry of body.entry ?? []) {
+          const wabaId: string = entry.id ?? '';
 
-      for (const change of entry.changes ?? []) {
-        const field: string = change.field;
-        const value = change.value;
+          for (const change of entry.changes ?? []) {
+            const field: string = change.field;
+            const value = change.value;
 
-        try {
-          switch (field) {
-            case 'messages':
-              await handleMessages(db, value);
-              break;
+            try {
+              switch (field) {
+                case 'messages':
+                  await handleMessages(db, value);
+                  break;
 
-            case 'message_template_status_update':
-              await handleTemplateStatusUpdate(db, value, wabaId);
-              break;
+                case 'message_template_status_update':
+                  await handleTemplateStatusUpdate(db, value, wabaId);
+                  break;
 
-            case 'account_alerts':
-              await handleAccountAlert(db, value, wabaId);
-              break;
+                case 'account_alerts':
+                  await handleAccountAlert(db, value, wabaId);
+                  break;
 
-            case 'phone_number_quality_update':
-              await handlePhoneQualityUpdate(db, value);
-              break;
+                case 'phone_number_quality_update':
+                  await handlePhoneQualityUpdate(db, value);
+                  break;
 
-            case 'phone_number_name_update':
-              await handlePhoneNameUpdate(db, value);
-              break;
+                case 'phone_number_name_update':
+                  await handlePhoneNameUpdate(db, value);
+                  break;
 
-            case 'account_review_update':
-              await handleAccountReviewUpdate(db, value, wabaId);
-              break;
+                case 'account_review_update':
+                  await handleAccountReviewUpdate(db, value, wabaId);
+                  break;
 
-            default:
-              console.log(`Unhandled webhook field: ${field}`);
+                default:
+                  console.log(`Unhandled webhook field: ${field}`);
+              }
+            } catch (handlerErr: any) {
+              console.error(`Error in handler for field "${field}":`, handlerErr.message);
+            }
           }
-        } catch (handlerErr: any) {
-          // Log per-handler errors but don't fail the whole request
-          console.error(`Error in handler for field "${field}":`, handlerErr.message);
         }
+      } catch (err: any) {
+        console.error('Webhook background processing error:', err.message);
       }
-    }
+    });
 
     return NextResponse.json({ received: true });
   } catch (err: any) {
