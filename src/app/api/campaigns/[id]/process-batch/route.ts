@@ -399,10 +399,15 @@ export async function POST(
     msgInserts.length > 0 ? db.from('chat_messages').insert(msgInserts) : Promise.resolve({ error: null }),
   ]);
   if ((logsResult as any)?.error) {
-    console.error('[process-batch] message_logs insert error:', (logsResult as any).error);
+    // Throw so QStash retries this batch — message_logs must be recorded
+    // for idempotency (re-sends are skipped based on existing logs) and analytics.
+    // The messages were already delivered to Meta, so the retry will skip
+    // re-sending (alreadySentIds check) and only redo the DB writes.
+    throw new Error(`[process-batch] message_logs insert failed: ${JSON.stringify((logsResult as any).error)}`);
   }
   if ((msgsResult as any)?.error) {
     console.error('[process-batch] chat_messages insert error:', (msgsResult as any).error);
+    // Non-fatal — inbox display can be missing but analytics/idempotency still work
   }
 
   // ── 7. Atomic campaign counters in Redis ─────────────────────
