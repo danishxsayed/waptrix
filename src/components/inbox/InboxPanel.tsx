@@ -2588,6 +2588,15 @@ export default function InboxPanel({
                                 />
                               </div>
                             )}
+                            {/* Unsupported / unknown message types */}
+                            {(msg.content === "[unsupported]" || msg.content === "[order]" ||
+                              (msg.content?.startsWith("[") && msg.content?.endsWith("]") &&
+                               !["[image]","[video]","[audio]","[document]","[sticker]","[reaction]","[button message]","[interactive]","[location]"].includes(msg.content) &&
+                               msg.type !== "text" && msg.type !== "template" && msg.type !== "location" && msg.type !== "note")) && (
+                              <p className="text-sm italic text-text-muted mb-1">
+                                🚫 Unsupported message type
+                              </p>
+                            )}
 
                             {/* Template message bubble */}
                             {(msg.type === "template" || msg.content?.startsWith("[Template:")) && (() => {
@@ -2677,9 +2686,13 @@ export default function InboxPanel({
                             {/* Text content — show full text, no truncation for normal messages */}
                             {msg.type !== "template" && msg.type !== "button" &&
                              msg.type !== "location" &&
-                             msg.content !== "[button message]" &&
+                             msg.type !== "note" &&
                              !msg.content?.startsWith("[Template:") &&
-                             (msg.type === "text" || (msg.content && !["[image]","[video]","[audio]","[document]","[sticker]"].includes(msg.content))) && (
+                             (msg.type === "text" || (
+                               msg.content &&
+                               !["[image]","[video]","[audio]","[document]","[sticker]","[button message]","[unsupported]","[order]","[interactive]"].includes(msg.content) &&
+                               !(msg.content.startsWith("[") && msg.content.endsWith("]") && msg.type !== "text")
+                             )) && (
                               <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{formatWhatsAppText(msg.content || '')}</p>
                             )}
 
