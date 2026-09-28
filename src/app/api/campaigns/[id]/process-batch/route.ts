@@ -225,6 +225,76 @@ export async function POST(
   const msgInserts: any[]  = [];
   const convUpdates: { id: string; name: string; lastMsg: string; campaignId: string; campaignName: string }[] = [];
 
+  // ── 4b. Retry repair: rebuild msgInserts for already-sent contacts with missing chat_messages ──
+  // This handles the case where message_logs succeeded but chat_messages failed on a prior attempt.
+  // Only runs when alreadySentIds is non-empty (i.e., this is a QStash retry).
+  if (alreadySentIds.size > 0) {
+    const retryContacts = contacts.filter((c: any) => alreadySentIds.has(c.id));
+    const contactMap = new Map(retryContacts.map((c: any) => [c.id, c]));
+
+    // Get the message_logs for these contacts so we can recover meta_msg_id and sent_at
+    const { data: retryLogs } = await db
+      .from('message_logs')
+      .select('contact_id, meta_msg_id, sent_at, phone')
+      .eq('campaign_id', campaignId)
+      .in('contact_id', Array.from(alreadySentIds));
+
+    if (retryLogs && retryLogs.length > 0) {
+      // Build all phone variants to match conversations (with or without + prefix)
+      const phonesVariants = [...new Set(
+        retryLogs.flatMap((l: any) => {
+          const norm = (l.phone as string).replace(/^\+/, '');
+          return [norm, `+${norm}`];
+        })
+      )];
+
+      const { data: convs } = await db
+        .from('conversations')
+        .select('id, contact_phone')
+        .eq('tenant_id', campaign.tenant_id)
+        .in('contact_phone', phonesVariants);
+
+      if (convs && convs.length > 0) {
+        const phoneToConvId = new Map<string, string>();
+        convs.forEach((c: any) => {
+          phoneToConvId.set((c.contact_phone as string).replace(/^\+/, ''), c.id);
+        });
+
+        // Check which conversations already have an outbound template message
+        const convIds = convs.map((c: any) => c.id);
+        const { data: existingMsgs } = await db
+          .from('chat_messages')
+          .select('conversation_id')
+          .eq('tenant_id', campaign.tenant_id)
+          .in('conversation_id', convIds)
+          .eq('direction', 'outbound')
+          .eq('type', 'template');
+
+        const convsWithTemplateMsgs = new Set((existingMsgs || []).map((m: any) => m.conversation_id));
+
+        // Add missing chat_messages entries to msgInserts
+        for (const log of retryLogs) {
+          const normPhone = (log.phone as string).replace(/^\+/, '');
+          const convId = phoneToConvId.get(normPhone);
+          if (convId && !convsWithTemplateMsgs.has(convId)) {
+            const contact = contactMap.get(log.contact_id);
+            msgInserts.push({
+              tenant_id:       campaign.tenant_id,
+              conversation_id: convId,
+              direction:       'outbound',
+              meta_message_id: log.meta_msg_id || null,
+              type:            'template',
+              content:         contact ? resolveBody(contact) : `[${templateName}]`,
+              template_name:   templateName,
+              status:          'sent',
+              created_at:      log.sent_at || now,
+            });
+          }
+        }
+      }
+    }
+  }
+
   // Process contacts in parallel chunks
   for (let i = 0; i < pendingContacts.length; i += CONCURRENCY) {
     const chunk = pendingContacts.slice(i, i + CONCURRENCY);
@@ -407,8 +477,9 @@ export async function POST(
     throw new Error(`[process-batch] message_logs insert failed: ${JSON.stringify((logsResult as any).error)}`);
   }
   if ((msgsResult as any)?.error) {
-    console.error('[process-batch] chat_messages insert error:', (msgsResult as any).error);
-    // Non-fatal — inbox display can be missing but analytics/idempotency still work
+    // Also fatal — throw so QStash retries. On retry, the repair block above (4b)
+    // rebuilds msgInserts for already-sent contacts whose chat_messages are missing.
+    throw new Error(`[process-batch] chat_messages insert failed: ${JSON.stringify((msgsResult as any).error)}`);
   }
 
   // ── 7. Atomic campaign counters in Redis ─────────────────────

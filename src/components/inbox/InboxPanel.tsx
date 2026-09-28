@@ -676,28 +676,31 @@ interface InboxFilters {
   tags: string[];
   lastMsgFrom: string;
   lastMsgTo: string;
+  campaignId: string; // empty = no campaign filter
 }
 const DEFAULT_FILTERS: InboxFilters = {
   chatStatus: 'all', readStatus: 'all', replyStatus: 'all',
-  tags: [], lastMsgFrom: '', lastMsgTo: '',
+  tags: [], lastMsgFrom: '', lastMsgTo: '', campaignId: '',
 };
 
 // ─── Filter Modal ─────────────────────────────────────────────────────────────
 function InboxFilterModal({
-  pending, setPending, availableTags, onClose, onApply, onReset,
+  pending, setPending, availableTags, availableCampaigns, onClose, onApply, onReset,
 }: {
   pending: InboxFilters;
   setPending: (f: InboxFilters) => void;
   availableTags: string[];
+  availableCampaigns: { id: string; name: string }[];
   onClose: () => void;
   onApply: () => void;
   onReset: () => void;
 }) {
   const [section, setSection] = useState('Chat Status');
   const [tagSearch, setTagSearch] = useState('');
+  const [campaignSearch, setCampaignSearch] = useState('');
 
   // Sections with working logic only — no stubs
-  const FILTER_SECTIONS = ['Tags', 'Chat Status', 'Reply Status', 'Read/Unread', 'Last Message Time'];
+  const FILTER_SECTIONS = ['Campaign', 'Tags', 'Chat Status', 'Reply Status', 'Read/Unread', 'Last Message Time'];
 
   const filteredTags = availableTags.filter(t => t.toLowerCase().includes(tagSearch.toLowerCase()));
 
@@ -714,8 +717,13 @@ function InboxFilterModal({
     if (s === 'Tags') return pending.tags.length > 0;
     if (s === 'Reply Status') return pending.replyStatus !== 'all';
     if (s === 'Last Message Time') return !!(pending.lastMsgFrom || pending.lastMsgTo);
+    if (s === 'Campaign') return !!pending.campaignId;
     return false;
   };
+
+  const filteredCampaigns = availableCampaigns.filter(c =>
+    c.name.toLowerCase().includes(campaignSearch.toLowerCase())
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
@@ -752,6 +760,62 @@ function InboxFilterModal({
 
           {/* Panel */}
           <div className="flex-1 overflow-y-auto p-5">
+
+            {/* Campaign — filter by campaign */}
+            {section === 'Campaign' && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold text-sm">Campaign</h3>
+                  <button onClick={() => setPending({ ...pending, campaignId: '' })} className="text-xs text-jade hover:underline">Clear</button>
+                </div>
+                {availableCampaigns.length === 0 ? (
+                  <p className="text-xs text-text-muted py-3">No campaigns found. Send a campaign first to use this filter.</p>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-2 bg-surface rounded-xl px-3 py-2 border border-border">
+                      <Search className="w-3.5 h-3.5 text-text-muted" />
+                      <input
+                        value={campaignSearch}
+                        onChange={e => setCampaignSearch(e.target.value)}
+                        placeholder="Search campaigns…"
+                        className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
+                      />
+                    </div>
+                    {/* All / None option */}
+                    <label className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-surface rounded-lg px-2 transition-colors border-b border-border/30 mb-1">
+                      <input
+                        type="radio"
+                        name="campaignFilter"
+                        checked={pending.campaignId === ''}
+                        onChange={() => setPending({ ...pending, campaignId: '' })}
+                        className="w-4 h-4 accent-jade"
+                      />
+                      <span className="text-sm text-text-primary font-medium">All conversations</span>
+                    </label>
+                    <div className="space-y-0.5 max-h-56 overflow-y-auto custom-scrollbar pr-1">
+                      {filteredCampaigns.map(camp => (
+                        <label key={camp.id} className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-surface rounded-lg px-2 transition-colors">
+                          <input
+                            type="radio"
+                            name="campaignFilter"
+                            checked={pending.campaignId === camp.id}
+                            onChange={() => setPending({ ...pending, campaignId: camp.id })}
+                            className="w-4 h-4 accent-jade"
+                          />
+                          <span className="text-sm text-text-primary flex items-center gap-1.5">
+                            <span>📢</span>
+                            <span>{camp.name}</span>
+                          </span>
+                        </label>
+                      ))}
+                      {filteredCampaigns.length === 0 && (
+                        <p className="text-xs text-text-muted py-3">No campaigns match your search.</p>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
 
             {/* Tags — filters by contact segment */}
             {section === 'Tags' && (
@@ -967,7 +1031,6 @@ export default function InboxPanel({
   const [pendingFilters, setPendingFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
   // "Assigned to me" quick-filter — defaults ON for agents
   const [assignedToMe, setAssignedToMe] = useState(false);
-  const [campaignFilter, setCampaignFilter] = useState<string | null>(null); // campaign name to filter by
   useEffect(() => { if (isAgent) setAssignedToMe(true); }, [isAgent]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   // phone (normalized, no +) → segment name — built from contacts+segments fetch
@@ -1951,8 +2014,20 @@ export default function InboxPanel({
     appliedFilters.replyStatus !== 'all',
     appliedFilters.tags.length > 0,
     !!(appliedFilters.lastMsgFrom || appliedFilters.lastMsgTo),
+    !!appliedFilters.campaignId,
     assignedToMe,
   ].filter(Boolean).length;
+
+  // Unique campaigns present in conversations (for the filter modal)
+  const availableCampaigns = useMemo(() => {
+    const seen = new Map<string, string>();
+    conversations.forEach(c => {
+      if (c.last_campaign_id && c.last_campaign_name && !seen.has(c.last_campaign_id)) {
+        seen.set(c.last_campaign_id, c.last_campaign_name);
+      }
+    });
+    return Array.from(seen.entries()).map(([id, name]) => ({ id, name }));
+  }, [conversations]);
 
   const filteredConversations = conversations.filter((c) => {
     // "Assigned to me" quick filter
@@ -1992,7 +2067,7 @@ export default function InboxPanel({
     }
 
     // Campaign filter — show only conversations from a specific campaign
-    if (campaignFilter && c.last_campaign_name !== campaignFilter) return false;
+    if (appliedFilters.campaignId && c.last_campaign_id !== appliedFilters.campaignId) return false;
 
     // Last Message Time — date range on last_message_at
     if (appliedFilters.lastMsgFrom) {
@@ -2115,13 +2190,15 @@ export default function InboxPanel({
             </button>
 
             {/* Active campaign filter chip */}
-            {campaignFilter && (
+            {appliedFilters.campaignId && (
               <button
-                onClick={() => setCampaignFilter(null)}
+                onClick={() => setAppliedFilters(f => ({ ...f, campaignId: '' }))}
                 className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium bg-amber-400/15 border-amber-400/30 text-amber-700 hover:bg-amber-400/25 transition-colors"
               >
                 <span>📢</span>
-                <span className="truncate flex-1 text-left">{campaignFilter}</span>
+                <span className="truncate flex-1 text-left">
+                  {availableCampaigns.find(c => c.id === appliedFilters.campaignId)?.name || appliedFilters.campaignId}
+                </span>
                 <span className="ml-auto text-amber-500 font-bold">✕</span>
               </button>
             )}
@@ -2303,10 +2380,13 @@ export default function InboxPanel({
                         <button
                           onClick={(e) => {
                             e.stopPropagation();
-                            setCampaignFilter(prev => prev === conv.last_campaign_name ? null : conv.last_campaign_name!);
+                            setAppliedFilters(prev => ({
+                              ...prev,
+                              campaignId: prev.campaignId === conv.last_campaign_id ? '' : conv.last_campaign_id!,
+                            }));
                           }}
                           className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold truncate max-w-full transition-colors ${
-                            campaignFilter === conv.last_campaign_name
+                            appliedFilters.campaignId === conv.last_campaign_id
                               ? 'bg-amber-400/30 text-amber-700 ring-1 ring-amber-400'
                               : 'bg-amber-400/15 text-amber-600 hover:bg-amber-400/25'
                           }`}
@@ -3708,6 +3788,7 @@ export default function InboxPanel({
           pending={pendingFilters}
           setPending={setPendingFilters}
           availableTags={availableTags}
+          availableCampaigns={availableCampaigns}
           onClose={() => setShowFilters(false)}
           onApply={() => { setAppliedFilters(pendingFilters); setShowFilters(false); }}
           onReset={() => { setPendingFilters(DEFAULT_FILTERS); setAppliedFilters(DEFAULT_FILTERS); setShowFilters(false); }}
