@@ -26,6 +26,7 @@ import {
   getCampaignStats,
   cleanupCampaignStats,
   invalidateWaConnection,
+  incrBatchDone,
 } from '@/lib/redis';
 import { metaApi } from '@/lib/meta';
 
@@ -416,8 +417,12 @@ export async function POST(
     incrCampaignFailed(campaignId, batchFailed),
   ]);
 
-  // ── 8. If last batch → finalise campaign in Supabase ─────────
-  const isLastBatch = batchIndex === totalBatches - 1;
+  // ── 8. If ALL batches done → finalise campaign in Supabase ──
+  // Use a Redis counter (not batchIndex) so the LAST BATCH TO FINISH
+  // (not the last by index) triggers finalization. This prevents the
+  // race condition where the smallest/fastest batch finalises too early.
+  const batchesDone = await incrBatchDone(campaignId);
+  const isLastBatch = batchesDone >= totalBatches;
 
   if (isLastBatch) {
     // Give other in-flight batches a moment to finish writing their message_logs

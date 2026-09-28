@@ -94,5 +94,18 @@ export async function cleanupCampaignStats(campaignId: string) {
   await Promise.all([
     redis.del(`campaign:${campaignId}:sent`),
     redis.del(`campaign:${campaignId}:failed`),
+    redis.del(`campaign:${campaignId}:batches_done`),
   ]);
+}
+
+/**
+ * Increment the count of completed batches and return the new total.
+ * Used to detect when ALL batches (not just the last-indexed one) are done.
+ * Key expires in 1 hour — well past any campaign runtime.
+ */
+export async function incrBatchDone(campaignId: string): Promise<number> {
+  const key = `campaign:${campaignId}:batches_done`;
+  const count = await redis.incr(key);
+  if (count === 1) await redis.expire(key, 3600);
+  return count;
 }
