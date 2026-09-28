@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import axios from "axios";
+import Link from "next/link";
 import {
   ArrowLeft,
   Send,
@@ -27,6 +28,7 @@ import {
   X,
   Info,
   MessageCircleReply,
+  ExternalLink,
 } from "lucide-react";
 
 interface Campaign {
@@ -76,6 +78,7 @@ export default function CampaignDetailPage() {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [logs, setLogs] = useState<Log[]>([]);
   const [replyCount, setReplyCount] = useState<number>(0);
+  const [repliedPhones, setRepliedPhones] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [error, setError] = useState("");
@@ -115,6 +118,7 @@ export default function CampaignDetailPage() {
     try {
       const res = await axios.get(`/api/campaigns/${id}/replies`);
       setReplyCount(res.data?.reply_count ?? 0);
+      setRepliedPhones(res.data?.replied_phones ?? []);
     } catch {
       // non-fatal — reply count stays 0
     }
@@ -255,10 +259,17 @@ export default function CampaignDetailPage() {
 
   const total = campaign.total_contacts || 1;
 
+  // Build a set of phones that replied, using data from the replies API (chat_messages)
+  // This is more reliable than message_logs.replied_at which may not be populated
+  const normalizePhone = (p: string) => p.replace(/^\+/, '');
+  const repliedPhoneSet = new Set(repliedPhones.map(normalizePhone));
+  const logHasReply = (log: Log) =>
+    !!log.replied_at || repliedPhoneSet.has(normalizePhone(log.phone));
+
   const filteredLogs = logs.filter((log) => {
     const matchesFilter =
       logFilter === "all" ||
-      (logFilter === "replied" ? !!log.replied_at : (log.status || "").toLowerCase() === logFilter);
+      (logFilter === "replied" ? logHasReply(log) : (log.status || "").toLowerCase() === logFilter);
     const matchesSearch =
       !logSearch ||
       log.phone.includes(logSearch) ||
@@ -271,7 +282,7 @@ export default function CampaignDetailPage() {
     sent: logs.filter((l) => (l.status || "").toLowerCase() === "sent").length,
     delivered: logs.filter((l) => (l.status || "").toLowerCase() === "delivered").length,
     read: logs.filter((l) => (l.status || "").toLowerCase() === "read").length,
-    replied: logs.filter((l) => !!l.replied_at).length,
+    replied: logs.filter((l) => logHasReply(l)).length,
     failed: logs.filter((l) => (l.status || "").toLowerCase() === "failed").length,
   };
 
@@ -563,7 +574,7 @@ export default function CampaignDetailPage() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5 flex-wrap">
                             {getLogStatusBadge(log.status)}
-                            {log.replied_at && (
+                            {logHasReply(log) && (
                               <span className="bg-violet-500/10 text-violet-400 px-2 py-0.5 rounded-full text-[9px] font-bold uppercase border border-violet-500/20 flex items-center gap-1 shrink-0">
                                 <MessageCircleReply className="w-2.5 h-2.5" /> Replied
                               </span>
@@ -578,7 +589,9 @@ export default function CampaignDetailPage() {
                         <td className="px-4 py-3 text-text-muted">
                           {log.replied_at
                             ? new Date(log.replied_at).toLocaleString(undefined, { dateStyle: "short", timeStyle: "short" })
-                            : <span className="text-text-muted/40">—</span>}
+                            : logHasReply(log)
+                              ? <span className="text-violet-400/60 text-[10px]">Replied</span>
+                              : <span className="text-text-muted/40">—</span>}
                         </td>
                         <td className="px-4 py-3 text-text-muted max-w-[200px] truncate">
                           {hasFailed && errorMsg ? (
@@ -586,14 +599,25 @@ export default function CampaignDetailPage() {
                           ) : "—"}
                         </td>
                         <td className="px-4 py-3 text-right">
-                          {hasFailed && errorMsg && (
-                            <button
-                              onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
-                              className="text-text-muted hover:text-text-primary transition-colors"
-                            >
-                              {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                            </button>
-                          )}
+                          <div className="flex items-center justify-end gap-1.5">
+                            {logHasReply(log) && (
+                              <Link
+                                href={`/inbox?phone=${encodeURIComponent(log.phone)}`}
+                                className="text-violet-400 hover:text-violet-300 transition-colors"
+                                title="Open conversation"
+                              >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </Link>
+                            )}
+                            {hasFailed && errorMsg && (
+                              <button
+                                onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
+                                className="text-text-muted hover:text-text-primary transition-colors"
+                              >
+                                {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                       {isExpanded && hasFailed && errorMsg && (
