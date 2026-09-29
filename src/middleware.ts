@@ -146,11 +146,13 @@ export async function middleware(request: NextRequest) {
         let tenant = tenantResult.data
         if (isTeamMember) {
           const { data: ownerTenant } = await timeout(
-            serviceDb
-              .from('tenants')
-              .select('plan, trial_ends_at, plan_expires_at')
-              .eq('id', tenantId)
-              .maybeSingle(),
+            Promise.resolve(
+              serviceDb
+                .from('tenants')
+                .select('plan, trial_ends_at, plan_expires_at')
+                .eq('id', tenantId)
+                .maybeSingle()
+            ),
             800
           )
           tenant = ownerTenant

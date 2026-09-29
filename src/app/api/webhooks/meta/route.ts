@@ -593,11 +593,9 @@ async function handleMessages(db: SupabaseClient, value: any) {
 
     // If this message is a reply to a campaign message, mark replied_at in message_logs
     if (repliedToId) {
-      db.from('message_logs')
+      void db.from('message_logs')
         .update({ replied_at: msgTimestamp })
-        .eq('meta_msg_id', repliedToId)
-        .then(() => {})
-        .catch(() => {});
+        .eq('meta_msg_id', repliedToId);
     }
 
     // Fire CRM outbound webhook (fire-and-forget — never block the main flow)
