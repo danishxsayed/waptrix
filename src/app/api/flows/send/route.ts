@@ -48,15 +48,17 @@ export async function POST(request: Request) {
   const token = process.env.META_SYSTEM_TOKEN || conn.access_token;
   const flowToken = randomUUID(); // unique per send — used to match response
 
-  const actionPayload: Record<string, any> = {
+  // Build action parameters — if no screen_id provided we omit flow_action
+  // so Meta opens the first screen automatically (safest default)
+  const actionParameters: Record<string, any> = {
     flow_message_version: '3',
     flow_token: flowToken,
     flow_id,
     flow_cta: cta_text,
-    flow_action: 'navigate',
   };
   if (screen_id) {
-    actionPayload.flow_action_payload = { screen: screen_id };
+    actionParameters.flow_action = 'navigate';
+    actionParameters.flow_action_payload = { screen: screen_id };
   }
 
   const messagePayload = {
@@ -67,9 +69,10 @@ export async function POST(request: Request) {
       type: 'flow',
       header: { type: 'text', text: header_text },
       body: { text: body_text },
+      footer: { text: 'Powered by Waptrix' },
       action: {
         name: 'flow',
-        parameters: actionPayload,
+        parameters: actionParameters,
       },
     },
   };
