@@ -21,19 +21,19 @@ export async function GET() {
   // Get tenant's WA connection
   const { data: conn } = await db
     .from('wa_connections')
-    .select('phone_number_id, access_token')
+    .select('waba_id, access_token')
     .eq('tenant_id', user.id)
     .single();
 
-  if (!conn?.phone_number_id || !conn?.access_token) {
+  if (!conn?.waba_id || !conn?.access_token) {
     return NextResponse.json({ error: 'WhatsApp not connected' }, { status: 400 });
   }
 
   const token = process.env.META_SYSTEM_TOKEN || conn.access_token;
 
-  // Fetch flows from Meta Graph API
+  // Fetch flows from Meta Graph API — flows are scoped to the WABA, not the phone number
   const metaRes = await fetch(
-    `https://graph.facebook.com/v19.0/${conn.phone_number_id}/flows?fields=id,name,status,categories,validation_errors,preview,updated_at`,
+    `https://graph.facebook.com/v19.0/${conn.waba_id}/flows?fields=id,name,status,categories,validation_errors,preview,updated_at`,
     { headers: { Authorization: `Bearer ${token}` } }
   );
 
