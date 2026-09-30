@@ -463,9 +463,54 @@ async function handleMessages(db: SupabaseClient, value: any) {
       mediaMime = mediaObj?.mime_type ?? null;
       content = mediaObj?.caption || mediaObj?.filename || `[${type}]`;
     } else if (type === 'interactive') {
-      content = msg.interactive?.button_reply?.title
-        || msg.interactive?.list_reply?.title
-        || '[interactive]';
+      const interactiveType = msg.interactive?.type;
+      if (interactiveType === 'nfm_reply') {
+        // WhatsApp Flow submission — store response in flow_responses table
+        const nfm = msg.interactive.nfm_reply;
+        const flowToken = nfm?.response_json ? (() => {
+          try { return JSON.parse(nfm.response_json)?.flow_token ?? null; } catch { return null; }
+        })() : null;
+        const responseData = (() => {
+          try { return JSON.parse(nfm?.response_json || '{}'); } catch { return {}; }
+        })();
+
+        // Update existing pending row (matched by flow_token) or insert new one
+        if (flowToken) {
+          const { data: existing } = await db
+            .from('flow_responses')
+            .select('id')
+            .eq('tenant_id', tenantId)
+            .eq('flow_token', flowToken)
+            .maybeSingle();
+
+          if (existing) {
+            void db.from('flow_responses')
+              .update({ response_data: responseData })
+              .eq('id', existing.id);
+          } else {
+            void db.from('flow_responses').insert({
+              tenant_id: tenantId,
+              flow_id: responseData.flow_id || '',
+              flow_token: flowToken,
+              contact_phone: senderPhone,
+              response_data: responseData,
+            });
+          }
+        } else {
+          // No token — insert fresh
+          void db.from('flow_responses').insert({
+            tenant_id: tenantId,
+            flow_id: responseData.flow_id || '',
+            contact_phone: senderPhone,
+            response_data: responseData,
+          });
+        }
+        content = '[Flow submitted]';
+      } else {
+        content = msg.interactive?.button_reply?.title
+          || msg.interactive?.list_reply?.title
+          || '[interactive]';
+      }
     } else if (type === 'button') {
       // Quick reply button tap (from a template message)
       content = msg.button?.text || msg.button?.payload || '[button reply]';

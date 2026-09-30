@@ -26,6 +26,7 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   Blocks,
+  Workflow,
 } from "lucide-react";
 import { useTenant } from "@/context/TenantContext";
 import { createClient } from "@/lib/supabase/client";
@@ -61,6 +62,7 @@ const ALL_NAV_ITEMS: NavItem[] = [
       { name: "Team Chat", href: "/team-chat",  icon: MessageSquareText },
     ],
   },
+  { name: "Flows",         href: "/flows",        icon: Workflow, minRole: "admin" },
   { name: "Automations",   href: "/automations", icon: Bot,      minRole: "owner" },
   { name: "Connect",       href: "/connect",      icon: Link2,   minRole: "owner" },
   { name: "Integrations",  href: "/integrations", icon: Blocks,  minRole: "owner" },

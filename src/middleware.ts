@@ -97,7 +97,7 @@ export async function middleware(request: NextRequest) {
   // Routes agents are NOT allowed to access
   const AGENT_BLOCKED_PREFIXES = [
     '/campaigns', '/templates', '/media', '/analytics',
-    '/settings', '/connect', '/billing', '/automations',
+    '/settings', '/connect', '/billing', '/automations', '/flows',
   ];
   const isTeamBlocked = (p: string) => p === '/team' || p.startsWith('/team/');
 
