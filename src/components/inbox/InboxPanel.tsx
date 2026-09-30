@@ -678,10 +678,12 @@ interface InboxFilters {
   lastMsgFrom: string;
   lastMsgTo: string;
   campaignId: string; // empty = no campaign filter
+  campaignRepliedOnly: boolean; // when true + campaignId set, show only contacts who replied
 }
 const DEFAULT_FILTERS: InboxFilters = {
   chatStatus: 'all', readStatus: 'all', replyStatus: 'all',
   tags: [], lastMsgFrom: '', lastMsgTo: '', campaignId: '',
+  campaignRepliedOnly: false,
 };
 
 // ─── Filter Modal ─────────────────────────────────────────────────────────────
@@ -718,7 +720,7 @@ function InboxFilterModal({
     if (s === 'Tags') return pending.tags.length > 0;
     if (s === 'Reply Status') return pending.replyStatus !== 'all';
     if (s === 'Last Message Time') return !!(pending.lastMsgFrom || pending.lastMsgTo);
-    if (s === 'Campaign') return !!pending.campaignId;
+    if (s === 'Campaign') return !!(pending.campaignId || pending.campaignRepliedOnly);
     return false;
   };
 
@@ -767,7 +769,7 @@ function InboxFilterModal({
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h3 className="font-semibold text-sm">Campaign</h3>
-                  <button onClick={() => setPending({ ...pending, campaignId: '' })} className="text-xs text-jade hover:underline">Clear</button>
+                  <button onClick={() => setPending({ ...pending, campaignId: '', campaignRepliedOnly: false })} className="text-xs text-jade hover:underline">Clear</button>
                 </div>
                 {availableCampaigns.length === 0 ? (
                   <p className="text-xs text-text-muted py-3">No campaigns found. Send a campaign first to use this filter.</p>
@@ -813,6 +815,21 @@ function InboxFilterModal({
                         <p className="text-xs text-text-muted py-3">No campaigns match your search.</p>
                       )}
                     </div>
+                    {/* Replied only toggle — shown when a campaign is selected */}
+                    {pending.campaignId && (
+                      <label className="flex items-center gap-3 py-2.5 px-2 mt-2 cursor-pointer bg-surface rounded-xl border border-border hover:bg-surface/80 transition-colors">
+                        <input
+                          type="checkbox"
+                          checked={pending.campaignRepliedOnly}
+                          onChange={e => setPending({ ...pending, campaignRepliedOnly: e.target.checked })}
+                          className="w-4 h-4 accent-jade"
+                        />
+                        <div>
+                          <span className="text-sm font-medium text-text-primary">Replied only</span>
+                          <p className="text-xs text-text-muted">Show only contacts who replied to this campaign</p>
+                        </div>
+                      </label>
+                    )}
                   </>
                 )}
               </div>
@@ -1033,6 +1050,8 @@ export default function InboxPanel({
   // "Assigned to me" quick-filter — defaults ON for agents
   const [assignedToMe, setAssignedToMe] = useState(false);
   const [priorityOnly, setPriorityOnly] = useState(false);
+  // Set of phone numbers who replied to the campaign in appliedFilters.campaignId
+  const [repliedPhonesForFilter, setRepliedPhonesForFilter] = useState<Set<string>>(new Set());
   useEffect(() => { if (isAgent) setAssignedToMe(true); }, [isAgent]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   // phone (normalized, no +) → segment name — built from contacts+segments fetch
@@ -2017,6 +2036,7 @@ export default function InboxPanel({
     appliedFilters.tags.length > 0,
     !!(appliedFilters.lastMsgFrom || appliedFilters.lastMsgTo),
     !!appliedFilters.campaignId,
+    appliedFilters.campaignRepliedOnly,
     assignedToMe,
     priorityOnly,
   ].filter(Boolean).length;
@@ -2074,6 +2094,13 @@ export default function InboxPanel({
 
     // Campaign filter — show only conversations from a specific campaign
     if (appliedFilters.campaignId && c.last_campaign_id !== appliedFilters.campaignId) return false;
+
+    // Campaign replied-only filter — show only contacts who replied to the selected campaign
+    if (appliedFilters.campaignRepliedOnly && appliedFilters.campaignId && repliedPhonesForFilter.size > 0) {
+      const norm = c.contact_phone.replace(/^\+/, '');
+      const withPlus = `+${norm}`;
+      if (!repliedPhonesForFilter.has(c.contact_phone) && !repliedPhonesForFilter.has(norm) && !repliedPhonesForFilter.has(withPlus)) return false;
+    }
 
     // Last Message Time — date range on last_message_at
     if (appliedFilters.lastMsgFrom) {
@@ -2218,7 +2245,7 @@ export default function InboxPanel({
             {/* Active campaign filter chip */}
             {appliedFilters.campaignId && (
               <button
-                onClick={() => setAppliedFilters(f => ({ ...f, campaignId: '' }))}
+                onClick={() => { setAppliedFilters(f => ({ ...f, campaignId: '', campaignRepliedOnly: false })); setRepliedPhonesForFilter(new Set()); }}
                 className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium bg-amber-400/15 border-amber-400/30 text-amber-700 hover:bg-amber-400/25 transition-colors"
               >
                 <span>📢</span>
@@ -2226,6 +2253,17 @@ export default function InboxPanel({
                   {availableCampaigns.find(c => c.id === appliedFilters.campaignId)?.name || appliedFilters.campaignId}
                 </span>
                 <span className="ml-auto text-amber-500 font-bold">✕</span>
+              </button>
+            )}
+            {/* Campaign replied-only chip */}
+            {appliedFilters.campaignRepliedOnly && appliedFilters.campaignId && (
+              <button
+                onClick={() => { setAppliedFilters(f => ({ ...f, campaignRepliedOnly: false })); setRepliedPhonesForFilter(new Set()); }}
+                className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium bg-violet-500/10 border-violet-500/30 text-violet-600 hover:bg-violet-500/20 transition-colors"
+              >
+                <span>↩️</span>
+                <span className="flex-1 text-left">Replied only</span>
+                <span className="ml-auto text-violet-500 font-bold">✕</span>
               </button>
             )}
 
@@ -3860,8 +3898,26 @@ export default function InboxPanel({
           availableTags={availableTags}
           availableCampaigns={availableCampaigns}
           onClose={() => setShowFilters(false)}
-          onApply={() => { setAppliedFilters(pendingFilters); setShowFilters(false); }}
-          onReset={() => { setPendingFilters(DEFAULT_FILTERS); setAppliedFilters(DEFAULT_FILTERS); setShowFilters(false); }}
+          onApply={async () => {
+            setAppliedFilters(pendingFilters);
+            setShowFilters(false);
+            // Fetch replied phones for campaign replied filter
+            if (pendingFilters.campaignRepliedOnly && pendingFilters.campaignId) {
+              try {
+                const res = await fetch(`/api/campaigns/${pendingFilters.campaignId}/replies`);
+                if (res.ok) {
+                  const data = await res.json();
+                  const phones: string[] = data.replied_phones || [];
+                  setRepliedPhonesForFilter(new Set(phones));
+                }
+              } catch {
+                setRepliedPhonesForFilter(new Set());
+              }
+            } else {
+              setRepliedPhonesForFilter(new Set());
+            }
+          }}
+          onReset={() => { setPendingFilters(DEFAULT_FILTERS); setAppliedFilters(DEFAULT_FILTERS); setRepliedPhonesForFilter(new Set()); setShowFilters(false); }}
         />
       )}
     </div>
