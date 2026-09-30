@@ -2464,20 +2464,33 @@ export default function InboxPanel({
                 {/* Priority star */}
                 <div className="relative group">
                   <button
-                    onClick={async () => {
+                    onClick={() => {
                       if (!activeConv) return;
                       const newPriority = !activeConv.is_priority;
-                      const res = await fetch(`/api/conversations/${activeConv.id}`, {
+                      // Optimistic update — instant UI response
+                      setConversations(prev =>
+                        prev.map(c => c.id === activeConv.id ? { ...c, is_priority: newPriority } : c)
+                      );
+                      setActiveConv(prev => prev ? { ...prev, is_priority: newPriority } : prev);
+                      // Sync to server in background — revert on failure
+                      fetch(`/api/conversations/${activeConv.id}`, {
                         method: 'PATCH',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ is_priority: newPriority }),
-                      });
-                      if (res.ok) {
+                      }).then(res => {
+                        if (!res.ok) {
+                          // Revert
+                          setConversations(prev =>
+                            prev.map(c => c.id === activeConv.id ? { ...c, is_priority: !newPriority } : c)
+                          );
+                          setActiveConv(prev => prev ? { ...prev, is_priority: !newPriority } : prev);
+                        }
+                      }).catch(() => {
                         setConversations(prev =>
-                          prev.map(c => c.id === activeConv.id ? { ...c, is_priority: newPriority } : c)
+                          prev.map(c => c.id === activeConv.id ? { ...c, is_priority: !newPriority } : c)
                         );
-                        setActiveConv(prev => prev ? { ...prev, is_priority: newPriority } : prev);
-                      }
+                        setActiveConv(prev => prev ? { ...prev, is_priority: !newPriority } : prev);
+                      });
                     }}
                     className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-colors ${
                       activeConv?.is_priority
