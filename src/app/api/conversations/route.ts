@@ -72,10 +72,57 @@ export async function GET(req: Request) {
     const db = serviceDb();
 
     const { searchParams } = new URL(req.url);
-    const limit  = Math.min(parseInt(searchParams.get('limit')  || '50', 10), 100);
-    const cursor = searchParams.get('cursor'); // ISO timestamp — load before this
-    const search = (searchParams.get('search') || '').trim();
+    const limit             = Math.min(parseInt(searchParams.get('limit') || '50', 10), 100);
+    const cursor            = searchParams.get('cursor'); // ISO timestamp — load before this
+    const search            = (searchParams.get('search') || '').trim();
+    const campaignRepliedTo = searchParams.get('campaign_replied_to'); // campaign ID
 
+    // ── Fast path: campaign replied filter ────────────────────────────────────
+    // When this param is set we skip pagination entirely and return only the
+    // conversations whose contact replied to the given campaign.
+    // We look up replied phones from message_logs.replied_at (single indexed
+    // query) then fetch only those conversations — no client-side filtering needed.
+    if (campaignRepliedTo) {
+      // 1. Get replied phones for this campaign (fast — uses partial index)
+      const { data: repliedLogs, error: logsErr } = await db
+        .from('message_logs')
+        .select('phone')
+        .eq('campaign_id', campaignRepliedTo)
+        .eq('tenant_id', tenantId)
+        .not('replied_at', 'is', null);
+
+      if (logsErr) return NextResponse.json({ error: logsErr.message }, { status: 500 });
+
+      const repliedPhones = [...new Set((repliedLogs || []).map((l: any) => l.phone as string))];
+
+      if (repliedPhones.length === 0) {
+        return NextResponse.json({ conversations: [], hasMore: false, nextCursor: null });
+      }
+
+      // 2. Fetch conversations for those phones — Supabase supports .in() up to ~1000 values
+      //    For larger sets we chunk, but replied contacts are typically a small fraction
+      const CHUNK = 200;
+      const allConvs: any[] = [];
+      for (let i = 0; i < repliedPhones.length; i += CHUNK) {
+        const chunk = repliedPhones.slice(i, i + CHUNK);
+        const { data: convChunk } = await db
+          .from('conversations')
+          .select('*')
+          .eq('tenant_id', tenantId)
+          .in('contact_phone', chunk)
+          .order('last_message_at', { ascending: false });
+        allConvs.push(...(convChunk || []));
+      }
+
+      // Sort combined result by last_message_at desc
+      allConvs.sort((a, b) =>
+        new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime()
+      );
+
+      return NextResponse.json({ conversations: allConvs, hasMore: false, nextCursor: null });
+    }
+
+    // ── Normal paginated path ─────────────────────────────────────────────────
     // Build query — fetch limit+1 so we can detect whether a next page exists
     let query = db
       .from('conversations')

@@ -2245,7 +2245,7 @@ export default function InboxPanel({
             {/* Active campaign filter chip */}
             {appliedFilters.campaignId && (
               <button
-                onClick={() => { setAppliedFilters(f => ({ ...f, campaignId: '', campaignRepliedOnly: false })); setRepliedPhonesForFilter(new Set()); }}
+                onClick={() => { setAppliedFilters(f => ({ ...f, campaignId: '', campaignRepliedOnly: false })); setRepliedPhonesForFilter(new Set()); fetchConversations(); }}
                 className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium bg-amber-400/15 border-amber-400/30 text-amber-700 hover:bg-amber-400/25 transition-colors"
               >
                 <span>📢</span>
@@ -2258,7 +2258,7 @@ export default function InboxPanel({
             {/* Campaign replied-only chip */}
             {appliedFilters.campaignRepliedOnly && appliedFilters.campaignId && (
               <button
-                onClick={() => { setAppliedFilters(f => ({ ...f, campaignRepliedOnly: false })); setRepliedPhonesForFilter(new Set()); }}
+                onClick={() => { setAppliedFilters(f => ({ ...f, campaignRepliedOnly: false })); setRepliedPhonesForFilter(new Set()); fetchConversations(); }}
                 className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium bg-violet-500/10 border-violet-500/30 text-violet-600 hover:bg-violet-500/20 transition-colors"
               >
                 <span>↩️</span>
@@ -3901,23 +3901,36 @@ export default function InboxPanel({
           onApply={async () => {
             setAppliedFilters(pendingFilters);
             setShowFilters(false);
-            // Fetch replied phones for campaign replied filter
+            // Campaign replied filter — fetch ONLY replied conversations directly
+            // from server instead of loading all pages and filtering client-side.
             if (pendingFilters.campaignRepliedOnly && pendingFilters.campaignId) {
               try {
-                const res = await fetch(`/api/campaigns/${pendingFilters.campaignId}/replies`);
+                setLoadingConvs(true);
+                const res = await fetch(
+                  `/api/conversations?campaign_replied_to=${encodeURIComponent(pendingFilters.campaignId)}`
+                );
                 if (res.ok) {
                   const data = await res.json();
-                  const phones: string[] = data.replied_phones || [];
+                  setConversations(data.conversations ?? []);
+                  setHasMoreConvs(false); // server already returns all replied convs
+                  setNextConvCursor(null);
+                  // Also store replied phones for the client-side check
+                  const phones = (data.conversations ?? []).map((c: any) => c.contact_phone as string);
                   setRepliedPhonesForFilter(new Set(phones));
                 }
               } catch {
                 setRepliedPhonesForFilter(new Set());
+              } finally {
+                setLoadingConvs(false);
               }
             } else {
-              setRepliedPhonesForFilter(new Set());
+              // Replied filter cleared — reload normal paginated conversations
+              if (!pendingFilters.campaignRepliedOnly) {
+                setRepliedPhonesForFilter(new Set());
+              }
             }
           }}
-          onReset={() => { setPendingFilters(DEFAULT_FILTERS); setAppliedFilters(DEFAULT_FILTERS); setRepliedPhonesForFilter(new Set()); setShowFilters(false); }}
+          onReset={() => { setPendingFilters(DEFAULT_FILTERS); setAppliedFilters(DEFAULT_FILTERS); setRepliedPhonesForFilter(new Set()); setShowFilters(false); fetchConversations(); }}
         />
       )}
     </div>
