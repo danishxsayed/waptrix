@@ -29,6 +29,7 @@ import {
   Info,
   MessageCircleReply,
   ExternalLink,
+  Download,
 } from "lucide-react";
 
 interface Campaign {
@@ -83,7 +84,7 @@ export default function CampaignDetailPage() {
   const [isLoadingLogs, setIsLoadingLogs] = useState(true);
   const [error, setError] = useState("");
   const [isDeleting, setIsDeleting] = useState(false);
-  const [logFilter, setLogFilter] = useState<"all" | "sent" | "delivered" | "read" | "replied" | "failed">("all");
+  const [logFilter, setLogFilter] = useState<"all" | "sent" | "delivered" | "read" | "replied" | "ignored" | "failed">("all");
   const [logSearch, setLogSearch] = useState("");
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -268,8 +269,10 @@ export default function CampaignDetailPage() {
 
   const filteredLogs = logs.filter((log) => {
     const matchesFilter =
-      logFilter === "all" ||
-      (logFilter === "replied" ? logHasReply(log) : (log.status || "").toLowerCase() === logFilter);
+      logFilter === "all" ? true :
+      logFilter === "replied" ? logHasReply(log) :
+      logFilter === "ignored" ? (["delivered", "read"].includes((log.status || "").toLowerCase()) && !logHasReply(log)) :
+      (log.status || "").toLowerCase() === logFilter;
     const matchesSearch =
       !logSearch ||
       log.phone.includes(logSearch) ||
@@ -283,7 +286,39 @@ export default function CampaignDetailPage() {
     delivered: logs.filter((l) => (l.status || "").toLowerCase() === "delivered").length,
     read: logs.filter((l) => (l.status || "").toLowerCase() === "read").length,
     replied: logs.filter((l) => logHasReply(l)).length,
+    ignored: logs.filter((l) => {
+      const s = (l.status || "").toLowerCase();
+      return (s === "delivered" || s === "read") && !logHasReply(l);
+    }).length,
     failed: logs.filter((l) => (l.status || "").toLowerCase() === "failed").length,
+  };
+
+  const exportCSV = () => {
+    const rows = filteredLogs;
+    if (rows.length === 0) return;
+    const headers = ["Name", "Phone", "Status", "Replied", "Sent At", "Replied At", "Error"];
+    const csvRows = [
+      headers.join(","),
+      ...rows.map((log) => {
+        const name = (log.contact?.name || "").replace(/,/g, " ");
+        const phone = log.phone;
+        const status = (log.status || "").toLowerCase();
+        const replied = logHasReply(log) ? "Yes" : "No";
+        const sentAt = log.sent_at
+          ? new Date(log.sent_at).toLocaleString()
+          : new Date(log.created_at).toLocaleString();
+        const repliedAt = log.replied_at ? new Date(log.replied_at).toLocaleString() : "";
+        const error = (log.error || log.error_message || log.error_detail || "").replace(/,/g, " ").replace(/\n/g, " ");
+        return [name, phone, status, replied, `"${sentAt}"`, `"${repliedAt}"`, `"${error}"`].join(",");
+      }),
+    ];
+    const blob = new Blob([csvRows.join("\n")], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `campaign-${id}-${logFilter}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // Use live log counts for sent/failed — they are accurate in message_logs.
@@ -485,26 +520,38 @@ export default function CampaignDetailPage() {
               {logs.length}
             </span>
           </h3>
-          {/* Search */}
-          <div className="relative">
-            <input
-              type="text"
-              placeholder="Search name or phone…"
-              value={logSearch}
-              onChange={(e) => setLogSearch(e.target.value)}
-              className="input-field text-xs pl-3 pr-8 py-1.5 w-44"
-            />
-            {logSearch && (
-              <button onClick={() => setLogSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
-                <X className="w-3 h-3" />
-              </button>
-            )}
+          <div className="flex items-center gap-2">
+            {/* Search */}
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search name or phone…"
+                value={logSearch}
+                onChange={(e) => setLogSearch(e.target.value)}
+                className="input-field text-xs pl-3 pr-8 py-1.5 w-44"
+              />
+              {logSearch && (
+                <button onClick={() => setLogSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            {/* Export */}
+            <button
+              onClick={exportCSV}
+              disabled={filteredLogs.length === 0}
+              title={`Export ${logFilter} contacts as CSV`}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-surface text-[10px] font-bold uppercase tracking-wider text-text-muted hover:text-text-primary hover:bg-card transition-all disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <Download className="w-3 h-3" />
+              Export
+            </button>
           </div>
         </div>
 
         {/* Filter tabs */}
         <div className="flex items-center gap-1 flex-wrap">
-          {(["all", "sent", "delivered", "read", "replied", "failed"] as const).map((f) => (
+          {(["all", "sent", "delivered", "read", "replied", "ignored", "failed"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setLogFilter(f)}
@@ -600,15 +647,15 @@ export default function CampaignDetailPage() {
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
-                            {logHasReply(log) && (
-                              <Link
-                                href={`/inbox?phone=${encodeURIComponent(log.phone)}`}
-                                className="text-violet-400 hover:text-violet-300 transition-colors"
-                                title="Open conversation"
-                              >
-                                <ExternalLink className="w-3.5 h-3.5" />
-                              </Link>
-                            )}
+                            <Link
+                              href={`/inbox?phone=${encodeURIComponent(log.phone)}`}
+                              className={logHasReply(log)
+                                ? "text-violet-400 hover:text-violet-300 transition-colors"
+                                : "text-text-muted/30 hover:text-text-muted transition-colors"}
+                              title="Open conversation"
+                            >
+                              <ExternalLink className="w-3.5 h-3.5" />
+                            </Link>
                             {hasFailed && errorMsg && (
                               <button
                                 onClick={() => setExpandedLogId(isExpanded ? null : log.id)}
