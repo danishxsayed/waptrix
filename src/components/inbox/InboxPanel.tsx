@@ -8,7 +8,7 @@ import {
   Clock, FileText, Mic, X, Loader2, Download, Play, Plus, Phone, AlertCircle,
   SlidersHorizontal, ChevronRight, ArrowUpDown, Trash2, CheckSquare, Square,
   Smile, User, Tag, PenLine, ChevronDown, ChevronUp, Info, ExternalLink,
-  StickyNote, CheckCircle2, Zap, Activity, Pencil, RefreshCcw
+  StickyNote, CheckCircle2, Zap, Activity, Pencil, RefreshCcw, Star
 } from "lucide-react";
 import { format, isToday, isYesterday } from "date-fns";
 
@@ -26,6 +26,7 @@ interface Conversation {
   assigned_name?: string | null;
   last_campaign_id?: string | null;
   last_campaign_name?: string | null;
+  is_priority?: boolean;
 }
 
 interface TeamMember {
@@ -1031,6 +1032,7 @@ export default function InboxPanel({
   const [pendingFilters, setPendingFilters] = useState<InboxFilters>(DEFAULT_FILTERS);
   // "Assigned to me" quick-filter — defaults ON for agents
   const [assignedToMe, setAssignedToMe] = useState(false);
+  const [priorityOnly, setPriorityOnly] = useState(false);
   useEffect(() => { if (isAgent) setAssignedToMe(true); }, [isAgent]);
   const [availableTags, setAvailableTags] = useState<string[]>([]);
   // phone (normalized, no +) → segment name — built from contacts+segments fetch
@@ -2016,6 +2018,7 @@ export default function InboxPanel({
     !!(appliedFilters.lastMsgFrom || appliedFilters.lastMsgTo),
     !!appliedFilters.campaignId,
     assignedToMe,
+    priorityOnly,
   ].filter(Boolean).length;
 
   // Unique campaigns present in conversations (for the filter modal)
@@ -2032,6 +2035,9 @@ export default function InboxPanel({
   const filteredConversations = conversations.filter((c) => {
     // "Assigned to me" quick filter
     if (assignedToMe && userId && c.assigned_to !== userId) return false;
+
+    // Priority only filter
+    if (priorityOnly && !c.is_priority) return false;
 
     // Search — server handles it when query is ≥ 2 chars; local filter for shorter queries only
     if (searchQuery.length < 2) {
@@ -2084,6 +2090,11 @@ export default function InboxPanel({
 
   // ── Apply sort to filtered list
   const sortedConversations = [...filteredConversations].sort((a, b) => {
+    // Priority chats always float to top (unless priority filter is active — then all shown are priority)
+    if (!priorityOnly) {
+      if (a.is_priority && !b.is_priority) return -1;
+      if (!a.is_priority && b.is_priority) return 1;
+    }
     if (sortMode === 'newest') return new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime();
     if (sortMode === 'oldest') return new Date(a.last_message_at).getTime() - new Date(b.last_message_at).getTime();
     // Response window: approximated by last_message_at when contact has unread (inbound) messages.
@@ -2175,19 +2186,34 @@ export default function InboxPanel({
                 className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted focus:outline-none"
               />
             </div>
-            {/* "Assigned to me" quick filter chip */}
-            <button
-              onClick={() => setAssignedToMe(v => !v)}
-              className={`w-full flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors ${
-                assignedToMe
-                  ? 'bg-[#25D366]/10 border-[#25D366]/30 text-[#075E54]'
-                  : 'bg-surface border-border text-text-muted hover:text-text-primary'
-              }`}
-            >
-              <User className="w-3.5 h-3.5 flex-shrink-0" />
-              <span>Assigned to me</span>
-              {assignedToMe && <span className="ml-auto w-2 h-2 rounded-full bg-[#25D366]" />}
-            </button>
+            {/* Quick filter chips row */}
+            <div className="flex gap-2">
+              {/* "Assigned to me" quick filter chip */}
+              <button
+                onClick={() => setAssignedToMe(v => !v)}
+                className={`flex-1 flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors ${
+                  assignedToMe
+                    ? 'bg-[#25D366]/10 border-[#25D366]/30 text-[#075E54]'
+                    : 'bg-surface border-border text-text-muted hover:text-text-primary'
+                }`}
+              >
+                <User className="w-3.5 h-3.5 flex-shrink-0" />
+                <span>Assigned to me</span>
+                {assignedToMe && <span className="ml-auto w-2 h-2 rounded-full bg-[#25D366]" />}
+              </button>
+              {/* Priority quick filter chip */}
+              <button
+                onClick={() => setPriorityOnly(v => !v)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-medium transition-colors ${
+                  priorityOnly
+                    ? 'bg-amber-400/15 border-amber-400/40 text-amber-500'
+                    : 'bg-surface border-border text-text-muted hover:border-amber-400/40 hover:text-amber-400'
+                }`}
+                title="Show priority chats only"
+              >
+                <Star className={`w-3.5 h-3.5 flex-shrink-0 ${priorityOnly ? 'fill-amber-400' : ''}`} />
+              </button>
+            </div>
 
             {/* Active campaign filter chip */}
             {appliedFilters.campaignId && (
@@ -2358,7 +2384,8 @@ export default function InboxPanel({
 
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-semibold text-text-primary truncate">
+                      <span className="text-sm font-semibold text-text-primary truncate flex items-center gap-1">
+                        {conv.is_priority && <span className="text-amber-400 text-xs shrink-0">★</span>}
                         {conv.contact_name || conv.contact_phone}
                       </span>
                       <span className="text-[10px] text-text-muted whitespace-nowrap flex-shrink-0">
@@ -2434,6 +2461,36 @@ export default function InboxPanel({
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {/* Priority star */}
+                <div className="relative group">
+                  <button
+                    onClick={async () => {
+                      if (!activeConv) return;
+                      const newPriority = !activeConv.is_priority;
+                      const res = await fetch(`/api/conversations/${activeConv.id}`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ is_priority: newPriority }),
+                      });
+                      if (res.ok) {
+                        setConversations(prev =>
+                          prev.map(c => c.id === activeConv.id ? { ...c, is_priority: newPriority } : c)
+                        );
+                        setActiveConv(prev => prev ? { ...prev, is_priority: newPriority } : prev);
+                      }
+                    }}
+                    className={`w-8 h-8 rounded-xl border flex items-center justify-center transition-colors ${
+                      activeConv?.is_priority
+                        ? 'bg-amber-400/15 border-amber-400/40 text-amber-400'
+                        : 'bg-surface border-border text-text-muted hover:border-amber-400/40 hover:text-amber-400'
+                    }`}
+                  >
+                    <Star className={`w-4 h-4 ${activeConv?.is_priority ? 'fill-amber-400' : ''}`} />
+                  </button>
+                  <div className="pointer-events-none absolute top-full right-0 mt-1.5 px-2 py-1 bg-[#111B21] text-white text-[11px] rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity z-50">
+                    {activeConv?.is_priority ? 'Remove Priority' : 'Mark as Priority'}
+                  </div>
+                </div>
                 {/* Close / Reopen chat */}
                 <div className="relative group">
                   <button
