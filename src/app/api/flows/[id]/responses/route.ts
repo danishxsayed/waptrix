@@ -21,12 +21,15 @@ export async function GET(
   const { data: { user } } = await db.auth.getUser();
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+  // Exclude pending rows (status = 'sent') but include all submitted rows.
+  // Using .or() because SQL NULL != 'sent' evaluates to NULL (falsy), which
+  // would exclude rows where the status key doesn't exist in the JSON.
   const { data, error } = await db
     .from('flow_responses')
     .select('id, contact_phone, contact_id, response_data, flow_token, created_at, contacts(name)')
     .eq('tenant_id', user.id)
     .eq('flow_id', flowId)
-    .neq('response_data->>status', 'sent')   // exclude pending rows with no submission yet
+    .or('response_data->>status.neq.sent,response_data->>status.is.null')
     .order('created_at', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

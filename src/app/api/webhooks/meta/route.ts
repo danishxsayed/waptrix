@@ -474,7 +474,11 @@ async function handleMessages(db: SupabaseClient, value: any) {
           try { return JSON.parse(nfm?.response_json || '{}'); } catch { return {}; }
         })();
 
-        // Update existing pending row (matched by flow_token) or insert new one
+        // Update existing pending row (matched by flow_token) or insert new one.
+        // We always set status: 'submitted' so the responses API filter
+        // (.neq status 'sent') correctly includes these rows — SQL NULL != 'sent'
+        // evaluates to NULL (falsy) so rows without a status key get excluded otherwise.
+        const submittedData = { ...responseData, status: 'submitted' };
         if (flowToken) {
           const { data: existing } = await db
             .from('flow_responses')
@@ -484,25 +488,25 @@ async function handleMessages(db: SupabaseClient, value: any) {
             .maybeSingle();
 
           if (existing) {
-            void db.from('flow_responses')
-              .update({ response_data: responseData })
+            await db.from('flow_responses')
+              .update({ response_data: submittedData })
               .eq('id', existing.id);
           } else {
-            void db.from('flow_responses').insert({
+            await db.from('flow_responses').insert({
               tenant_id: tenantId,
               flow_id: responseData.flow_id || '',
               flow_token: flowToken,
               contact_phone: senderPhone,
-              response_data: responseData,
+              response_data: submittedData,
             });
           }
         } else {
           // No token — insert fresh
-          void db.from('flow_responses').insert({
+          await db.from('flow_responses').insert({
             tenant_id: tenantId,
             flow_id: responseData.flow_id || '',
             contact_phone: senderPhone,
-            response_data: responseData,
+            response_data: submittedData,
           });
         }
         content = '[Flow submitted]';
