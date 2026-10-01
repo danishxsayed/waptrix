@@ -107,21 +107,25 @@ export async function POST(req: Request) {
     const body = await req.json();
     const { code, wabaId: rawWabaId, phoneNumberId: rawPhoneNumberId, redirectUri: clientRedirectUri } = body;
 
-    // Prefer the redirect_uri sent by the client (window.location.origin) — it must exactly
-    // match what was used in the OAuth dialog, which is also built from the browser origin.
-    const redirectUri = clientRedirectUri || `${process.env.NEXT_PUBLIC_APP_URL}/connect`;
+    // redirectUri is '' when code comes from FB.login() popup (WES flow) — in that
+    // case Meta does NOT want redirect_uri in the exchange. It is the actual URL
+    // when code comes from the OAuth redirect fallback.
+    const redirectUri = clientRedirectUri ?? `${process.env.NEXT_PUBLIC_APP_URL}/connect`;
     const db = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
     // Step 1: Get a short-lived token (from OAuth code or existing DB token)
     let shortToken = '';
     if (code) {
-      const res = await fetch(
+      // Build exchange URL — omit redirect_uri entirely for popup/WES flow
+      let exchangeUrl =
         `https://graph.facebook.com/v19.0/oauth/access_token?` +
         `client_id=${process.env.NEXT_PUBLIC_META_APP_ID}` +
         `&client_secret=${process.env.META_APP_SECRET}` +
-        `&code=${code}` +
-        `&redirect_uri=${encodeURIComponent(redirectUri)}`
-      );
+        `&code=${code}`;
+      if (redirectUri) {
+        exchangeUrl += `&redirect_uri=${encodeURIComponent(redirectUri)}`;
+      }
+      const res = await fetch(exchangeUrl);
       const data = await res.json();
       console.log('Code exchange:', JSON.stringify({ ...data, access_token: data.access_token ? '[REDACTED]' : undefined }));
       if (data.error) {

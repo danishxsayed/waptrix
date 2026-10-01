@@ -68,13 +68,19 @@ export default function ConnectPage() {
     }
   }
 
-  async function handleOAuthCallback(code: string, wabaId: string, phoneId: string) {
+  async function handleOAuthCallback(code: string, wabaId: string, phoneId: string, redirectUri?: string) {
     setStatus('connecting');
     try {
+      // When called from WES popup (FB.login), redirectUri is '' — the API will
+      // omit redirect_uri from the token exchange since popup flow doesn't use one.
+      // When called from the OAuth redirect flow, redirectUri is the actual URL.
+      const resolvedRedirectUri = redirectUri !== undefined
+        ? redirectUri
+        : `${window.location.origin}/connect`;
       const res = await fetch('/api/whatsapp/oauth-connect', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code, wabaId, phoneNumberId: phoneId, redirectUri: `${window.location.origin}/connect` }),
+        body: JSON.stringify({ code, wabaId, phoneNumberId: phoneId, redirectUri: resolvedRedirectUri }),
       });
       const data = await res.json();
       if (data.error) {
@@ -185,10 +191,12 @@ export default function ConnectPage() {
           const code = response.authResponse.code;
           const session = sessionInfoRef.current;
           if (session?.phone_number_id && session?.waba_id) {
-            // Best case: got everything from WES session info
-            handleOAuthCallback(code, session.waba_id, session.phone_number_id);
+            // Best case: got everything from WES session info.
+            // Pass redirectUri='' so the API knows NOT to include it in the
+            // token exchange — popup flow has no redirect_uri.
+            handleOAuthCallback(code, session.waba_id, session.phone_number_id, '');
           } else if (code) {
-            // Fallback: no session info yet — ask user for Phone Number ID
+            // Session info not received yet — fallback to manual phone ID entry
             setPendingCode(code);
             setStatus('need-phone-id');
           }
