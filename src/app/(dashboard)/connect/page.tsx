@@ -1,7 +1,8 @@
 "use client";
 export const dynamic = "force-dynamic";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import Script from "next/script";
 import { Link2, Shield, AlertTriangle, CheckCircle, Loader2, ExternalLink, KeyRound } from "lucide-react";
 
 export default function ConnectPage() {
@@ -142,8 +143,68 @@ export default function ConnectPage() {
     }
   }
 
+  // ── WhatsApp Embedded Signup (WES) — proper FB SDK flow ──────────────────
+  // This is the official Meta-recommended approach. Using the plain OAuth
+  // redirect (dialog/oauth) bypasses the WES pipeline, causing display name
+  // rejections. FB.login() with config_id routes through Meta's BSP-approved
+  // signup flow which includes business verification + name approval.
+  const sessionInfoRef = useRef<{ phone_number_id?: string; waba_id?: string } | null>(null);
+
+  useEffect(() => {
+    // Listen for WES session info — Meta sends this via postMessage when the
+    // embedded signup popup completes. We capture waba_id + phone_number_id here.
+    function onFbMessage(event: MessageEvent) {
+      if (event.origin !== 'https://www.facebook.com') return;
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'WA_EMBEDDED_SIGNUP') {
+          if (data.event === 'FINISH' && data.data) {
+            sessionInfoRef.current = {
+              phone_number_id: data.data.phone_number_id,
+              waba_id: data.data.waba_id,
+            };
+          }
+        }
+      } catch { /* not a JSON message — ignore */ }
+    }
+    window.addEventListener('message', onFbMessage);
+    return () => window.removeEventListener('message', onFbMessage);
+  }, []);
+
   function launchSignup() {
     const appId = process.env.NEXT_PUBLIC_META_APP_ID;
+    const configId = process.env.NEXT_PUBLIC_META_WES_CONFIG_ID;
+    const fb = (window as any).FB;
+
+    // ── Proper WES path (requires NEXT_PUBLIC_META_WES_CONFIG_ID + FB SDK) ──
+    if (fb && configId) {
+      sessionInfoRef.current = null;
+      fb.login(
+        function (response: any) {
+          if (!response.authResponse) return; // user cancelled
+          const code = response.authResponse.code;
+          const session = sessionInfoRef.current;
+          if (session?.phone_number_id && session?.waba_id) {
+            // Best case: got everything from WES session info
+            handleOAuthCallback(code, session.waba_id, session.phone_number_id);
+          } else if (code) {
+            // Fallback: no session info yet — ask user for Phone Number ID
+            setPendingCode(code);
+            setStatus('need-phone-id');
+          }
+        },
+        {
+          config_id: configId,
+          response_type: 'code',
+          override_default_response_type: true,
+          extras: { sessionInfoVersion: 2 },
+        }
+      );
+      return;
+    }
+
+    // ── Fallback OAuth redirect (if FB SDK / config_id not yet set up) ──
+    // NOTE: This path causes display name rejections. Set up WES config_id to fix.
     const redirectUri = encodeURIComponent(`${window.location.origin}/connect`);
     const scope = 'whatsapp_business_management,whatsapp_business_messaging,business_management,public_profile';
     const extras = encodeURIComponent(JSON.stringify({ feature: 'whatsapp_embedded_signup', setup: {} }));
@@ -222,6 +283,21 @@ export default function ConnectPage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      {/* Facebook JS SDK — required for proper WhatsApp Embedded Signup (WES).
+          Without this, we fall back to the plain OAuth redirect which causes
+          display name rejections because it bypasses the WES pipeline. */}
+      <Script
+        src="https://connect.facebook.net/en_US/sdk.js"
+        strategy="lazyOnload"
+        onLoad={() => {
+          (window as any).FB?.init({
+            appId: process.env.NEXT_PUBLIC_META_APP_ID,
+            autoLogAppEvents: true,
+            xfbml: true,
+            version: 'v21.0',
+          });
+        }}
+      />
       <div className="glass-card">
         <div className="flex items-start justify-between mb-8">
           <div className="flex items-center gap-4">
