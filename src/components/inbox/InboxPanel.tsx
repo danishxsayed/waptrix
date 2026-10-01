@@ -2776,10 +2776,32 @@ export default function InboxPanel({
                                 />
                               </div>
                             )}
+                            {/* Flow sent bubble */}
+                            {msg.content === "[flow]" && (
+                              <div className="flex items-center gap-2 mb-1 px-1 py-0.5">
+                                <span className="text-lg">📋</span>
+                                <div>
+                                  <p className="text-sm font-medium">{msg.template_name || 'WhatsApp Flow'}</p>
+                                  <p className="text-xs text-text-muted">Flow sent</p>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Flow submitted bubble (inbound — contact filled the form) */}
+                            {msg.content === "[Flow submitted]" && (
+                              <div className="flex items-center gap-2 mb-1 px-1 py-0.5">
+                                <span className="text-lg">✅</span>
+                                <div>
+                                  <p className="text-sm font-medium">Flow form submitted</p>
+                                  <p className="text-xs text-text-muted">Contact completed the form — view responses in Flows</p>
+                                </div>
+                              </div>
+                            )}
+
                             {/* Unsupported / unknown message types */}
                             {(msg.content === "[unsupported]" || msg.content === "[order]" ||
                               (msg.content?.startsWith("[") && msg.content?.endsWith("]") &&
-                               !["[image]","[video]","[audio]","[document]","[sticker]","[reaction]","[button message]","[interactive]","[location]"].includes(msg.content) &&
+                               !["[image]","[video]","[audio]","[document]","[sticker]","[reaction]","[button message]","[interactive]","[location]","[flow]","[Flow submitted]"].includes(msg.content) &&
                                msg.type !== "text" && msg.type !== "template" && msg.type !== "location" && msg.type !== "note")) && (
                               <p className="text-sm italic text-text-muted mb-1">
                                 🚫 Unsupported message type
@@ -2878,7 +2900,7 @@ export default function InboxPanel({
                              !msg.content?.startsWith("[Template:") &&
                              (msg.type === "text" || (
                                msg.content &&
-                               !["[image]","[video]","[audio]","[document]","[sticker]","[button message]","[unsupported]","[order]","[interactive]"].includes(msg.content) &&
+                               !["[image]","[video]","[audio]","[document]","[sticker]","[button message]","[unsupported]","[order]","[interactive]","[flow]","[Flow submitted]"].includes(msg.content) &&
                                !(msg.content.startsWith("[") && msg.content.endsWith("]") && msg.type !== "text")
                              )) && (
                               <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{formatWhatsAppText(msg.content || '')}</p>

@@ -117,5 +117,30 @@ export async function POST(request: Request) {
     response_data: { status: 'sent' },
   });
 
+  // Store the outbound flow message in chat_messages so it shows in the inbox.
+  // Find or use the existing conversation for this phone number.
+  try {
+    const { data: conv } = await db
+      .from('conversations')
+      .select('id')
+      .eq('tenant_id', user.id)
+      .or(`contact_phone.eq.${phone},contact_phone.eq.+${normalizedPhone},contact_phone.eq.${normalizedPhone}`)
+      .maybeSingle();
+
+    if (conv?.id) {
+      await db.from('chat_messages').insert({
+        tenant_id: user.id,
+        conversation_id: conv.id,
+        direction: 'outbound',
+        type: 'interactive',
+        content: '[flow]',
+        template_name: flow_name || 'WhatsApp Flow',
+        created_at: new Date().toISOString(),
+      });
+    }
+  } catch (_) {
+    // Non-fatal — flow was still sent successfully
+  }
+
   return NextResponse.json({ success: true, flow_token: flowToken });
 }
