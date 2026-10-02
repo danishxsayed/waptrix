@@ -5,7 +5,8 @@ import { useState } from "react";
 import {
   BookOpen, Send, MessageSquare, FileText, Bot, Users,
   BarChart3, Settings, ChevronRight, ChevronDown, Info,
-  CheckCircle2, AlertTriangle, ExternalLink, Search, Menu, X
+  CheckCircle2, AlertTriangle, ExternalLink, Search, Menu, X,
+  Workflow, Tag, Filter, Star
 } from "lucide-react";
 
 // ─── Sidebar structure ───────────────────────────────────────────────────────
@@ -44,8 +45,10 @@ const NAV = [
       { id: "camp-create",   label: "Create a Campaign" },
       { id: "camp-contacts", label: "Import Contacts" },
       { id: "camp-segments", label: "Segments" },
+      { id: "camp-tags",     label: "Tag-Based Targeting" },
       { id: "camp-schedule", label: "Schedule a Campaign" },
       { id: "camp-analytics",label: "Campaign Analytics" },
+      { id: "camp-replied",  label: "Campaign Replied Filter" },
       { id: "camp-limits",   label: "Sending Limits (Tiers)" },
     ],
   },
@@ -56,10 +59,22 @@ const NAV = [
     items: [
       { id: "inbox-overview",  label: "Unified Inbox Overview" },
       { id: "inbox-reply",     label: "Replying to Messages" },
+      { id: "inbox-filters",   label: "Inbox Filters" },
+      { id: "inbox-priority",  label: "Priority Conversations" },
       { id: "inbox-notes",     label: "Internal Notes" },
       { id: "inbox-assign",    label: "Assigning Conversations" },
       { id: "inbox-qr",        label: "Quick Replies" },
       { id: "inbox-contact",   label: "Contact Profile" },
+    ],
+  },
+  {
+    id: "flows",
+    icon: Workflow,
+    title: "WhatsApp Flows",
+    items: [
+      { id: "flows-overview",   label: "What Are Flows?" },
+      { id: "flows-send",       label: "Send a Flow to a Contact" },
+      { id: "flows-responses",  label: "View Form Responses" },
     ],
   },
   {
@@ -487,6 +502,52 @@ function DOCS() {
       </div>
     ),
 
+    "camp-tags": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">Tag-Based Targeting</h1>
+        <DocP>Tags let you label contacts so you can target a specific group in a campaign — without creating a separate segment. For example, tag your premium customers "VIP" and send them exclusive offers.</DocP>
+        <DocH2>Adding Tags to Contacts</DocH2>
+        <Step n={1} title="Open a contact">Go to Contacts and click on any contact.</Step>
+        <Step n={2} title="Add tags">In the contact profile, find the Tags field. Type a tag name and press Enter. You can add multiple tags to one contact.</Step>
+        <Step n={3} title="Save">Tags are saved automatically. The contact is now tagged and ready to be targeted in campaigns.</Step>
+        <DocH2>Using Tags in Campaigns</DocH2>
+        <Step n={1} title="In the campaign wizard, go to the audience step">Select the "Filter by tags" option.</Step>
+        <Step n={2} title="Pick your tags">Choose one or more tags. Only contacts who have ALL the selected tags will receive the campaign.</Step>
+        <Step n={3} title="Review the estimated reach">The campaign wizard will show how many contacts match your tag selection. Verify before launching.</Step>
+        <Callout type="success">Tag-based targeting is the fastest way to send relevant messages to specific groups — no need to manage separate contact lists or segments for every use case.</Callout>
+        <DocH2>Tag Ideas</DocH2>
+        <DocUl items={[
+          "VIP / Gold / Platinum — loyalty tiers",
+          "cold-lead / warm-lead / hot-lead — sales pipeline stages",
+          "mumbai / delhi / bangalore — geographic targeting",
+          "diwali-offer-2026 — event-specific promotions",
+          "onboarded / pending-onboarding — customer lifecycle",
+        ]} />
+      </div>
+    ),
+
+    "camp-replied": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">Campaign Replied Filter</h1>
+        <DocP>The Campaign Replied Filter lets you view only the contacts who replied to a specific campaign — directly inside your inbox. This is useful for following up with engaged leads without manually searching through all conversations.</DocP>
+        <DocH2>How to Use It</DocH2>
+        <Step n={1} title="Go to Inbox">Click Inbox in the left sidebar.</Step>
+        <Step n={2} title="Open Filters">Click the Filters button (top right of the conversation list).</Step>
+        <Step n={3} title="Select a Campaign">Under the Campaign filter, choose the campaign you want to follow up on.</Step>
+        <Step n={4} title="Enable 'Replied only'">Toggle on the Replied only checkbox. This shows only contacts who replied to that specific campaign.</Step>
+        <Step n={5} title="Apply Filters">Click Apply. The inbox now shows only the conversations from contacts who replied.</Step>
+        <Callout type="info">The filter is fast — it uses an indexed lookup and works even if you have 5,000–10,000 conversations.</Callout>
+        <DocH2>Why It's Useful</DocH2>
+        <DocUl items={[
+          "Follow up with leads who expressed interest in a product launch campaign",
+          "Close sales with contacts who replied 'Interested' to a promotion",
+          "Prioritise support for contacts who responded to a service message",
+          "Run personalised follow-up sequences for engaged respondents",
+        ]} />
+        <Callout type="success">Combine the Campaign Replied Filter with Priority Conversations to ensure hot leads are never missed.</Callout>
+      </div>
+    ),
+
     "camp-limits": (
       <div>
         <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">Sending Limits (Tiers)</h1>
@@ -533,6 +594,55 @@ function DOCS() {
           "Resolved: Closed conversations",
         ]} />
         <Callout type="info">Messages arrive in real-time via Meta's webhook. If a customer's phone is offline, their message status will update as soon as they come online.</Callout>
+      </div>
+    ),
+
+    "inbox-filters": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">Inbox Filters</h1>
+        <DocP>Inbox Filters help you quickly narrow down conversations so you see exactly what you need — without scrolling through hundreds of chats.</DocP>
+        <DocH2>How to Open Filters</DocH2>
+        <DocP>Click the Filters button in the top right corner of the conversation list. A filter panel slides in from the right. Make your selections, then click Apply.</DocP>
+        <DocH2>Available Filters</DocH2>
+        <div className="space-y-3 my-4">
+          {[
+            { name: "Status", desc: "Filter by conversation status: Open, Resolved, or All." },
+            { name: "Assigned To", desc: "Show conversations assigned to a specific team member, or only unassigned conversations." },
+            { name: "Campaign", desc: "Show only conversations where the contact was part of a specific campaign." },
+            { name: "Replied Only", desc: "When a campaign is selected, enable this to see only contacts who actually replied to that campaign. Great for follow-ups." },
+            { name: "Priority", desc: "Show only conversations you've starred as high priority." },
+          ].map((f) => (
+            <div key={f.name} className="flex gap-3 p-3 bg-[#f8f8f8] rounded-xl border border-[#E9EDEF]">
+              <div className="w-2 h-2 rounded-full bg-[#25D366] flex-shrink-0 mt-1.5" />
+              <div><p className="text-sm font-semibold text-[#111B21]">{f.name}</p><p className="text-xs text-[#667781]">{f.desc}</p></div>
+            </div>
+          ))}
+        </div>
+        <DocH2>Active Filter Chips</DocH2>
+        <DocP>When filters are active, coloured chips appear below the search bar showing what's applied. Click the × on any chip to remove just that filter without clearing the rest.</DocP>
+        <Callout type="info">Filters are reset when you refresh the page. They're session-only so each team member can have their own view without affecting others.</Callout>
+      </div>
+    ),
+
+    "inbox-priority": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">Priority Conversations</h1>
+        <DocP>Mark a conversation as Priority to flag it as urgent or high-value. Priority conversations appear with a gold star in the conversation list, making them easy to spot at a glance.</DocP>
+        <DocH2>How to Mark a Conversation as Priority</DocH2>
+        <Step n={1} title="Open the conversation">Click the conversation in your inbox.</Step>
+        <Step n={2} title="Click the star icon">A star icon (☆) appears at the top of the conversation or next to the contact name. Click it to mark as priority. The star turns gold (★).</Step>
+        <Step n={3} title="Click again to remove">Clicking the gold star again removes the priority flag.</Step>
+        <DocH2>Filtering by Priority</DocH2>
+        <DocP>To see only your priority conversations, open Filters and enable the Priority filter. The inbox will show only starred conversations — perfect for starting your workday on the most important chats.</DocP>
+        <DocH2>When to Use Priority</DocH2>
+        <DocUl items={[
+          "Hot leads who are close to converting",
+          "Unhappy customers who need urgent attention",
+          "VIP contacts you personally manage",
+          "Conversations with time-sensitive deadlines",
+          "Any chat you need to come back to quickly",
+        ]} />
+        <Callout type="success">Priority flags are team-wide — if you star a conversation, your teammates will also see it starred. Use it to signal to the team that a contact needs attention.</Callout>
       </div>
     ),
 
@@ -1049,6 +1159,104 @@ def waptrix_webhook():
     return '', 200`}</pre>
         </div>
         <Callout type="warning">Always use <strong>timing-safe comparison</strong> (timingSafeEqual / hmac.compare_digest) to prevent timing attacks. Never use == for signature comparison.</Callout>
+      </div>
+    ),
+
+    // ── WhatsApp Flows ───────────────────────────────────────────────────────
+    "flows-overview": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">What Are WhatsApp Flows?</h1>
+        <DocP>WhatsApp Flows are interactive forms that open inside WhatsApp — no app download, no external link. You send a Flow to a contact, they fill in the form directly inside WhatsApp, and the submitted data appears in your Waptrix dashboard.</DocP>
+        <Callout type="success">Flows have 3–5× higher completion rates than asking customers to fill a form via a link, because everything happens inside WhatsApp with zero friction.</Callout>
+        <DocH2>What You Can Do With Flows</DocH2>
+        <DocUl items={[
+          "Lead capture forms (name, email, location, interest)",
+          "Appointment booking (service type, preferred date/time)",
+          "Customer feedback and NPS surveys",
+          "Order intake (product, quantity, delivery address)",
+          "Onboarding questions for new customers",
+          "Support ticket creation",
+        ]} />
+        <DocH2>How It Works</DocH2>
+        <div className="space-y-3 my-4">
+          {[
+            { step: "1", label: "Build the Flow in Meta's Flow Builder", desc: "Go to business.facebook.com/wa/manage/flows and design your form — add screens, input fields, dropdowns, and a thank-you screen." },
+            { step: "2", label: "Publish the Flow", desc: "Click Publish in Meta's Flow Builder. The Flow status must be PUBLISHED before you can send it." },
+            { step: "3", label: "Send from Waptrix", desc: "Go to Flows in your Waptrix sidebar, find your flow, and click Send. Enter the contact's phone number and an optional message." },
+            { step: "4", label: "Contact fills the form", desc: "The contact receives a message with a button. They tap it, the form opens inside WhatsApp, and they submit." },
+            { step: "5", label: "View responses in Waptrix", desc: "All submitted responses appear in the Flows dashboard. Click on a flow to see every submission with all the filled fields." },
+          ].map(s => (
+            <div key={s.step} className="flex gap-4 p-4 bg-[#f8f8f8] rounded-xl border border-[#E9EDEF]">
+              <div className="w-8 h-8 rounded-full bg-[#075E54] text-white text-sm font-bold flex items-center justify-center flex-shrink-0">{s.step}</div>
+              <div><p className="text-sm font-semibold text-[#111B21]">{s.label}</p><p className="text-xs text-[#667781] mt-0.5">{s.desc}</p></div>
+            </div>
+          ))}
+        </div>
+        <Callout type="warning">Flows can only be sent within an active 24-hour conversation window. The contact must have messaged you first (or you must have sent them a template to restart the conversation). You cannot send a Flow as a first outreach message.</Callout>
+      </div>
+    ),
+
+    "flows-send": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">Send a Flow to a Contact</h1>
+        <DocP>There are two ways to send a Flow to a contact in Waptrix.</DocP>
+
+        <DocH2>Method 1: From the Flows Page</DocH2>
+        <Step n={1} title="Go to Flows in the sidebar">Click the Flows icon in the left navigation.</Step>
+        <Step n={2} title="Find the Flow you want to send">Published flows appear with a green PUBLISHED badge. Flows with errors or in Draft status cannot be sent.</Step>
+        <Step n={3} title="Click Send">The Send Flow modal opens.</Step>
+        <Step n={4} title="Enter the contact's WhatsApp number">Include the country code without the + sign (e.g., 919876543210 for India).</Step>
+        <Step n={5} title="Customise the message (optional)">You can change the header text, body text, and button label that the contact sees before opening the form.</Step>
+        <Step n={6} title="Click Send Flow">The contact receives the message with a form button in their WhatsApp.</Step>
+
+        <DocH2>Method 2: From the Inbox</DocH2>
+        <DocP>While in a conversation with a contact, click the Flow icon in the message input toolbar. Select the Flow you want to send and confirm. The form message appears in the chat thread immediately.</DocP>
+
+        <Callout type="info">When you send a Flow, a 📋 icon appears in the chat thread to confirm it was sent. When the contact submits the form, a ✅ icon appears showing "Flow form submitted" — you can then view the full response in the Flows dashboard.</Callout>
+
+        <DocH2>Customisation Options</DocH2>
+        <div className="overflow-x-auto my-4">
+          <table className="w-full text-sm border-collapse">
+            <thead><tr className="bg-[#075E54] text-white"><th className="px-4 py-2 text-left">Field</th><th className="px-4 py-2 text-left">What It Does</th><th className="px-4 py-2 text-left">Default</th></tr></thead>
+            <tbody>
+              {[
+                ["Header text","Bold title above the message body","Please fill out the form"],
+                ["Body text","Main message text the contact reads","Tap the button below to open the form."],
+                ["Button label","Text on the button that opens the flow","Open Form"],
+              ].map(([f,d,def],i) => (
+                <tr key={i} className={i%2===0?"bg-white":"bg-[#f5f0e8]"}>
+                  <td className="px-4 py-2 border-b border-[#EDE8DE] font-medium">{f}</td>
+                  <td className="px-4 py-2 border-b border-[#EDE8DE] text-xs text-[#667781]">{d}</td>
+                  <td className="px-4 py-2 border-b border-[#EDE8DE] text-xs text-[#667781] italic">{def}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    ),
+
+    "flows-responses": (
+      <div>
+        <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">View Flow Responses</h1>
+        <DocP>Every time a contact submits a Flow form, their responses are stored in Waptrix and appear in the Flows dashboard.</DocP>
+        <DocH2>Viewing Responses</DocH2>
+        <Step n={1} title="Go to Flows in the sidebar">The Flows page shows all your published flows with a response count on each card.</Step>
+        <Step n={2} title="Click on a Flow card">A responses panel opens on the right side of the screen.</Step>
+        <Step n={3} title="Browse responses">Each submitted response shows the contact's phone number, submission time, and a count of filled fields. Click any response row to expand it and see all the submitted field values.</Step>
+        <DocH2>Response Data</DocH2>
+        <DocP>The data shown in each response matches exactly what the contact filled in on the form — field names and values from your Meta Flow Builder design. For example, if your form had fields named "Name", "Email", and "City", you'll see those exact labels with the contact's inputs.</DocP>
+        <DocH2>Response Count on the Card</DocH2>
+        <DocP>The large number on each flow card (e.g., "12 Responses") counts all submitted responses for that flow. The panel inside shows the same responses in detail.</DocP>
+        <Callout type="info">Responses are stored in Waptrix indefinitely. They are linked to the contact's phone number so you can cross-reference with their inbox conversation.</Callout>
+        <DocH2>Using Response Data</DocH2>
+        <DocUl items={[
+          "Export responses by copying the data manually (bulk export coming soon)",
+          "Use the phone number in each response to find the contact in Contacts and update their profile",
+          "Follow up directly from the Inbox using the contact's number",
+          "Feed response data into your CRM via the outbound webhook (contact.responded event)",
+        ]} />
+        <Callout type="success">WhatsApp Flows + CRM webhook = fully automated lead capture pipeline. A contact fills a form → Waptrix receives the submission → CRM webhook fires → your CRM creates a lead automatically.</Callout>
       </div>
     ),
 
