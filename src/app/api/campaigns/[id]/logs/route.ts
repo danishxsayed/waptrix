@@ -41,10 +41,10 @@ export async function GET(
     }
 
     // Fetch logs by campaign_id only — tenant security already checked above
-    // Join contacts to get contact name for display
+    // Avoid Supabase FK join (contact_id has no FK constraint) — enrich names manually
     const { data, error } = await db
       .from('message_logs')
-      .select('*, contact:contacts(name)')
+      .select('id, campaign_id, contact_id, phone, status, meta_msg_id, sent_at, created_at, replied_at, error, error_message, error_detail, tenant_id')
       .eq('campaign_id', id)
       .order('created_at', { ascending: false })
       .limit(1000);
@@ -54,7 +54,26 @@ export async function GET(
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json(data ?? []);
+    const rows = data ?? [];
+
+    // Enrich with contact names via a separate query (avoids FK join requirement)
+    if (rows.length > 0) {
+      const contactIds = [...new Set(rows.map((r: any) => r.contact_id).filter(Boolean))];
+      if (contactIds.length > 0) {
+        const { data: contacts } = await db
+          .from('contacts')
+          .select('id, name')
+          .in('id', contactIds);
+        if (contacts) {
+          const nameMap = new Map(contacts.map((c: any) => [c.id, c.name]));
+          rows.forEach((r: any) => {
+            r.contact = r.contact_id ? { name: nameMap.get(r.contact_id) || null } : null;
+          });
+        }
+      }
+    }
+
+    return NextResponse.json(rows);
   } catch (err: any) {
     console.error('logs route error:', err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });

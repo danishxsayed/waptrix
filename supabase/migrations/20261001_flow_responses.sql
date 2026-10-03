@@ -17,6 +17,13 @@ create index if not exists flow_responses_contact_phone_idx on flow_responses (c
 
 alter table flow_responses enable row level security;
 
-create policy "Tenant can access own flow responses"
-  on flow_responses for all
-  using (tenant_id = auth.uid());
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies WHERE tablename = 'flow_responses' AND policyname = 'Tenant can access own flow responses'
+  ) THEN
+    CREATE POLICY "Tenant can access own flow responses"
+      ON flow_responses FOR ALL
+      USING (tenant_id = auth.uid());
+  END IF;
+END $$;
