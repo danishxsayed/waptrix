@@ -121,6 +121,7 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 - **Razorpay Payment Integration Migration (2026-10-04)**:
   - Replaced Cashfree payment flow with Razorpay standard checkout across `/pricing`, `/api/payments/create-order`, `/api/payments/initiate`, and `/api/payments/webhook`.
   - Verified HMAC SHA-256 webhook signatures, handled `order.paid` and `payment.failed`, and automated tenant plan upgrades to Pro.
+  - Optimized `/api/payments/initiate` with 8s abort timeout and fire-and-forget pending payment pre-recording.
 - **Account Deletion & Email Verification Flow (2026-09-18)**:
   - Implemented `/api/account/delete` endpoint cascading deletion across all tenant data (campaigns, logs, messages, contacts, segments, templates, automations, notifications, team members, WhatsApp connections, billing/integrations, and tenant record) and deleting the Supabase Auth user.
   - Added Danger Zone in `ProfilePage` with modal confirmation requiring typing "DELETE".

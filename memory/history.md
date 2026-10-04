@@ -13,6 +13,9 @@
 - **Pricing Page Checkout**:
   - Loaded Razorpay Checkout SDK (`https://checkout.razorpay.com/v1/checkout.js`) instead of Cashfree JS SDK.
   - Integrated `new window.Razorpay(options).open()` modal flow for subscription purchases.
+- **Initiate Endpoint Optimization**:
+  - Added 8-second request abort timeout to Razorpay order creation in `/api/payments/initiate`.
+  - Converted pending payment DB pre-recording to non-blocking background execution to reduce checkout initiation latency.
 
 
 - **Account Deletion (Danger Zone)**:

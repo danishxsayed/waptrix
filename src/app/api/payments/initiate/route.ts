@@ -92,7 +92,8 @@ export async function POST(req: Request) {
         "Content-Type":  "application/json",
         "Authorization": razorpayAuth(),
       },
-      body: JSON.stringify(orderPayload),
+      body:   JSON.stringify(orderPayload),
+      signal: AbortSignal.timeout(8000),
     });
 
     const rzpData = await rzpRes.json();
@@ -105,8 +106,8 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── 6. Pre-record order as pending ────────────────────────────────────────
-    await db.from("payments").upsert({
+    // ── 6. Pre-record order as pending (fire and forget — don't block response) ─
+    db.from("payments").upsert({
       order_id:       receipt,
       plan_id:        "pro",
       billing_cycle:  plan.billingCycle,
