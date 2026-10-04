@@ -35,16 +35,13 @@ const FEATURES = [
   "Onboarding assistance",
 ];
 
-// ─── Cashfree SDK loader ──────────────────────────────────────────────────────
-function loadCashfree(): Promise<any> {
-  const mode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox";
-  if ((window as any).Cashfree) {
-    return Promise.resolve((window as any).Cashfree({ mode }));
-  }
+// ─── Razorpay SDK loader ──────────────────────────────────────────────────────
+function loadRazorpay(): Promise<any> {
+  if ((window as any).Razorpay) return Promise.resolve((window as any).Razorpay);
   return new Promise((resolve, reject) => {
     const s = document.createElement("script");
-    s.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
-    s.onload  = () => resolve((window as any).Cashfree({ mode }));
+    s.src     = "https://checkout.razorpay.com/v1/checkout.js";
+    s.onload  = () => resolve((window as any).Razorpay);
     s.onerror = reject;
     document.head.appendChild(s);
   });
@@ -150,8 +147,25 @@ function PricingContent() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "We couldn't create your payment session. Please try again.");
 
-      const cashfree = await loadCashfree();
-      cashfree.checkout({ paymentSessionId: data.paymentSessionId, redirectTarget: "_self" });
+      const RazorpayCheckout = await loadRazorpay();
+      const rzp = new RazorpayCheckout({
+        key:         process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        amount:      data.amountPaise,
+        currency:    "INR",
+        name:        "Waptrix",
+        description: data.planName,
+        order_id:    data.razorpayOrderId,
+        prefill:     data.prefill,
+        theme:       { color: "#25D366" },
+        handler: (response: any) => {
+          // Payment successful — redirect with success status
+          window.location.href = `/pricing?order_status=SUCCESS&order_id=${response.razorpay_order_id}`;
+        },
+        modal: {
+          ondismiss: () => setPaying(false),
+        },
+      });
+      rzp.open();
     } catch (err: any) {
       setPayError(err.message);
       setPaying(false);
@@ -348,7 +362,7 @@ function PricingContent() {
           <div className="grid md:grid-cols-2 gap-4">
             {[
               ["Can I switch billing cycles?",           "Yes, you can upgrade from monthly to quarterly or yearly anytime. The remaining days of your current plan will be credited."],
-              ["What payment methods are accepted?",     "UPI (GPay, PhonePe, Paytm), debit/credit cards, and net banking via Cashfree."],
+              ["What payment methods are accepted?",     "UPI (GPay, PhonePe, Paytm), debit/credit cards, and net banking via Razorpay."],
               ["Is GST included in the price?",          "Prices shown are exclusive of GST. 18% GST applies at checkout for Indian customers."],
               ["When will I get my invoice?",            "A receipt is emailed instantly after payment. GST invoices are available on request."],
               ["What happens when my plan expires?",     "You'll get a reminder 7 days before expiry. After expiry, sending is paused until you renew."],

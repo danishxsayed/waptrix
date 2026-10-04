@@ -1,6 +1,20 @@
 # Implementation History
 
-## [2026-09-18] - Account Deletion, Email Verification Flow & Inbox Fixes
+## [2026-10-04] - Replace Cashfree with Razorpay Payment Integration
+- **Gateway Migration**: Migrated payment infrastructure from Cashfree to Razorpay standard checkout.
+- **Order Creation (`/api/payments/create-order` & `/api/payments/initiate`)**:
+  - Replaced Cashfree order session creation with Razorpay Orders API (`https://api.razorpay.com/v1/orders`) using Basic Auth (`RAZORPAY_KEY_ID:RAZORPAY_KEY_SECRET`).
+  - Amounts converted and passed in paise (`amount * 100`).
+  - Added order notes containing `tenant_id`, `customer_email`, and `billing_cycle`.
+- **Webhook Handler (`/api/payments/webhook`)**:
+  - Implemented HMAC SHA-256 signature verification using `x-razorpay-signature` and `RAZORPAY_WEBHOOK_SECRET`.
+  - Added handlers for `order.paid`, `payment.captured`, and `payment.failed`.
+  - Replaced Cashfree payload structures with Razorpay entity schemas, upserting payments and updating tenant plans.
+- **Pricing Page Checkout**:
+  - Loaded Razorpay Checkout SDK (`https://checkout.razorpay.com/v1/checkout.js`) instead of Cashfree JS SDK.
+  - Integrated `new window.Razorpay(options).open()` modal flow for subscription purchases.
+
+
 - **Account Deletion (Danger Zone)**:
   - Built `src/app/api/account/delete/route.ts` allowing authenticated users to permanently delete their account and cascade-delete all associated data (campaigns, message logs, chat messages, conversations, contacts, segments, templates, automations, notifications, team members, WhatsApp connections, billing/GHL records, and tenant row) in dependency order using Supabase service role, signing out all active sessions, and deleting the Supabase Auth user via admin API.
   - Added Danger Zone UI to `src/app/(dashboard)/profile/page.tsx` with a confirmation modal requiring typed "DELETE" confirmation before firing the deletion request and redirecting to login.
