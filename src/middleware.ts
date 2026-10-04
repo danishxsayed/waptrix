@@ -102,7 +102,7 @@ export async function middleware(request: NextRequest) {
   const isTeamBlocked = (p: string) => p === '/team' || p.startsWith('/team/');
 
   // Trial / plan + role enforcement (only for authenticated protected routes)
-  if (userId && !isAppPublic(pathname) && pathname !== '/pricing' && !pathname.startsWith('/api/')) {
+  if (userId && !isAppPublic(pathname) && pathname !== '/pricing' && pathname !== '/onboarding' && !pathname.startsWith('/api/')) {
     const planCookie = request.cookies.get('waptrix_plan_ok')
     const roleCookie = request.cookies.get('waptrix_role')
     const cacheValid = planCookie?.value === userId

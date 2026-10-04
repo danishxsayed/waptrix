@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
   const code = searchParams.get('code');
   const token_hash = searchParams.get('token_hash');
   const type = searchParams.get('type') as 'email' | 'recovery' | null;
-  const next = searchParams.get('next') ?? '/connect';
+  const next = searchParams.get('next') ?? '/onboarding';
 
   const cookieStore = await cookies();
   const supabase = createServerClient(
@@ -130,8 +130,8 @@ export async function GET(req: NextRequest) {
               // Don't block the login if the email fails
             }
 
-            // New signup — send to /connect to set up WhatsApp
-            return NextResponse.redirect(`${origin}/connect`);
+            // New signup — send to onboarding first
+            return NextResponse.redirect(`${origin}/onboarding`);
           } else {
             // Returning user — send to dashboard
             return NextResponse.redirect(`${origin}/dashboard`);
