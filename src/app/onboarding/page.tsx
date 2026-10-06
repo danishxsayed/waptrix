@@ -51,7 +51,7 @@ function ProgressBar({ step }: { step: number }) {
         <div
           key={s}
           className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-            s <= step ? "bg-[#10B981]" : "bg-white/20"
+            s <= step ? "bg-[#25D366]" : "bg-[#E9EDEF]"
           }`}
         />
       ))}
@@ -69,8 +69,8 @@ function Chip({
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
         selected
-          ? "border-[#10B981] bg-[#10B981]/20 text-white"
-          : "border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white"
+          ? "border-[#25D366] bg-[#D9FDD3] text-[#075E54]"
+          : "border-[#E9EDEF] bg-white text-[#667781] hover:border-[#25D366]/40 hover:text-[#111B21]"
       }`}
     >
       {icon && <span>{icon}</span>}
@@ -87,9 +87,9 @@ export default function OnboardingPage() {
   const [error, setError]   = useState("");
 
   // Step 1
-  const [countryCode, setCountryCode]         = useState("+91");
-  const [phone, setPhone]                     = useState("");
-  const [isWhatsapp, setIsWhatsapp]           = useState(true);
+  const [countryCode, setCountryCode]           = useState("+91");
+  const [phone, setPhone]                       = useState("");
+  const [isWhatsapp, setIsWhatsapp]             = useState(true);
   const [preferredContact, setPreferredContact] = useState<"whatsapp"|"phone"|"email">("whatsapp");
 
   // Step 2
@@ -98,8 +98,8 @@ export default function OnboardingPage() {
   const [teamSize, setTeamSize] = useState("2–5");
 
   // Step 3
-  const [useCases, setUseCases]         = useState<string[]>([]);
-  const [msgVolume, setMsgVolume]       = useState("1–10K");
+  const [useCases, setUseCases]             = useState<string[]>([]);
+  const [msgVolume, setMsgVolume]           = useState("1–10K");
   const [referralSource, setReferralSource] = useState("");
 
   const toggleUseCase = (id: string) => {
@@ -136,236 +136,249 @@ export default function OnboardingPage() {
     }
   };
 
+  // Shared input classes
+  const inputCls = "w-full bg-white border border-[#E9EDEF] text-[#111B21] rounded-xl px-4 py-3 text-sm placeholder-[#667781] focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 focus:border-[#25D366]/60 transition-all";
+  const selectCls = "w-full bg-white border border-[#E9EDEF] text-[#111B21] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 focus:border-[#25D366]/60 transition-all";
+  const labelCls  = "text-[#667781] text-sm mb-2 block font-medium";
+
   return (
-    <div className="min-h-screen bg-[#0D0F1A] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#EDE8DE] flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
 
         {/* Logo */}
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 bg-[#10B981] rounded-lg" />
-          <span className="text-white font-bold text-lg">Waptrix</span>
+          <div className="w-9 h-9 bg-[#25D366] rounded-xl flex items-center justify-center shadow-[0_0_16px_rgba(37,211,102,0.35)]">
+            <span className="text-white font-bold text-lg leading-none">W</span>
+          </div>
+          <span className="text-[#111B21] font-bold text-xl tracking-tight">Waptrix</span>
         </div>
 
         <ProgressBar step={step} />
-        <p className="text-white/50 text-sm mb-2">Step {step} of 3</p>
+        <p className="text-[#667781] text-sm mb-2">Step {step} of 3</p>
 
-        {/* ── STEP 1: Contact ── */}
-        {step === 1 && (
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">How can we reach you?</h1>
-            <p className="text-white/50 text-sm mb-8">
-              We'll only use this for account and billing updates — like a heads-up before your trial ends.
-            </p>
+        {/* White card wrapping each step */}
+        <div className="bg-white rounded-2xl border border-[#E9EDEF] shadow-sm p-6">
 
-            <label className="text-white/70 text-sm mb-2 block">Mobile number</label>
-            <div className="flex gap-2 mb-4">
-              <select
-                value={countryCode}
-                onChange={(e) => setCountryCode(e.target.value)}
-                className="bg-white/10 border border-white/15 text-white rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-[#10B981] w-28"
-              >
-                {COUNTRY_CODES.map((c) => (
-                  <option key={c.code} value={c.code} className="bg-[#1a1c2e]">{c.label}</option>
-                ))}
-              </select>
-              <input
-                type="tel"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
-                placeholder="9999999999"
-                className="flex-1 bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm placeholder-white/30 focus:outline-none focus:border-[#10B981]"
-              />
-            </div>
+          {/* ── STEP 1: Contact ── */}
+          {step === 1 && (
+            <div>
+              <h1 className="text-2xl font-bold text-[#111B21] mb-1">How can we reach you?</h1>
+              <p className="text-[#667781] text-sm mb-6">
+                We'll only use this for account and billing updates.
+              </p>
 
-            <label className="flex items-center gap-3 mb-6 cursor-pointer">
-              <div
-                onClick={() => setIsWhatsapp(!isWhatsapp)}
-                className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${
-                  isWhatsapp ? "bg-[#10B981] border-[#10B981]" : "border-white/30 bg-transparent"
-                }`}
-              >
-                {isWhatsapp && <Check className="w-3 h-3 text-white" />}
+              <label className={labelCls}>Mobile number</label>
+              <div className="flex gap-2 mb-4">
+                <select
+                  value={countryCode}
+                  onChange={(e) => setCountryCode(e.target.value)}
+                  className="bg-white border border-[#E9EDEF] text-[#111B21] rounded-xl px-3 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 focus:border-[#25D366]/60 w-28 transition-all"
+                >
+                  {COUNTRY_CODES.map((c) => (
+                    <option key={c.code} value={c.code}>{c.label}</option>
+                  ))}
+                </select>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
+                  placeholder="9999999999"
+                  className="flex-1 bg-white border border-[#E9EDEF] text-[#111B21] rounded-xl px-4 py-3 text-sm placeholder-[#667781] focus:outline-none focus:ring-2 focus:ring-[#25D366]/30 focus:border-[#25D366]/60 transition-all"
+                />
               </div>
-              <span className="text-white/80 text-sm">This number is also on WhatsApp</span>
-            </label>
 
-            <label className="text-white/70 text-sm mb-3 block">Best way to contact you</label>
-            <div className="flex gap-2 mb-8">
-              {([
-                { id: "whatsapp", icon: <MessageCircle className="w-4 h-4" />, label: "WhatsApp" },
-                { id: "phone",    icon: <Phone className="w-4 h-4" />,          label: "Phone call" },
-                { id: "email",    icon: <Mail className="w-4 h-4" />,            label: "Email" },
-              ] as const).map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => setPreferredContact(opt.id)}
-                  className={`flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                    preferredContact === opt.id
-                      ? "border-[#10B981] bg-[#10B981]/20 text-white"
-                      : "border-white/15 bg-white/5 text-white/60 hover:border-white/30"
+              <label className="flex items-center gap-3 mb-6 cursor-pointer select-none">
+                <div
+                  onClick={() => setIsWhatsapp(!isWhatsapp)}
+                  className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${
+                    isWhatsapp ? "bg-[#25D366] border-[#25D366]" : "border-[#E9EDEF] bg-white"
                   }`}
                 >
-                  {opt.icon} {opt.label}
-                </button>
-              ))}
-            </div>
+                  {isWhatsapp && <Check className="w-3 h-3 text-white" />}
+                </div>
+                <span className="text-[#111B21] text-sm">This number is also on WhatsApp</span>
+              </label>
 
-            <button
-              onClick={() => setStep(2)}
-              disabled={!phone}
-              className="w-full bg-[#10B981] hover:bg-[#059669] disabled:opacity-40 text-[#080A0F] font-semibold py-3.5 rounded-xl transition-all"
-            >
-              Continue →
-            </button>
-          </div>
-        )}
+              <label className={labelCls}>Best way to contact you</label>
+              <div className="flex gap-2 mb-6">
+                {([
+                  { id: "whatsapp", icon: <MessageCircle className="w-4 h-4" />, label: "WhatsApp" },
+                  { id: "phone",    icon: <Phone className="w-4 h-4" />,          label: "Call" },
+                  { id: "email",    icon: <Mail className="w-4 h-4" />,            label: "Email" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setPreferredContact(opt.id)}
+                    className={`flex items-center gap-1.5 flex-1 justify-center py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                      preferredContact === opt.id
+                        ? "border-[#25D366] bg-[#D9FDD3] text-[#075E54]"
+                        : "border-[#E9EDEF] bg-white text-[#667781] hover:border-[#25D366]/40"
+                    }`}
+                  >
+                    {opt.icon} {opt.label}
+                  </button>
+                ))}
+              </div>
 
-        {/* ── STEP 2: Business ── */}
-        {step === 2 && (
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">About your business</h1>
-            <p className="text-white/50 text-sm mb-8">Helps us tailor templates and defaults for you.</p>
-
-            <label className="text-white/70 text-sm mb-2 block">Industry</label>
-            <select
-              value={industry}
-              onChange={(e) => setIndustry(e.target.value)}
-              className="w-full bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm mb-5 focus:outline-none focus:border-[#10B981]"
-            >
-              <option value="" className="bg-[#1a1c2e]">Select industry</option>
-              {INDUSTRIES.map((i) => (
-                <option key={i} value={i} className="bg-[#1a1c2e]">{i}</option>
-              ))}
-            </select>
-
-            <label className="text-white/70 text-sm mb-2 block">Your role</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value)}
-              className="w-full bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm mb-5 focus:outline-none focus:border-[#10B981]"
-            >
-              {ROLES.map((r) => (
-                <option key={r} value={r} className="bg-[#1a1c2e]">{r}</option>
-              ))}
-            </select>
-
-            <label className="text-white/70 text-sm mb-3 block">Team size</label>
-            <div className="grid grid-cols-4 gap-2 mb-8">
-              {["Just me", "2–5", "6–20", "20+"].map((s) => (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setTeamSize(s)}
-                  className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                    teamSize === s
-                      ? "border-[#10B981] bg-[#10B981]/20 text-white"
-                      : "border-white/15 bg-white/5 text-white/60 hover:border-white/30"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-
-            <div className="flex gap-3">
               <button
-                onClick={() => setStep(1)}
-                className="w-12 h-12 flex items-center justify-center rounded-xl border border-white/15 text-white/60 hover:border-white/30 transition-all"
-              >
-                ←
-              </button>
-              <button
-                onClick={() => setStep(3)}
-                className="flex-1 bg-[#10B981] hover:bg-[#059669] text-[#080A0F] font-semibold py-3 rounded-xl transition-all"
+                onClick={() => setStep(2)}
+                disabled={!phone}
+                className="w-full bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-xl transition-all"
               >
                 Continue →
               </button>
             </div>
-            <button
-              onClick={() => setStep(3)}
-              className="w-full text-center text-white/40 text-sm mt-4 hover:text-white/60 transition-all"
-            >
-              Skip this step
-            </button>
-          </div>
-        )}
+          )}
 
-        {/* ── STEP 3: Goals ── */}
-        {step === 3 && (
-          <div>
-            <h1 className="text-3xl font-bold text-white mb-1">What will you use Waptrix for?</h1>
-            <p className="text-white/50 text-sm mb-6">Pick all that apply.</p>
+          {/* ── STEP 2: Business ── */}
+          {step === 2 && (
+            <div>
+              <h1 className="text-2xl font-bold text-[#111B21] mb-1">About your business</h1>
+              <p className="text-[#667781] text-sm mb-6">Helps us tailor templates and defaults for you.</p>
 
-            <div className="flex flex-wrap gap-2 mb-6">
-              {USE_CASE_OPTIONS.map((uc) => (
-                <Chip
-                  key={uc.id}
-                  label={uc.label}
-                  icon={uc.icon}
-                  selected={useCases.includes(uc.id)}
-                  onClick={() => toggleUseCase(uc.id)}
-                />
-              ))}
-            </div>
+              <label className={labelCls}>Industry</label>
+              <select
+                value={industry}
+                onChange={(e) => setIndustry(e.target.value)}
+                className={selectCls + " mb-4"}
+              >
+                <option value="">Select industry</option>
+                {INDUSTRIES.map((i) => (
+                  <option key={i} value={i}>{i}</option>
+                ))}
+              </select>
 
-            <label className="text-white/70 text-sm mb-3 block">Messages per month (estimate)</label>
-            <div className="grid grid-cols-4 gap-2 mb-6">
-              {VOLUME_OPTIONS.map((v) => (
+              <label className={labelCls}>Your role</label>
+              <select
+                value={role}
+                onChange={(e) => setRole(e.target.value)}
+                className={selectCls + " mb-4"}
+              >
+                {ROLES.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+
+              <label className={labelCls}>Team size</label>
+              <div className="grid grid-cols-4 gap-2 mb-6">
+                {["Just me", "2–5", "6–20", "20+"].map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setTeamSize(s)}
+                    className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                      teamSize === s
+                        ? "border-[#25D366] bg-[#D9FDD3] text-[#075E54]"
+                        : "border-[#E9EDEF] bg-white text-[#667781] hover:border-[#25D366]/40"
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex gap-3">
                 <button
-                  key={v}
-                  type="button"
-                  onClick={() => setMsgVolume(v)}
-                  className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
-                    msgVolume === v
-                      ? "border-[#10B981] bg-[#10B981]/20 text-white"
-                      : "border-white/15 bg-white/5 text-white/60 hover:border-white/30"
-                  }`}
+                  onClick={() => setStep(1)}
+                  className="w-12 h-12 flex items-center justify-center rounded-xl border border-[#E9EDEF] text-[#667781] hover:border-[#25D366]/40 hover:text-[#111B21] transition-all"
                 >
-                  {v}
+                  ←
                 </button>
-              ))}
-            </div>
-
-            <label className="text-white/70 text-sm mb-2 block">
-              How did you hear about us? <span className="text-white/30">optional</span>
-            </label>
-            <select
-              value={referralSource}
-              onChange={(e) => setReferralSource(e.target.value)}
-              className="w-full bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm mb-6 focus:outline-none focus:border-[#10B981]"
-            >
-              <option value="" className="bg-[#1a1c2e]">Select one</option>
-              {REFERRAL_OPTIONS.map((r) => (
-                <option key={r} value={r} className="bg-[#1a1c2e]">{r}</option>
-              ))}
-            </select>
-
-            {error && (
-              <p className="text-red-400 text-sm bg-red-500/10 rounded-xl px-3 py-2 mb-4">{error}</p>
-            )}
-
-            <div className="flex gap-3">
+                <button
+                  onClick={() => setStep(3)}
+                  className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-3 rounded-xl transition-all"
+                >
+                  Continue →
+                </button>
+              </div>
               <button
-                onClick={() => setStep(2)}
-                className="w-12 h-12 flex items-center justify-center rounded-xl border border-white/15 text-white/60 hover:border-white/30 transition-all"
+                onClick={() => setStep(3)}
+                className="w-full text-center text-[#667781] text-sm mt-4 hover:text-[#111B21] transition-all"
               >
-                ←
-              </button>
-              <button
-                onClick={handleFinish}
-                disabled={saving}
-                className="flex-1 bg-[#10B981] hover:bg-[#059669] disabled:opacity-60 text-[#080A0F] font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
-              >
-                {saving ? (
-                  <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
-                ) : (
-                  "Finish setup ✓"
-                )}
+                Skip this step
               </button>
             </div>
-          </div>
-        )}
+          )}
+
+          {/* ── STEP 3: Goals ── */}
+          {step === 3 && (
+            <div>
+              <h1 className="text-2xl font-bold text-[#111B21] mb-1">What will you use Waptrix for?</h1>
+              <p className="text-[#667781] text-sm mb-5">Pick all that apply.</p>
+
+              <div className="flex flex-wrap gap-2 mb-5">
+                {USE_CASE_OPTIONS.map((uc) => (
+                  <Chip
+                    key={uc.id}
+                    label={uc.label}
+                    icon={uc.icon}
+                    selected={useCases.includes(uc.id)}
+                    onClick={() => toggleUseCase(uc.id)}
+                  />
+                ))}
+              </div>
+
+              <label className={labelCls}>Messages per month (estimate)</label>
+              <div className="grid grid-cols-4 gap-2 mb-5">
+                {VOLUME_OPTIONS.map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => setMsgVolume(v)}
+                    className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
+                      msgVolume === v
+                        ? "border-[#25D366] bg-[#D9FDD3] text-[#075E54]"
+                        : "border-[#E9EDEF] bg-white text-[#667781] hover:border-[#25D366]/40"
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
+              </div>
+
+              <label className={labelCls}>
+                How did you hear about us?{" "}
+                <span className="text-[#667781]/60 font-normal">optional</span>
+              </label>
+              <select
+                value={referralSource}
+                onChange={(e) => setReferralSource(e.target.value)}
+                className={selectCls + " mb-5"}
+              >
+                <option value="">Select one</option>
+                {REFERRAL_OPTIONS.map((r) => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+
+              {error && (
+                <p className="text-red-600 text-sm bg-red-50 border border-red-100 rounded-xl px-3 py-2 mb-4">{error}</p>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setStep(2)}
+                  className="w-12 h-12 flex items-center justify-center rounded-xl border border-[#E9EDEF] text-[#667781] hover:border-[#25D366]/40 hover:text-[#111B21] transition-all"
+                >
+                  ←
+                </button>
+                <button
+                  onClick={handleFinish}
+                  disabled={saving}
+                  className="flex-1 bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                >
+                  {saving ? (
+                    <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>
+                  ) : (
+                    "Finish setup ✓"
+                  )}
+                </button>
+              </div>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
