@@ -39,9 +39,16 @@ export default function LoginPage() {
   const planParam  = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("plan")    : null;
   const msgParam   = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("message") : null;
 
-  // If an invite token is in the URL, redirect to the accept-invite page
+  // If a Supabase auth code lands here (Supabase used Site URL instead of /auth/callback),
+  // forward it to the callback route so the session can be established.
   useEffect(() => {
-    const token = new URLSearchParams(window.location.search).get("token");
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("code");
+    if (code) {
+      window.location.replace(`/auth/callback?code=${encodeURIComponent(code)}`);
+      return;
+    }
+    const token = params.get("token");
     if (token) router.replace(`/accept-invite?token=${encodeURIComponent(token)}`);
     if (msgParam) setStatusMsg(msgParam);
   }, [router]); // eslint-disable-line

@@ -80,9 +80,14 @@ export async function middleware(request: NextRequest) {
   const { data: { session } } = await supabase.auth.getSession()
   const userId = session?.user?.id ?? null
 
-  // Root on app subdomain → dashboard (if authed) or login
+  // Root on app subdomain — if a Supabase auth code is present, forward to callback
   if (pathname === '/') {
     const url = request.nextUrl.clone()
+    const code = request.nextUrl.searchParams.get('code')
+    if (code) {
+      url.pathname = '/auth/callback'
+      return NextResponse.redirect(url)
+    }
     url.pathname = userId ? '/dashboard' : '/login'
     return NextResponse.redirect(url)
   }
