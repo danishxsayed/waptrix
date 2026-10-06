@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Loader2 } from "lucide-react";
 
-export default function ConfirmPage() {
+function ConfirmInner() {
   const router       = useRouter();
   const searchParams = useSearchParams();
   const ran          = useRef(false);
@@ -39,21 +39,12 @@ export default function ConfirmPage() {
           return;
         }
 
-        // Session is now established in the browser.
-        // Check if this user has completed onboarding.
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) {
-          router.replace("/login");
-          return;
-        }
+        if (!user) { router.replace("/login"); return; }
 
-        const res = await fetch("/api/onboarding/status");
+        const res  = await fetch("/api/onboarding/status");
         const json = await res.json().catch(() => ({}));
-        if (json.onboarding_done) {
-          router.replace("/dashboard");
-        } else {
-          router.replace("/onboarding");
-        }
+        router.replace(json.onboarding_done ? "/dashboard" : "/onboarding");
       } catch {
         router.replace("/login");
       }
@@ -69,5 +60,17 @@ export default function ConfirmPage() {
         <p className="text-white/60 text-sm">Verifying your account…</p>
       </div>
     </div>
+  );
+}
+
+export default function ConfirmPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-[#080A0F] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-[#10B981] animate-spin" />
+      </div>
+    }>
+      <ConfirmInner />
+    </Suspense>
   );
 }

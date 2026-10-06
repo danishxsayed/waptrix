@@ -6,6 +6,7 @@
   - Establishes the session cookie client-side (avoiding server-side cookie propagation issues), then fetches `/api/onboarding/status` to route users to `/onboarding` or `/dashboard`.
   - Updated `src/app/api/auth/signup/route.ts` to point `emailRedirectTo` to `/auth/confirm` instead of `/auth/callback`.
   - Added `/auth/confirm` to `APP_PUBLIC_PATHS` in `src/middleware.ts`.
+  - Wrapped `useSearchParams()` consumer in a `<Suspense>` boundary to fix Next.js static rendering error.
 - **New: `/api/onboarding/status` Route**:
   - Created `src/app/api/onboarding/status/route.ts` to return the authenticated user's `onboarding_done` flag from the `tenants` table, used by the confirm page for post-verification routing.
   - Fixed import to use `createServiceClient` from `@/lib/supabase/service` instead of the deprecated `getServiceClient`.
