@@ -136,17 +136,22 @@ export async function POST(req: Request) {
     }
 
     // ── 6. Pre-record order as pending ────────────────────────────────────────
-    await db.from("payments").upsert({
-      order_id:       receipt,
-      plan_id:        "pro",
-      billing_cycle:  plan.billingCycle,
-      customer_email: customerEmail,
-      amount:         plan.amount,
-      currency:       "INR",
-      status:         "pending",
-      tenant_id:      userId,
-      raw:            { receipt, razorpay_order_id: rzpData.id, plan: planId },
-    }, { onConflict: "order_id" }).catch((e: any) => console.error("pending upsert failed:", e));
+    try {
+      await db.from("payments").upsert({
+        order_id:       receipt,
+        plan_id:        "pro",
+        billing_cycle:  plan.billingCycle,
+        customer_email: customerEmail,
+        amount:         plan.amount,
+        currency:       "INR",
+        status:         "pending",
+        tenant_id:      userId,
+        raw:            { receipt, razorpay_order_id: rzpData.id, plan: planId },
+      }, { onConflict: "order_id" });
+    } catch (upsertErr: any) {
+      // Non-fatal — payment can proceed even if pre-recording fails
+      console.error("checkout-order: pending upsert failed:", upsertErr?.message);
+    }
 
     return NextResponse.json({
       razorpayOrderId: rzpData.id,
