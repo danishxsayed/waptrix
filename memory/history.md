@@ -7,6 +7,8 @@
   - Updated `src/app/api/auth/signup/route.ts` to point `emailRedirectTo` to `/auth/confirm` instead of `/auth/callback`.
   - Added `/auth/confirm` to `APP_PUBLIC_PATHS` in `src/middleware.ts`.
   - Wrapped `useSearchParams()` consumer in a `<Suspense>` boundary to fix Next.js static rendering error.
+  - Added step-by-step status messages and a styled error state UI (with "Sign up again" / "Go to login" actions) instead of silent redirects on failure.
+  - Uses `window.location.href` for post-verification navigation to ensure a full page reload so server-side middleware receives fresh auth cookies.
 - **New: `/api/onboarding/status` Route**:
   - Created `src/app/api/onboarding/status/route.ts` to return the authenticated user's `onboarding_done` flag from the `tenants` table, used by the confirm page for post-verification routing.
   - Fixed import to use `createServiceClient` from `@/lib/supabase/service` instead of the deprecated `getServiceClient`.
