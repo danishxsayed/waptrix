@@ -118,6 +118,10 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Built an interactive Checkout Modal inside the `/pricing` marketing page (`src/app/(marketing)/pricing/page.tsx`) utilizing Razorpay Checkout JS SDK (`https://checkout.razorpay.com/v1/checkout.js`) to collect customer details, process payments, and display order success/failure feedback banners.
 
 ## Recent Session Progress
+- **Client-Side Email Confirm Page & Onboarding Status API (2026-10-06)**:
+  - Created `/auth/confirm` client page to handle OTP and PKCE verification in the browser, establishing session cookies client-side then routing to `/onboarding` or `/dashboard` via `/api/onboarding/status`.
+  - Created `/api/onboarding/status` route returning `onboarding_done` for the authenticated user.
+  - Updated signup to redirect to `/auth/confirm` and added it to middleware public paths.
 - **Auth Callback Onboarding & Verification Routing (2026-10-06)**:
   - Updated `/auth/callback` to properly check `onboarding_done` in `tenants` for email verification code completions, redirecting to `/onboarding` if incomplete.
   - Implemented `redirectWithCookies()` to preserve Supabase auth session cookies through response headers on all redirects.

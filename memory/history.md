@@ -1,5 +1,14 @@
 # Implementation History
 
+## [2026-10-06] - Client-Side Email Confirm Page & Onboarding Status API
+- **New: `/auth/confirm` Client Page**:
+  - Created `src/app/auth/confirm/page.tsx` — a client-side verification page that handles both `token_hash` (OTP) and `code` (PKCE) flows directly in the browser using the Supabase JS client.
+  - Establishes the session cookie client-side (avoiding server-side cookie propagation issues), then fetches `/api/onboarding/status` to route users to `/onboarding` or `/dashboard`.
+  - Updated `src/app/api/auth/signup/route.ts` to point `emailRedirectTo` to `/auth/confirm` instead of `/auth/callback`.
+  - Added `/auth/confirm` to `APP_PUBLIC_PATHS` in `src/middleware.ts`.
+- **New: `/api/onboarding/status` Route**:
+  - Created `src/app/api/onboarding/status/route.ts` to return the authenticated user's `onboarding_done` flag from the `tenants` table, used by the confirm page for post-verification routing.
+
 ## [2026-10-06] - Auth Callback Onboarding Redirects & Verification Routing
 - **Auth Callback (`/auth/callback`) Flow Improvements**:
   - Differentiated email-only users from OAuth users during PKCE exchange.
