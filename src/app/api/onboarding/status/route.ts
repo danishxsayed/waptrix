@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic";
 import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { getServiceClient } from "@/lib/supabase";
+import { createServiceClient } from "@/lib/supabase/service";
 
 export async function GET() {
   const cookieStore = await cookies();
@@ -20,7 +20,7 @@ export async function GET() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ onboarding_done: false });
 
-  const db = getServiceClient();
+  const db = createServiceClient();
   const { data } = await db
     .from("tenants")
     .select("onboarding_done")

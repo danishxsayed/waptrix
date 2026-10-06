@@ -8,6 +8,7 @@
   - Added `/auth/confirm` to `APP_PUBLIC_PATHS` in `src/middleware.ts`.
 - **New: `/api/onboarding/status` Route**:
   - Created `src/app/api/onboarding/status/route.ts` to return the authenticated user's `onboarding_done` flag from the `tenants` table, used by the confirm page for post-verification routing.
+  - Fixed import to use `createServiceClient` from `@/lib/supabase/service` instead of the deprecated `getServiceClient`.
 
 ## [2026-10-06] - Auth Callback Onboarding Redirects & Verification Routing
 - **Auth Callback (`/auth/callback`) Flow Improvements**:
