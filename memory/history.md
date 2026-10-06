@@ -1,5 +1,11 @@
 # Implementation History
 
+## [2026-10-06] - Auth Callback Onboarding Redirects & Verification Routing
+- **Auth Callback (`/auth/callback`) Flow Improvements**:
+  - Differentiated email-only users from OAuth users during PKCE exchange.
+  - For email users verifying via code, checked `onboarding_done` status in the `tenants` table to route them to `/onboarding` if incomplete, or `/dashboard` if already completed.
+  - Redirected new Google OAuth signups to `/onboarding` rather than directly to `/connect`.
+
 ## [2026-10-04] - Replace Cashfree with Razorpay Payment Integration
 - **Gateway Migration**: Migrated payment infrastructure from Cashfree to Razorpay standard checkout.
 - **Order Creation (`/api/payments/create-order` & `/api/payments/initiate`)**:

@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
     // PKCE flow (OAuth or magic link)
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
-      // After a successful OAuth exchange, provision tenant record if this is
-      // a first-time Google (or other OAuth) signup.
+      // After a successful exchange, provision tenant record if this is
+      // a first-time OAuth signup, or redirect email users to onboarding.
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
@@ -56,12 +56,29 @@ export async function GET(req: NextRequest) {
             process.env.SUPABASE_SERVICE_KEY!
           );
 
-          // If the user has an email/password identity, they registered with email.
-          // Block Google OAuth login for them — they must use email/password.
+          // Determine if this is an email/password user (not OAuth)
           const hasEmailIdentity = user.identities?.some(
             (identity: any) => identity.provider === 'email'
           );
-          if (hasEmailIdentity) {
+          const hasOnlyEmailIdentity = hasEmailIdentity &&
+            (user.identities?.length ?? 0) === 1;
+
+          // If email-only user: they just verified their email via PKCE code.
+          // Check if onboarding is done, then send them to the right place.
+          if (hasOnlyEmailIdentity) {
+            const { data: tenant } = await serviceClient
+              .from('tenants')
+              .select('onboarding_done')
+              .eq('id', user.id)
+              .maybeSingle();
+            if (!tenant?.onboarding_done) {
+              return NextResponse.redirect(`${origin}/onboarding`);
+            }
+            return NextResponse.redirect(`${origin}/dashboard`);
+          }
+
+          // OAuth user — block if they have an existing email/password account
+          if (hasEmailIdentity && (user.identities?.length ?? 0) > 1) {
             return NextResponse.redirect(
               `${origin}/login?message=${encodeURIComponent('This email is already registered. Please log in with your email and password.')}`
             );

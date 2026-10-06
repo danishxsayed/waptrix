@@ -118,6 +118,9 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Built an interactive Checkout Modal inside the `/pricing` marketing page (`src/app/(marketing)/pricing/page.tsx`) utilizing Razorpay Checkout JS SDK (`https://checkout.razorpay.com/v1/checkout.js`) to collect customer details, process payments, and display order success/failure feedback banners.
 
 ## Recent Session Progress
+- **Auth Callback Onboarding & Verification Routing (2026-10-06)**:
+  - Updated `/auth/callback` to properly check `onboarding_done` in `tenants` for email verification code completions, redirecting to `/onboarding` if incomplete.
+  - Redirected newly provisioned OAuth users to `/onboarding` instead of `/connect`.
 - **Razorpay Payment Integration Migration (2026-10-04)**:
   - Replaced Cashfree payment flow with Razorpay standard checkout across `/pricing`, `/api/payments/create-order`, `/api/payments/initiate`, and `/api/payments/webhook`.
   - Verified HMAC SHA-256 webhook signatures, handled `order.paid` and `payment.failed`, and automated tenant plan upgrades to Pro.
