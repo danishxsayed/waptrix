@@ -2,12 +2,11 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, CheckCircle, X, AlertCircle } from "lucide-react";
-import { createClient } from "@/lib/supabase/client";
+import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
 
 const PLAN_LABELS: Record<string, { name: string; price: string; billing: string }> = {
-  pro_monthly:   { name: "Waptrix Pro — Monthly",   price: "₹1,999", billing: "Billed monthly" },
-  pro_quarterly: { name: "Waptrix Pro — Quarterly", price: "₹4,998", billing: "Billed every 3 months" },
+  pro_monthly:   { name: "Waptrix Pro — Monthly",   price: "₹1,999",  billing: "Billed monthly" },
+  pro_quarterly: { name: "Waptrix Pro — Quarterly", price: "₹4,998",  billing: "Billed every 3 months" },
   pro_yearly:    { name: "Waptrix Pro — Yearly",    price: "₹17,988", billing: "Billed yearly" },
 };
 
@@ -27,8 +26,8 @@ function CheckoutInner() {
   const planId       = searchParams.get("plan") || "pro_monthly";
   const planInfo     = PLAN_LABELS[planId] ?? PLAN_LABELS["pro_monthly"];
 
-  const [status, setStatus]   = useState<"idle" | "loading" | "success" | "error">("idle");
-  const [errMsg, setErrMsg]   = useState("");
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [errMsg, setErrMsg] = useState("");
   const ran = useRef(false);
 
   const startPayment = async () => {
@@ -37,28 +36,30 @@ function CheckoutInner() {
     setStatus("loading");
 
     try {
-      // Get session token
-      const supabase = createClient();
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token) {
-        // Not logged in — redirect to login preserving plan
+      // Use cookie-based auth — no Bearer token needed.
+      // This matches every other protected API route in the app and avoids
+      // race conditions where the browser client hasn't synced the session
+      // to localStorage after a server-side auth callback.
+      const res = await fetch("/api/payments/checkout-order", {
+        method:      "POST",
+        headers:     { "Content-Type": "application/json" },
+        credentials: "include",  // send session cookies
+        body:        JSON.stringify({ planId }),
+      });
+
+      const data = await res.json();
+
+      // 401 → not logged in, send to login with plan preserved
+      if (res.status === 401) {
         window.location.href = `/login?plan=${encodeURIComponent(planId)}`;
         return;
       }
 
-      // Create Razorpay order
-      const res = await fetch("/api/payments/initiate", {
-        method:  "POST",
-        headers: {
-          "Content-Type":  "application/json",
-          "Authorization": `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({ planId }),
-      });
-      const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Could not create payment session.");
 
+      // Load Razorpay SDK and open checkout
       const RazorpayCheckout = await loadRazorpay();
+
       const rzp = new RazorpayCheckout({
         key:         process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
         amount:      data.amountPaise,
@@ -69,9 +70,11 @@ function CheckoutInner() {
         prefill:     data.prefill,
         theme:       { color: "#25D366" },
         handler: () => {
-          // Payment successful — Razorpay webhook activates the subscription.
-          // Clear pending_plan_id and go to dashboard.
-          fetch("/api/payments/clear-pending", { method: "POST" }).catch(() => {});
+          // Payment captured — webhook activates the subscription.
+          // Clear pending_plan_id then go to dashboard.
+          fetch("/api/payments/clear-pending", {
+            method: "POST", credentials: "include",
+          }).catch(() => {});
           setStatus("success");
           setTimeout(() => { window.location.href = "/dashboard"; }, 2000);
         },
@@ -84,17 +87,19 @@ function CheckoutInner() {
       });
 
       rzp.open();
+
     } catch (err: any) {
-      setErrMsg(err.message || "Something went wrong.");
+      console.error("checkout startPayment error:", err);
+      setErrMsg(err.message || "Something went wrong. Please try again.");
       setStatus("error");
       ran.current = false;
     }
   };
 
   useEffect(() => {
-    // Auto-open payment modal on page load
-    const timer = setTimeout(startPayment, 600);
-    return () => clearTimeout(timer);
+    // Auto-open payment modal shortly after page load
+    const t = setTimeout(startPayment, 600);
+    return () => clearTimeout(t);
   }, []); // eslint-disable-line
 
   return (
@@ -109,17 +114,21 @@ function CheckoutInner() {
           <span className="text-[#111B21] font-bold text-xl tracking-tight">Waptrix</span>
         </div>
 
+        {/* ── Success ── */}
         {status === "success" && (
           <div className="space-y-4">
             <div className="w-16 h-16 rounded-full bg-[#D9FDD3] border border-[#25D366]/30 flex items-center justify-center mx-auto">
               <CheckCircle className="w-8 h-8 text-[#25D366]" />
             </div>
             <h2 className="text-xl font-bold text-[#111B21]">Payment Successful!</h2>
-            <p className="text-[#667781] text-sm">Your Waptrix Pro subscription is now active. Redirecting to your dashboard…</p>
+            <p className="text-[#667781] text-sm">
+              Your Waptrix Pro subscription is now active. Taking you to the dashboard…
+            </p>
             <Loader2 className="w-5 h-5 text-[#25D366] animate-spin mx-auto" />
           </div>
         )}
 
+        {/* ── Error ── */}
         {status === "error" && (
           <div className="space-y-4">
             <div className="w-16 h-16 rounded-full bg-red-50 border border-red-100 flex items-center justify-center mx-auto">
@@ -135,7 +144,7 @@ function CheckoutInner() {
                 Skip for now
               </button>
               <button
-                onClick={() => { ran.current = false; startPayment(); }}
+                onClick={startPayment}
                 className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-3 rounded-xl transition-all text-sm"
               >
                 Try again
@@ -144,12 +153,15 @@ function CheckoutInner() {
           </div>
         )}
 
+        {/* ── Loading / Idle ── */}
         {(status === "idle" || status === "loading") && (
           <div className="space-y-4">
             <Loader2 className="w-10 h-10 text-[#25D366] animate-spin mx-auto" />
-            <h2 className="text-lg font-bold text-[#111B21]">Opening payment…</h2>
+            <h2 className="text-lg font-bold text-[#111B21]">
+              {status === "loading" ? "Setting up payment…" : "Opening payment…"}
+            </h2>
 
-            {/* Plan summary */}
+            {/* Plan summary card */}
             <div className="bg-[#EDE8DE] rounded-xl p-4 text-left">
               <p className="text-xs text-[#667781] font-medium mb-1">Selected plan</p>
               <p className="text-[#111B21] font-bold text-sm">{planInfo.name}</p>
@@ -160,7 +172,7 @@ function CheckoutInner() {
             </div>
 
             <p className="text-[#667781] text-xs">
-              Secure payment via Razorpay. UPI · Cards · Net Banking · Wallets.
+              Secure payment via Razorpay · UPI · Cards · Net Banking · Wallets
             </p>
 
             <button

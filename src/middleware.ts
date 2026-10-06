@@ -15,6 +15,8 @@ const APP_PUBLIC_PREFIXES = [
   '/api/team/invite',
   '/api/team/create-account',
   '/auth/',
+  // /api/payments/* is already covered above — clear-pending and checkout-order
+  // are included automatically.
 ];
 
 function isMarketingPath(pathname: string): boolean {
