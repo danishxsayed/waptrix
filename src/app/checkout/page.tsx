@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { Loader2, CheckCircle, AlertCircle, X } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 
 const PLAN_LABELS: Record<string, { name: string; price: string; billing: string }> = {
@@ -27,7 +27,7 @@ function CheckoutInner() {
   const planId       = searchParams.get("plan") || "pro_monthly";
   const planInfo     = PLAN_LABELS[planId] ?? PLAN_LABELS["pro_monthly"];
 
-  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [status, setStatus] = useState<"opening" | "loading" | "dismissed" | "success" | "error">("opening");
   const [errMsg, setErrMsg] = useState("");
   const ran = useRef(false);
 
@@ -37,9 +37,8 @@ function CheckoutInner() {
     setStatus("loading");
 
     try {
-      // Try to get Bearer token from browser client (works if session synced to
-      // localStorage). Always send cookies too — the server uses whichever is
-      // available, Bearer first, cookies as fallback.
+      // Try Bearer token first (works if session synced to localStorage),
+      // always include cookies as fallback — server tries both.
       const supabase = createClient();
       const { data: { session } } = await supabase.auth.getSession();
       const fetchHeaders: Record<string, string> = { "Content-Type": "application/json" };
@@ -56,7 +55,6 @@ function CheckoutInner() {
 
       const data = await res.json();
 
-      // 401 → not logged in, send to login with plan preserved
       if (res.status === 401) {
         window.location.href = `/login?plan=${encodeURIComponent(planId)}`;
         return;
@@ -64,7 +62,6 @@ function CheckoutInner() {
 
       if (!res.ok) throw new Error(data.error || "Could not create payment session.");
 
-      // Load Razorpay SDK and open checkout
       const RazorpayCheckout = await loadRazorpay();
 
       const rzp = new RazorpayCheckout({
@@ -77,8 +74,7 @@ function CheckoutInner() {
         prefill:     data.prefill,
         theme:       { color: "#25D366" },
         handler: () => {
-          // Payment captured — webhook activates the subscription.
-          // Clear pending_plan_id then go to dashboard.
+          // Payment successful — clear pending plan and redirect to dashboard
           fetch("/api/payments/clear-pending", {
             method: "POST", credentials: "include",
           }).catch(() => {});
@@ -87,8 +83,9 @@ function CheckoutInner() {
         },
         modal: {
           ondismiss: () => {
+            // User closed the Razorpay modal — show dismissed state
             ran.current = false;
-            setStatus("idle");
+            setStatus("dismissed");
           },
         },
       });
@@ -120,6 +117,82 @@ function CheckoutInner() {
           </div>
           <span className="text-[#111B21] font-bold text-xl tracking-tight">Waptrix</span>
         </div>
+
+        {/* ── Opening / Loading ── */}
+        {(status === "opening" || status === "loading") && (
+          <div className="space-y-4">
+            <Loader2 className="w-10 h-10 text-[#25D366] animate-spin mx-auto" />
+            <h2 className="text-lg font-bold text-[#111B21]">
+              {status === "loading" ? "Setting up payment…" : "Opening payment…"}
+            </h2>
+
+            <div className="bg-[#EDE8DE] rounded-xl p-4 text-left">
+              <p className="text-xs text-[#667781] font-medium mb-1">Selected plan</p>
+              <p className="text-[#111B21] font-bold text-sm">{planInfo.name}</p>
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className="text-[#25D366] font-extrabold text-2xl">{planInfo.price}</span>
+              </div>
+              <p className="text-[#667781] text-xs mt-1">{planInfo.billing}</p>
+            </div>
+
+            <p className="text-[#667781] text-xs">
+              Secure payment via Razorpay · UPI · Cards · Net Banking · Wallets
+            </p>
+
+            <button
+              onClick={startPayment}
+              disabled={status === "loading"}
+              className="w-full bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-all text-sm"
+            >
+              {status === "loading" ? (
+                <span className="flex items-center justify-center gap-2">
+                  <Loader2 className="w-4 h-4 animate-spin" /> Please wait…
+                </span>
+              ) : "Open Payment"}
+            </button>
+
+            <a href="/dashboard" className="block text-[#667781] text-xs hover:text-[#111B21] transition-colors">
+              Skip — continue with free trial
+            </a>
+          </div>
+        )}
+
+        {/* ── Dismissed (user closed Razorpay modal) ── */}
+        {status === "dismissed" && (
+          <div className="space-y-4">
+            <div className="w-16 h-16 rounded-full bg-[#F0F2F5] border border-[#E9EDEF] flex items-center justify-center mx-auto">
+              <X className="w-7 h-7 text-[#667781]" />
+            </div>
+            <h2 className="text-xl font-bold text-[#111B21]">Payment cancelled</h2>
+            <p className="text-[#667781] text-sm leading-relaxed">
+              No worries — you can complete your subscription anytime. Your account is safe.
+            </p>
+
+            <div className="bg-[#EDE8DE] rounded-xl p-4 text-left">
+              <p className="text-xs text-[#667781] font-medium mb-1">Selected plan</p>
+              <p className="text-[#111B21] font-bold text-sm">{planInfo.name}</p>
+              <div className="flex items-baseline gap-1 mt-1">
+                <span className="text-[#25D366] font-extrabold text-2xl">{planInfo.price}</span>
+              </div>
+              <p className="text-[#667781] text-xs mt-1">{planInfo.billing}</p>
+            </div>
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => { window.location.href = "/dashboard"; }}
+                className="flex-1 py-3 rounded-xl border border-[#E9EDEF] text-[#667781] text-sm font-medium hover:border-[#25D366]/40 hover:text-[#111B21] transition-all"
+              >
+                Go to Dashboard
+              </button>
+              <button
+                onClick={startPayment}
+                className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-3 rounded-xl transition-all text-sm"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ── Success ── */}
         {status === "success" && (
@@ -157,49 +230,6 @@ function CheckoutInner() {
                 Try again
               </button>
             </div>
-          </div>
-        )}
-
-        {/* ── Loading / Idle ── */}
-        {(status === "idle" || status === "loading") && (
-          <div className="space-y-4">
-            <Loader2 className="w-10 h-10 text-[#25D366] animate-spin mx-auto" />
-            <h2 className="text-lg font-bold text-[#111B21]">
-              {status === "loading" ? "Setting up payment…" : "Opening payment…"}
-            </h2>
-
-            {/* Plan summary card */}
-            <div className="bg-[#EDE8DE] rounded-xl p-4 text-left">
-              <p className="text-xs text-[#667781] font-medium mb-1">Selected plan</p>
-              <p className="text-[#111B21] font-bold text-sm">{planInfo.name}</p>
-              <div className="flex items-baseline gap-1 mt-1">
-                <span className="text-[#25D366] font-extrabold text-2xl">{planInfo.price}</span>
-              </div>
-              <p className="text-[#667781] text-xs mt-1">{planInfo.billing}</p>
-            </div>
-
-            <p className="text-[#667781] text-xs">
-              Secure payment via Razorpay · UPI · Cards · Net Banking · Wallets
-            </p>
-
-            <button
-              onClick={startPayment}
-              disabled={status === "loading"}
-              className="w-full bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-50 text-white font-semibold py-3 rounded-xl transition-all text-sm"
-            >
-              {status === "loading" ? (
-                <span className="flex items-center justify-center gap-2">
-                  <Loader2 className="w-4 h-4 animate-spin" /> Please wait…
-                </span>
-              ) : "Open Payment"}
-            </button>
-
-            <a
-              href="/dashboard"
-              className="block text-[#667781] text-xs hover:text-[#111B21] transition-colors"
-            >
-              Skip — continue with free trial
-            </a>
           </div>
         )}
 
