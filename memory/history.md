@@ -1,5 +1,11 @@
 # Implementation History
 
+## [2026-10-06] - HTML-based Cookie Redirect in Auth Callback & Signup Route Updates
+- **Auth Callback HTML Redirect**:
+  - Refactored `src/app/auth/callback/route.ts` to use `htmlRedirect()` returning HTTP 200 HTML with `window.location.replace` script instead of HTTP 302/307 redirects, ensuring Set-Cookie headers are reliably flushed to the browser before navigation.
+- **Signup Route Email Redirect**:
+  - Reverted `emailRedirectTo` in `src/app/api/auth/signup/route.ts` to point back to `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`.
+
 ## [2026-10-06] - Client-Side Email Confirm Page & Onboarding Status API
 - **New: `/auth/confirm` Client Page**:
   - Created `src/app/auth/confirm/page.tsx` — a client-side verification page that handles both `token_hash` (OTP) and `code` (PKCE) flows directly in the browser using the Supabase JS client.

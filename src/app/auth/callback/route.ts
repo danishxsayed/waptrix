@@ -14,8 +14,6 @@ export async function GET(req: NextRequest) {
   const next        = searchParams.get('next') ?? '/onboarding';
 
   const cookieStore = await cookies();
-
-  // Collect cookies Supabase wants to set so we can apply them to the redirect response
   const pendingCookies: { name: string; value: string; options?: any }[] = [];
 
   const supabase = createServerClient(
@@ -25,7 +23,6 @@ export async function GET(req: NextRequest) {
       cookies: {
         getAll() { return cookieStore.getAll(); },
         setAll(cookiesToSet) {
-          // Store them so we can apply to the redirect response later
           pendingCookies.push(...cookiesToSet);
           cookiesToSet.forEach(({ name, value, options }) =>
             cookieStore.set(name, value, options)
@@ -35,46 +32,42 @@ export async function GET(req: NextRequest) {
     }
   );
 
-  // Helper: create a redirect and apply all pending session cookies to it
-  function redirectWithCookies(url: string) {
-    const response = NextResponse.redirect(url);
+  // Returns an HTML page that sets cookies AND does a JS redirect.
+  // Using 200 + JS instead of 302 ensures Set-Cookie headers are
+  // processed by the browser before navigation, so the next page
+  // receives the session cookies.
+  function htmlRedirect(url: string) {
+    const safeUrl = url.replace(/'/g, "\\'");
+    const html = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Redirecting…</title></head><body><script>window.location.replace('${safeUrl}');</script></body></html>`;
+    const response = new NextResponse(html, {
+      status: 200,
+      headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    });
     pendingCookies.forEach(({ name, value, options }) => {
       response.cookies.set(name, value, options ?? {});
     });
     return response;
   }
 
-  // ── Token hash flow (email OTP / magic link) ─────────────────────────────
+  // ── Token hash flow (email OTP) ──────────────────────────────────────────
   if (token_hash && type) {
     const { error } = await supabase.auth.verifyOtp({ token_hash, type });
     if (!error) {
-      // Check onboarding status so returning users go to dashboard
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { createClient: svc } = await import('@supabase/supabase-js');
-          const serviceClient = svc(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_KEY!
-          );
-          const { data: tenant } = await serviceClient
-            .from('tenants')
-            .select('onboarding_done')
-            .eq('id', user.id)
-            .maybeSingle();
-          const dest = tenant?.onboarding_done ? '/dashboard' : '/onboarding';
-          return redirectWithCookies(`${origin}${dest}`);
+          const db = svc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
+          const { data: tenant } = await db.from('tenants').select('onboarding_done').eq('id', user.id).maybeSingle();
+          return htmlRedirect(`${origin}${tenant?.onboarding_done ? '/dashboard' : '/onboarding'}`);
         }
-      } catch {
-        // fallback to next param
-      }
-      return redirectWithCookies(`${origin}${next}`);
+      } catch { /* fall through */ }
+      return htmlRedirect(`${origin}${next}`);
     }
-    const msg = encodeURIComponent(error.message || 'Verification failed');
-    return redirectWithCookies(`${origin}/verify-email?error=${msg}`);
+    return htmlRedirect(`${origin}/verify-email?error=${encodeURIComponent(error.message || 'Verification failed')}`);
   }
 
-  // ── PKCE code flow (OAuth or email confirmation) ──────────────────────────
+  // ── PKCE code flow (OAuth or email confirmation) ─────────────────────────
   if (code) {
     const { error } = await supabase.auth.exchangeCodeForSession(code);
     if (!error) {
@@ -82,114 +75,56 @@ export async function GET(req: NextRequest) {
         const { data: { user } } = await supabase.auth.getUser();
         if (user) {
           const { createClient: svc } = await import('@supabase/supabase-js');
-          const serviceClient = svc(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_KEY!
-          );
+          const db = svc(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
 
-          const hasEmailIdentity = user.identities?.some(
-            (identity: any) => identity.provider === 'email'
-          );
-          const isEmailOnlyUser = hasEmailIdentity &&
-            (user.identities?.length ?? 0) === 1;
+          const hasEmailIdentity  = user.identities?.some((i: any) => i.provider === 'email');
+          const isEmailOnlyUser   = hasEmailIdentity && (user.identities?.length ?? 0) === 1;
 
-          // Email/password user confirming their email
+          // Email/password user verifying their email
           if (isEmailOnlyUser) {
-            const { data: tenant } = await serviceClient
-              .from('tenants')
-              .select('onboarding_done')
-              .eq('id', user.id)
-              .maybeSingle();
-            const dest = tenant?.onboarding_done ? '/dashboard' : '/onboarding';
-            return redirectWithCookies(`${origin}${dest}`);
+            const { data: tenant } = await db.from('tenants').select('onboarding_done').eq('id', user.id).maybeSingle();
+            return htmlRedirect(`${origin}${tenant?.onboarding_done ? '/dashboard' : '/onboarding'}`);
           }
 
-          // OAuth user who also has an email/password account → block
+          // OAuth user who already has email/password → block
           if (hasEmailIdentity && (user.identities?.length ?? 0) > 1) {
-            return redirectWithCookies(
-              `${origin}/login?message=${encodeURIComponent('This email is already registered. Please log in with your email and password.')}`
-            );
+            return htmlRedirect(`${origin}/login?message=${encodeURIComponent('This email is already registered. Please log in with your email and password.')}`);
           }
 
-          // Pure OAuth (Google etc.) — provision tenant if new user
-          const { data: existingTenant } = await serviceClient
-            .from('tenants')
-            .select('id, onboarding_done')
-            .eq('id', user.id)
-            .maybeSingle();
+          // New OAuth (Google) user — provision tenant
+          const { data: existingTenant } = await db.from('tenants').select('id, onboarding_done').eq('id', user.id).maybeSingle();
 
           if (!existingTenant) {
             const userEmail = user.email ?? '';
             if (userEmail) {
-              const { data: emailTenant } = await serviceClient
-                .from('tenants')
-                .select('id')
-                .eq('email', userEmail)
-                .maybeSingle();
+              const { data: emailTenant } = await db.from('tenants').select('id').eq('email', userEmail).maybeSingle();
               if (emailTenant) {
-                return redirectWithCookies(
-                  `${origin}/login?message=${encodeURIComponent('This email is already registered. Please log in with your email and password.')}`
-                );
+                return htmlRedirect(`${origin}/login?message=${encodeURIComponent('This email is already registered. Please log in with your email and password.')}`);
               }
             }
-
-            const name =
-              user.user_metadata?.full_name ||
-              user.user_metadata?.name ||
-              user.email?.split('@')[0] || 'User';
-            const email = user.email ?? '';
-            const company = user.user_metadata?.company || '';
+            const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User';
             const trialEndsAt = new Date();
             trialEndsAt.setDate(trialEndsAt.getDate() + 7);
-
-            await serviceClient.from('tenants').insert({
-              id: user.id, name, email, company,
-              plan: 'trial', trial_ends_at: trialEndsAt.toISOString(),
-            });
-
+            await db.from('tenants').insert({ id: user.id, name, email: user.email ?? '', company: user.user_metadata?.company || '', plan: 'trial', trial_ends_at: trialEndsAt.toISOString() });
             try {
               const { sendEmail } = await import('@/lib/email/resend');
-              await sendEmail({
-                to: email,
-                subject: "Welcome to Waptrix!",
-                title: "Setup Successful!",
-                message: `Hi ${name}, welcome to Waptrix! 🎉 Your 7-day free trial has started.`,
-                buttonText: "Go to Dashboard",
-                buttonUrl: `${process.env.NEXT_PUBLIC_APP_URL}/connect`,
-              });
-            } catch (e) {
-              console.error("Welcome email failed:", e);
-            }
-
-            return redirectWithCookies(`${origin}/onboarding`);
+              await sendEmail({ to: user.email ?? '', subject: "Welcome to Waptrix!", title: "Setup Successful!", message: `Hi ${name}, welcome to Waptrix! Your 7-day free trial has started.`, buttonText: "Go to Dashboard", buttonUrl: `${process.env.NEXT_PUBLIC_APP_URL}/connect` });
+            } catch (e) { console.error("Welcome email failed:", e); }
+            return htmlRedirect(`${origin}/onboarding`);
           }
 
-          // Returning OAuth user
-          const dest = existingTenant.onboarding_done ? '/dashboard' : '/onboarding';
-          return redirectWithCookies(`${origin}${dest}`);
+          return htmlRedirect(`${origin}${existingTenant.onboarding_done ? '/dashboard' : '/onboarding'}`);
         }
-      } catch (err) {
-        console.error("Callback provisioning error:", err);
-      }
-      return redirectWithCookies(`${origin}${next}`);
+      } catch (e) { console.error("Callback error:", e); }
+      return htmlRedirect(`${origin}${next}`);
     }
 
     const errMsg = error.message || '';
-    const isEmailConflict =
-      errMsg.toLowerCase().includes('already registered') ||
-      errMsg.toLowerCase().includes('already exists') ||
-      errMsg.toLowerCase().includes('email already') ||
-      errMsg.toLowerCase().includes('user already');
-    if (isEmailConflict) {
-      return redirectWithCookies(
-        `${origin}/login?message=${encodeURIComponent('This email is already registered. Please log in with your email and password.')}`
-      );
+    if (['already registered','already exists','email already','user already'].some(s => errMsg.toLowerCase().includes(s))) {
+      return htmlRedirect(`${origin}/login?message=${encodeURIComponent('This email is already registered. Please log in with your email and password.')}`);
     }
-    return redirectWithCookies(`${origin}/verify-email?error=${encodeURIComponent(errMsg || 'Verification failed')}`);
+    return htmlRedirect(`${origin}/verify-email?error=${encodeURIComponent(errMsg || 'Verification failed')}`);
   }
 
-  // No code or token — invalid callback
-  return redirectWithCookies(
-    `${origin}/verify-email?error=${encodeURIComponent('Invalid verification link. Please request a new one.')}`
-  );
+  return htmlRedirect(`${origin}/verify-email?error=${encodeURIComponent('Invalid verification link. Please request a new one.')}`);
 }
