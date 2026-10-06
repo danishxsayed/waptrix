@@ -4,6 +4,7 @@ import { createServerClient } from '@supabase/ssr';
 import { createClient } from '@supabase/supabase-js';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
+import { sendEmail } from '@/lib/email/resend';
 
 export async function DELETE(req: Request) {
   try {
@@ -60,10 +61,40 @@ export async function DELETE(req: Request) {
     // 9. Tenant row
     await db.from('tenants').delete().eq('id', userId);
 
-    // 10. Sign out all sessions before deleting auth user
+    // 10. Send farewell email before deleting (while email address is still valid)
+    const userEmail = user.email;
+    if (userEmail) {
+      try {
+        const firstName = user.user_metadata?.full_name?.split(' ')[0] || 'there';
+        await sendEmail({
+          to: userEmail,
+          subject: "We're going to miss you 💚",
+          title: "Goodbye for now…",
+          message: `Hey ${firstName},<br/><br/>
+            We just wanted to say — it's been a privilege having you with us at Waptrix.
+            Every campaign you launched, every conversation you had, every customer you reached —
+            it all mattered, and it mattered to us too.<br/><br/>
+            We know things don't always work out the way we hope, and we completely respect your decision.
+            But if there's ever a day you want to give WhatsApp marketing another shot — with smarter tools,
+            better support, or just fresh energy — the door is always open. Your story with Waptrix doesn't
+            have to end here.<br/><br/>
+            Until then, we wish you nothing but growth, great customers, and conversations that convert.
+            Take care of yourself — and thank you, genuinely, for giving us a chance.<br/><br/>
+            With love,<br/>
+            <strong>The Waptrix Team</strong>`,
+          buttonText: "Come Back Anytime →",
+          buttonUrl: "https://waptrix.in/signup",
+        });
+      } catch (emailErr) {
+        // Non-fatal — deletion proceeds even if email fails
+        console.error('Farewell email failed to send:', emailErr);
+      }
+    }
+
+    // 11. Sign out all sessions before deleting auth user
     await ssrClient.auth.signOut({ scope: 'global' });
 
-    // 11. Delete auth user (must be last)
+    // 12. Delete auth user (must be last)
     const { error: authDeleteError } = await db.auth.admin.deleteUser(userId);
     if (authDeleteError) {
       console.error('Auth user delete error:', authDeleteError);

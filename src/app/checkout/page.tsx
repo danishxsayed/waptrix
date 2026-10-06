@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Loader2, CheckCircle, AlertCircle } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 const PLAN_LABELS: Record<string, { name: string; price: string; billing: string }> = {
   pro_monthly:   { name: "Waptrix Pro — Monthly",   price: "₹1,999",  billing: "Billed monthly" },
@@ -36,14 +37,20 @@ function CheckoutInner() {
     setStatus("loading");
 
     try {
-      // Use cookie-based auth — no Bearer token needed.
-      // This matches every other protected API route in the app and avoids
-      // race conditions where the browser client hasn't synced the session
-      // to localStorage after a server-side auth callback.
+      // Try to get Bearer token from browser client (works if session synced to
+      // localStorage). Always send cookies too — the server uses whichever is
+      // available, Bearer first, cookies as fallback.
+      const supabase = createClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      const fetchHeaders: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        fetchHeaders["Authorization"] = `Bearer ${session.access_token}`;
+      }
+
       const res = await fetch("/api/payments/checkout-order", {
         method:      "POST",
-        headers:     { "Content-Type": "application/json" },
-        credentials: "include",  // send session cookies
+        headers:     fetchHeaders,
+        credentials: "include",
         body:        JSON.stringify({ planId }),
       });
 

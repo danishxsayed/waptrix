@@ -1,15 +1,14 @@
 export const dynamic = "force-dynamic";
 
-// Cookie-based Razorpay order creation used by the /checkout page.
-// Unlike /api/payments/initiate (which requires a Bearer token),
-// this route reads auth from server-side cookies — exactly like every
-// other protected API route in the app.  This avoids the race where
-// the Supabase browser client hasn't synced the session to localStorage
-// after the server-side auth callback sets the cookies.
+// Cookie-based (with Bearer token fallback) Razorpay order creation used by
+// the /checkout page.  We try the Bearer token first (same pattern as
+// /api/payments/initiate) because it has no SSR dependencies.  If the
+// browser client hasn't synced the session to localStorage yet, we fall back
+// to cookie-based auth via @supabase/ssr.
 
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
+import { createClient as createAnonClient } from "@supabase/supabase-js";
+import { createClient as createCookieClient } from "@/lib/supabase/server";
 import { PLANS } from "@/lib/plans";
 
 const RAZORPAY_KEY_ID     = process.env.RAZORPAY_KEY_ID;
@@ -21,11 +20,44 @@ function razorpayAuth() {
 
 export async function POST(req: Request) {
   try {
-    // ── 1. Auth via cookies (standard server-side pattern) ────────────────────
-    const supabase = await createClient();
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
+    // ── 1. Auth: Bearer first, cookies fallback ───────────────────────────────
+    const authHeader = req.headers.get("Authorization") || "";
+    const token      = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
 
-    if (userError || !user) {
+    let userId    = "";
+    let userEmail = "";
+    let userMeta: Record<string, any> = {};
+
+    if (token) {
+      // Try Bearer token (fastest path — no SSR cookie dependency)
+      const anon = createAnonClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { data: { user }, error } = await anon.auth.getUser(token);
+      if (!error && user) {
+        userId    = user.id;
+        userEmail = user.email ?? "";
+        userMeta  = user.user_metadata ?? {};
+      }
+    }
+
+    if (!userId) {
+      // Fallback: read session from HTTP cookies
+      try {
+        const supabase = await createCookieClient();
+        const { data: { user }, error } = await supabase.auth.getUser();
+        if (!error && user) {
+          userId    = user.id;
+          userEmail = user.email ?? "";
+          userMeta  = user.user_metadata ?? {};
+        }
+      } catch (cookieErr: any) {
+        console.error("checkout-order: cookie-client error", cookieErr?.message);
+      }
+    }
+
+    if (!userId) {
       return NextResponse.json({ error: "Not authenticated. Please log in." }, { status: 401 });
     }
 
@@ -46,18 +78,18 @@ export async function POST(req: Request) {
     }
 
     // ── 4. Fetch tenant info ──────────────────────────────────────────────────
-    const db = createServiceClient(
+    const db = createAnonClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_KEY!
     );
     const { data: tenant } = await db
       .from("tenants")
       .select("name, email, phone")
-      .eq("id", user.id)
+      .eq("id", userId)
       .maybeSingle();
 
-    const customerEmail = tenant?.email || user.email || "";
-    const customerName  = tenant?.name  || user.user_metadata?.full_name || "Customer";
+    const customerEmail = tenant?.email || userEmail || "";
+    const customerName  = tenant?.name  || userMeta?.full_name || "Customer";
     const rawPhone      = tenant?.phone || "";
     const customerPhone = rawPhone.replace(/\D/g, "").slice(-10) || "9999999999";
 
@@ -66,7 +98,7 @@ export async function POST(req: Request) {
     }
 
     // ── 5. Create Razorpay order ──────────────────────────────────────────────
-    const receipt = `WPX_${planId.toUpperCase()}_${user.id.slice(0, 8)}_${Date.now()}`;
+    const receipt = `WPX_${planId.toUpperCase()}_${userId.slice(0, 8)}_${Date.now()}`;
 
     const orderPayload = {
       amount:   plan.amount * 100,
@@ -76,7 +108,7 @@ export async function POST(req: Request) {
         billing_cycle:  plan.billingCycle,
         duration_days:  String(plan.durationDays),
         customer_email: customerEmail,
-        tenant_id:      user.id,
+        tenant_id:      userId,
         plan_name:      plan.name,
       },
     };
@@ -112,7 +144,7 @@ export async function POST(req: Request) {
       amount:         plan.amount,
       currency:       "INR",
       status:         "pending",
-      tenant_id:      user.id,
+      tenant_id:      userId,
       raw:            { receipt, razorpay_order_id: rzpData.id, plan: planId },
     }, { onConflict: "order_id" }).catch((e: any) => console.error("pending upsert failed:", e));
 
