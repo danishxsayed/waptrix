@@ -51,7 +51,7 @@ function ProgressBar({ step }: { step: number }) {
         <div
           key={s}
           className={`h-1 flex-1 rounded-full transition-all duration-300 ${
-            s <= step ? "bg-indigo-500" : "bg-white/20"
+            s <= step ? "bg-[#10B981]" : "bg-white/20"
           }`}
         />
       ))}
@@ -69,7 +69,7 @@ function Chip({
       onClick={onClick}
       className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border text-sm font-medium transition-all ${
         selected
-          ? "border-indigo-500 bg-indigo-500/20 text-white"
+          ? "border-[#10B981] bg-[#10B981]/20 text-white"
           : "border-white/15 bg-white/5 text-white/70 hover:border-white/30 hover:text-white"
       }`}
     >
@@ -142,7 +142,7 @@ export default function OnboardingPage() {
 
         {/* Logo */}
         <div className="flex items-center gap-2 mb-8">
-          <div className="w-8 h-8 bg-indigo-500 rounded-lg" />
+          <div className="w-8 h-8 bg-[#10B981] rounded-lg" />
           <span className="text-white font-bold text-lg">Waptrix</span>
         </div>
 
@@ -162,7 +162,7 @@ export default function OnboardingPage() {
               <select
                 value={countryCode}
                 onChange={(e) => setCountryCode(e.target.value)}
-                className="bg-white/10 border border-white/15 text-white rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-indigo-500 w-28"
+                className="bg-white/10 border border-white/15 text-white rounded-xl px-3 py-3 text-sm focus:outline-none focus:border-[#10B981] w-28"
               >
                 {COUNTRY_CODES.map((c) => (
                   <option key={c.code} value={c.code} className="bg-[#1a1c2e]">{c.label}</option>
@@ -173,7 +173,7 @@ export default function OnboardingPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value.replace(/\D/g, ""))}
                 placeholder="9999999999"
-                className="flex-1 bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm placeholder-white/30 focus:outline-none focus:border-indigo-500"
+                className="flex-1 bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm placeholder-white/30 focus:outline-none focus:border-[#10B981]"
               />
             </div>
 
@@ -181,7 +181,7 @@ export default function OnboardingPage() {
               <div
                 onClick={() => setIsWhatsapp(!isWhatsapp)}
                 className={`w-5 h-5 rounded-md flex items-center justify-center border transition-all ${
-                  isWhatsapp ? "bg-indigo-500 border-indigo-500" : "border-white/30 bg-transparent"
+                  isWhatsapp ? "bg-[#10B981] border-[#10B981]" : "border-white/30 bg-transparent"
                 }`}
               >
                 {isWhatsapp && <Check className="w-3 h-3 text-white" />}
@@ -202,7 +202,7 @@ export default function OnboardingPage() {
                   onClick={() => setPreferredContact(opt.id)}
                   className={`flex items-center gap-2 flex-1 justify-center py-2.5 rounded-xl border text-sm font-medium transition-all ${
                     preferredContact === opt.id
-                      ? "border-indigo-500 bg-indigo-500/20 text-white"
+                      ? "border-[#10B981] bg-[#10B981]/20 text-white"
                       : "border-white/15 bg-white/5 text-white/60 hover:border-white/30"
                   }`}
                 >
@@ -214,7 +214,7 @@ export default function OnboardingPage() {
             <button
               onClick={() => setStep(2)}
               disabled={!phone}
-              className="w-full bg-indigo-500 hover:bg-indigo-600 disabled:opacity-40 text-white font-semibold py-3.5 rounded-xl transition-all"
+              className="w-full bg-[#10B981] hover:bg-[#059669] disabled:opacity-40 text-[#080A0F] font-semibold py-3.5 rounded-xl transition-all"
             >
               Continue →
             </button>
@@ -231,7 +231,7 @@ export default function OnboardingPage() {
             <select
               value={industry}
               onChange={(e) => setIndustry(e.target.value)}
-              className="w-full bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm mb-5 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm mb-5 focus:outline-none focus:border-[#10B981]"
             >
               <option value="" className="bg-[#1a1c2e]">Select industry</option>
               {INDUSTRIES.map((i) => (
@@ -243,7 +243,7 @@ export default function OnboardingPage() {
             <select
               value={role}
               onChange={(e) => setRole(e.target.value)}
-              className="w-full bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm mb-5 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm mb-5 focus:outline-none focus:border-[#10B981]"
             >
               {ROLES.map((r) => (
                 <option key={r} value={r} className="bg-[#1a1c2e]">{r}</option>
@@ -259,7 +259,7 @@ export default function OnboardingPage() {
                   onClick={() => setTeamSize(s)}
                   className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
                     teamSize === s
-                      ? "border-indigo-500 bg-indigo-500/20 text-white"
+                      ? "border-[#10B981] bg-[#10B981]/20 text-white"
                       : "border-white/15 bg-white/5 text-white/60 hover:border-white/30"
                   }`}
                 >
@@ -277,7 +277,7 @@ export default function OnboardingPage() {
               </button>
               <button
                 onClick={() => setStep(3)}
-                className="flex-1 bg-indigo-500 hover:bg-indigo-600 text-white font-semibold py-3 rounded-xl transition-all"
+                className="flex-1 bg-[#10B981] hover:bg-[#059669] text-[#080A0F] font-semibold py-3 rounded-xl transition-all"
               >
                 Continue →
               </button>
@@ -318,7 +318,7 @@ export default function OnboardingPage() {
                   onClick={() => setMsgVolume(v)}
                   className={`py-2.5 rounded-xl border text-sm font-medium transition-all ${
                     msgVolume === v
-                      ? "border-indigo-500 bg-indigo-500/20 text-white"
+                      ? "border-[#10B981] bg-[#10B981]/20 text-white"
                       : "border-white/15 bg-white/5 text-white/60 hover:border-white/30"
                   }`}
                 >
@@ -333,7 +333,7 @@ export default function OnboardingPage() {
             <select
               value={referralSource}
               onChange={(e) => setReferralSource(e.target.value)}
-              className="w-full bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm mb-6 focus:outline-none focus:border-indigo-500"
+              className="w-full bg-white/10 border border-white/15 text-white rounded-xl px-4 py-3 text-sm mb-6 focus:outline-none focus:border-[#10B981]"
             >
               <option value="" className="bg-[#1a1c2e]">Select one</option>
               {REFERRAL_OPTIONS.map((r) => (
@@ -355,7 +355,7 @@ export default function OnboardingPage() {
               <button
                 onClick={handleFinish}
                 disabled={saving}
-                className="flex-1 bg-indigo-500 hover:bg-indigo-600 disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+                className="flex-1 bg-[#10B981] hover:bg-[#059669] disabled:opacity-60 text-[#080A0F] font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
               >
                 {saving ? (
                   <><Loader2 className="w-4 h-4 animate-spin" /> Saving…</>

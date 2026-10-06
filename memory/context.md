@@ -120,7 +120,9 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
 ## Recent Session Progress
 - **Auth Callback Onboarding & Verification Routing (2026-10-06)**:
   - Updated `/auth/callback` to properly check `onboarding_done` in `tenants` for email verification code completions, redirecting to `/onboarding` if incomplete.
-  - Redirected newly provisioned OAuth users to `/onboarding` instead of `/connect`.
+  - Implemented `redirectWithCookies()` to preserve Supabase auth session cookies through response headers on all redirects.
+  - Redirected newly provisioned and returning OAuth users to `/onboarding` when onboarding is incomplete.
+  - Refactored `/onboarding` UI elements to use Waptrix brand emerald (`#10B981`) instead of indigo.
 - **Razorpay Payment Integration Migration (2026-10-04)**:
   - Replaced Cashfree payment flow with Razorpay standard checkout across `/pricing`, `/api/payments/create-order`, `/api/payments/initiate`, and `/api/payments/webhook`.
   - Verified HMAC SHA-256 webhook signatures, handled `order.paid` and `payment.failed`, and automated tenant plan upgrades to Pro.
