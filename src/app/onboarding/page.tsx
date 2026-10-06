@@ -2,7 +2,46 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, MessageCircle, Phone, Mail, Check } from "lucide-react";
+import { Loader2, MessageCircle, Phone, Mail, Check, X, Zap, ArrowRight } from "lucide-react";
+
+// ─── Plan data (mirror of /src/lib/plans.ts) ──────────────────────────────────
+const PLAN_OPTIONS = [
+  {
+    id:       "pro_monthly",
+    label:    "Monthly",
+    price:    "₹1,999",
+    per:      "/month",
+    billing:  "Billed monthly",
+    badge:    null,
+  },
+  {
+    id:       "pro_quarterly",
+    label:    "Quarterly",
+    price:    "₹1,666",
+    per:      "/month",
+    billing:  "₹4,998 billed every 3 months",
+    badge:    "Save 17%",
+  },
+  {
+    id:       "pro_yearly",
+    label:    "Yearly",
+    price:    "₹1,499",
+    per:      "/month",
+    billing:  "₹17,988 billed yearly",
+    badge:    "Save 25%",
+  },
+];
+
+const PRO_FEATURES = [
+  "Unlimited WhatsApp conversations",
+  "Bulk campaigns to unlimited contacts",
+  "Smart unified inbox",
+  "Message templates (Meta-approved)",
+  "Real-time analytics",
+  "Automation & keyword replies",
+  "Up to 10 team members",
+  "Priority support",
+];
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const COUNTRY_CODES = [
@@ -79,12 +118,163 @@ function Chip({
   );
 }
 
+// ─── Plan selection modal (shown after onboarding for trial users) ─────────────
+function PlanModal({ onClose }: { onClose: () => void }) {
+  const [selected, setSelected] = useState("pro_monthly");
+  const [paying, setPaying]     = useState(false);
+
+  const plan = PLAN_OPTIONS.find((p) => p.id === selected)!;
+
+  const goTrial = () => {
+    window.location.href = "/dashboard";
+  };
+
+  const goCheckout = () => {
+    setPaying(true);
+    window.location.href = `/checkout?plan=${selected}`;
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 bg-[#111B21]/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl border border-[#E9EDEF] shadow-xl w-full max-w-md overflow-hidden">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-5 pb-4 border-b border-[#E9EDEF]">
+          <div>
+            <h2 className="text-lg font-bold text-[#111B21]">Choose your plan</h2>
+            <p className="text-[#667781] text-xs mt-0.5">You can upgrade or change anytime</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 flex items-center justify-center rounded-lg text-[#667781] hover:bg-[#EDE8DE] transition-all"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-3">
+          {/* Trial option */}
+          <button
+            type="button"
+            onClick={() => setSelected("trial")}
+            className={`w-full flex items-start gap-3 p-4 rounded-xl border text-left transition-all ${
+              selected === "trial"
+                ? "border-[#25D366] bg-[#D9FDD3]/50"
+                : "border-[#E9EDEF] bg-white hover:border-[#25D366]/40"
+            }`}
+          >
+            <div className={`w-4 h-4 mt-0.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+              selected === "trial" ? "border-[#25D366]" : "border-[#E9EDEF]"
+            }`}>
+              {selected === "trial" && <div className="w-2 h-2 rounded-full bg-[#25D366]" />}
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-sm text-[#111B21]">Free Trial</span>
+                <span className="text-[10px] font-bold bg-[#D9FDD3] text-[#075E54] px-2 py-0.5 rounded-full border border-[#25D366]/20">7 days free</span>
+              </div>
+              <p className="text-[#667781] text-xs mt-0.5">Full access. No credit card needed.</p>
+            </div>
+            <span className="text-[#111B21] font-bold text-sm">₹0</span>
+          </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3">
+            <div className="flex-1 h-px bg-[#E9EDEF]" />
+            <span className="text-[10px] font-bold text-[#667781] uppercase tracking-widest">Or upgrade to Pro</span>
+            <div className="flex-1 h-px bg-[#E9EDEF]" />
+          </div>
+
+          {/* Paid plan options */}
+          {PLAN_OPTIONS.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => setSelected(p.id)}
+              className={`w-full flex items-start gap-3 p-4 rounded-xl border text-left transition-all ${
+                selected === p.id
+                  ? "border-[#25D366] bg-[#D9FDD3]/50"
+                  : "border-[#E9EDEF] bg-white hover:border-[#25D366]/40"
+              }`}
+            >
+              <div className={`w-4 h-4 mt-0.5 rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+                selected === p.id ? "border-[#25D366]" : "border-[#E9EDEF]"
+              }`}>
+                {selected === p.id && <div className="w-2 h-2 rounded-full bg-[#25D366]" />}
+              </div>
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-sm text-[#111B21]">Pro — {p.label}</span>
+                  {p.badge && (
+                    <span className="text-[10px] font-bold bg-[#D9FDD3] text-[#075E54] px-2 py-0.5 rounded-full border border-[#25D366]/20">{p.badge}</span>
+                  )}
+                </div>
+                <p className="text-[#667781] text-xs mt-0.5">{p.billing}</p>
+              </div>
+              <div className="text-right flex-shrink-0">
+                <span className="text-[#111B21] font-bold text-sm">{p.price}</span>
+                <span className="text-[#667781] text-xs">{p.per}</span>
+              </div>
+            </button>
+          ))}
+
+          {/* Pro features summary */}
+          {selected !== "trial" && (
+            <div className="bg-[#EDE8DE] rounded-xl px-4 py-3">
+              <p className="text-[10px] font-bold text-[#667781] uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                <Zap className="w-3 h-3" /> Everything in Pro
+              </p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+                {PRO_FEATURES.map((f) => (
+                  <div key={f} className="flex items-center gap-1.5">
+                    <Check className="w-3 h-3 text-[#25D366] flex-shrink-0" />
+                    <span className="text-[#111B21] text-[11px]">{f}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* CTA */}
+        <div className="px-6 pb-6 flex gap-3">
+          {selected === "trial" ? (
+            <button
+              onClick={goTrial}
+              className="flex-1 bg-[#25D366] hover:bg-[#128C7E] text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+            >
+              Start Free Trial <ArrowRight className="w-4 h-4" />
+            </button>
+          ) : (
+            <>
+              <button
+                onClick={goTrial}
+                className="px-4 py-3 rounded-xl border border-[#E9EDEF] text-[#667781] text-sm font-medium hover:border-[#25D366]/40 hover:text-[#111B21] transition-all"
+              >
+                Use Trial
+              </button>
+              <button
+                onClick={goCheckout}
+                disabled={paying}
+                className="flex-1 bg-[#25D366] hover:bg-[#128C7E] disabled:opacity-60 text-white font-semibold py-3 rounded-xl transition-all flex items-center justify-center gap-2"
+              >
+                {paying ? <Loader2 className="w-4 h-4 animate-spin" /> : <>Subscribe <ArrowRight className="w-4 h-4" /></>}
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 export default function OnboardingPage() {
   const router  = useRouter();
-  const [step, setStep]     = useState(1);
-  const [saving, setSaving] = useState(false);
-  const [error, setError]   = useState("");
+  const [step, setStep]       = useState(1);
+  const [saving, setSaving]   = useState(false);
+  const [error, setError]     = useState("");
+  const [showPlanModal, setShowPlanModal] = useState(false);
 
   // Step 1
   const [countryCode, setCountryCode]           = useState("+91");
@@ -129,7 +319,16 @@ export default function OnboardingPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to save");
-      router.push("/connect");
+
+      // Case 2 — User pre-selected a paid plan: go straight to checkout
+      if (data.pending_plan_id) {
+        window.location.href = `/checkout?plan=${encodeURIComponent(data.pending_plan_id)}`;
+        return;
+      }
+
+      // Case 1 — Trial user: show plan selection popup for one final upgrade opportunity
+      setShowPlanModal(true);
+      setSaving(false);
     } catch (err: any) {
       setError(err.message);
       setSaving(false);
@@ -143,6 +342,7 @@ export default function OnboardingPage() {
 
   return (
     <div className="min-h-screen bg-[#EDE8DE] flex items-center justify-center px-4">
+      {showPlanModal && <PlanModal onClose={() => setShowPlanModal(false)} />}
       <div className="w-full max-w-sm">
 
         {/* Logo */}

@@ -7,18 +7,6 @@ import { useRouter } from "next/navigation";
 import { createClient } from '@/lib/supabase/client';
 
 
-function loadCashfree(): Promise<any> {
-  const mode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox";
-  if ((window as any).Cashfree) return Promise.resolve((window as any).Cashfree({ mode }));
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
-    s.onload  = () => resolve((window as any).Cashfree({ mode }));
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-}
-
 export default function SignupPage() {
   const [formData, setFormData] = useState({ name: "", company: "", email: "", password: "" });
   const [showPassword, setShowPassword]   = useState(false);
@@ -37,10 +25,12 @@ export default function SignupPage() {
     setError(null);
     try {
       const supabase = createClient();
+      // Pass plan through OAuth so callback can persist it to DB
+      const planQuery = planParam ? `&plan=${encodeURIComponent(planParam)}` : '';
       await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?next=/onboarding`,
+          redirectTo: `${window.location.origin}/auth/callback?next=/onboarding${planQuery}`,
         },
       });
     } catch (err: any) {
@@ -63,6 +53,8 @@ export default function SignupPage() {
           password: formData.password,
           name:     formData.name,
           company:  formData.company,
+          // Persist plan selection in DB so it survives email verification
+          planId:   planParam || undefined,
         }),
       });
       const responseData = await res.json();
@@ -71,26 +63,8 @@ export default function SignupPage() {
         return;
       }
 
-      // If a plan was pre-selected, log in & initiate payment immediately
-      if (planParam && responseData.session) {
-        setStatusMsg("Account created! Setting up your payment…");
-        const accessToken = responseData.session?.access_token || "";
-        const payRes = await fetch("/api/payments/initiate", {
-          method:  "POST",
-          headers: {
-            "Content-Type":  "application/json",
-            "Authorization": `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ planId: planParam }),
-        });
-        const payData = await payRes.json();
-        if (!payRes.ok) throw new Error(payData.error || "We couldn't create your payment session. Please try again.");
-        const cashfree = await loadCashfree();
-        cashfree.checkout({ paymentSessionId: payData.paymentSessionId, redirectTarget: "_self" });
-        return;
-      }
-
-      // No plan — go to email verification page
+      // Always go to email verification — plan is saved in DB and will be
+      // picked up automatically after onboarding is complete.
       router.push(`/verify-email?email=${encodeURIComponent(formData.email)}`);
     } catch (err: any) {
       setError(err.message || "Something went wrong");

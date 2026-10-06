@@ -49,7 +49,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ success: true });
+    // Return pending_plan_id so the client can route to checkout vs plan modal
+    const { data: tenant } = await db
+      .from("tenants")
+      .select("pending_plan_id")
+      .eq("id", user.id)
+      .maybeSingle();
+
+    return NextResponse.json({ success: true, pending_plan_id: tenant?.pending_plan_id ?? null });
   } catch (err: any) {
     console.error("onboarding route error:", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });

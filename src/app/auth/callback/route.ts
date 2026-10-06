@@ -12,6 +12,7 @@ export async function GET(req: NextRequest) {
   const token_hash  = searchParams.get('token_hash');
   const type        = searchParams.get('type') as 'email' | 'recovery' | null;
   const next        = searchParams.get('next') ?? '/onboarding';
+  const planParam   = searchParams.get('plan'); // passed through Google OAuth redirect
 
   const cookieStore = await cookies();
   const pendingCookies: { name: string; value: string; options?: any }[] = [];
@@ -92,7 +93,7 @@ export async function GET(req: NextRequest) {
           }
 
           // New OAuth (Google) user — provision tenant
-          const { data: existingTenant } = await db.from('tenants').select('id, onboarding_done').eq('id', user.id).maybeSingle();
+          const { data: existingTenant } = await db.from('tenants').select('id, onboarding_done, pending_plan_id').eq('id', user.id).maybeSingle();
 
           if (!existingTenant) {
             const userEmail = user.email ?? '';
@@ -105,12 +106,21 @@ export async function GET(req: NextRequest) {
             const name = user.user_metadata?.full_name || user.user_metadata?.name || user.email?.split('@')[0] || 'User';
             const trialEndsAt = new Date();
             trialEndsAt.setDate(trialEndsAt.getDate() + 7);
-            await db.from('tenants').insert({ id: user.id, name, email: user.email ?? '', company: user.user_metadata?.company || '', plan: 'trial', trial_ends_at: trialEndsAt.toISOString() });
+            await db.from('tenants').insert({
+              id: user.id, name, email: user.email ?? '', company: user.user_metadata?.company || '',
+              plan: 'trial', trial_ends_at: trialEndsAt.toISOString(),
+              pending_plan_id: planParam || null,
+            });
             try {
               const { sendEmail } = await import('@/lib/email/resend');
               await sendEmail({ to: user.email ?? '', subject: "Welcome to Waptrix!", title: "Setup Successful!", message: `Hi ${name}, welcome to Waptrix! Your 7-day free trial has started.`, buttonText: "Go to Dashboard", buttonUrl: `${process.env.NEXT_PUBLIC_APP_URL}/connect` });
             } catch (e) { console.error("Welcome email failed:", e); }
             return htmlRedirect(`${origin}/onboarding`);
+          }
+
+          // Existing OAuth user — if a plan was passed (e.g. returning from pricing page), persist it
+          if (planParam && !existingTenant.pending_plan_id) {
+            await db.from('tenants').update({ pending_plan_id: planParam }).eq('id', user.id);
           }
 
           return htmlRedirect(`${origin}${existingTenant.onboarding_done ? '/dashboard' : '/onboarding'}`);

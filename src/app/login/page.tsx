@@ -8,18 +8,6 @@ import { Mail, Lock, ArrowRight, CheckCircle, Eye, EyeOff, Loader2 } from "lucid
 import { useRouter } from "next/navigation";
 import { createClient } from '@/lib/supabase/client';
 
-function loadCashfree(): Promise<any> {
-  const mode = process.env.NEXT_PUBLIC_CASHFREE_ENV === "production" ? "production" : "sandbox";
-  if ((window as any).Cashfree) return Promise.resolve((window as any).Cashfree({ mode }));
-  return new Promise((resolve, reject) => {
-    const s = document.createElement("script");
-    s.src = "https://sdk.cashfree.com/js/v3/cashfree.js";
-    s.onload  = () => resolve((window as any).Cashfree({ mode }));
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
-}
-
 export default function LoginPage() {
   const [formData, setFormData]   = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
@@ -96,19 +84,10 @@ export default function LoginPage() {
         return;
       }
 
-      // If a plan was selected before login → initiate payment directly
+      // If a plan was selected before login → go to checkout page
       if (planParam) {
-        setStatusMsg("Logged in! Creating your payment session…");
-        const res = await fetch("/api/payments/initiate", {
-          method:  "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ planId: planParam }),
-          credentials: "include",
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.error || "We couldn't create your payment session. Please try again.");
-        const cashfree = await loadCashfree();
-        cashfree.checkout({ paymentSessionId: data.paymentSessionId, redirectTarget: "_self" });
+        setStatusMsg("Logged in! Taking you to checkout…");
+        window.location.href = `/checkout?plan=${encodeURIComponent(planParam)}`;
         return;
       }
 

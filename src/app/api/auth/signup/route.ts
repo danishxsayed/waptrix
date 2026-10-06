@@ -8,7 +8,7 @@ export async function POST(request: Request) {
     const supabase = await createClient();
     
     const body = await request.json();
-    const { email, password, name, company } = body;
+    const { email, password, name, company, planId } = body;
 
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email,
@@ -41,6 +41,10 @@ export async function POST(request: Request) {
         company,
         plan: 'trial',
         trial_ends_at: trialEndsAt.toISOString(),
+        // Persist the plan the user selected before registration so it
+        // survives email verification and onboarding without relying on
+        // frontend state or localStorage.
+        pending_plan_id: planId || null,
       });
 
       if (tenantError) return NextResponse.json({ error: tenantError.message }, { status: 400 });
