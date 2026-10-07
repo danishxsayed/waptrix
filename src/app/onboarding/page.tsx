@@ -68,7 +68,7 @@ const ROLES = [
 ];
 
 const USE_CASE_OPTIONS = [
-  { id: "campaigns",    label: "Broadcast campaigns",      icon: "📢" },
+  { id: "campaigns",    label: "Bulk campaigns",      icon: "📢" },
   { id: "inbox",        label: "Customer support inbox",   icon: "💬" },
   { id: "orders",       label: "Order & delivery updates", icon: "📦" },
   { id: "appointments", label: "Appointment reminders",    icon: "📅" },

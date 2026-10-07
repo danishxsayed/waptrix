@@ -179,7 +179,7 @@ export default function CampaignsPage() {
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-xl font-bold font-syne">Marketing Campaigns</h2>
-          <p className="text-sm text-text-muted font-dm-sans">Track and manage your bulk message blasts.</p>
+          <p className="text-sm text-text-muted font-dm-sans">Track and manage your bulk message campaigns.</p>
         </div>
         <button 
           onClick={() => setIsWizardOpen(true)}
@@ -314,7 +314,7 @@ export default function CampaignsPage() {
             <Send className="w-12 h-12 text-text-muted opacity-20" />
             <div className="text-center">
               <h3 className="font-bold font-syne">No campaigns yet</h3>
-              <p className="text-xs text-text-muted mt-2">Launch your first message blast to reach your customers.</p>
+              <p className="text-xs text-text-muted mt-2">Launch your first campaign to reach your customers.</p>
             </div>
           </div>
         )}
