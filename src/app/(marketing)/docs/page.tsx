@@ -192,7 +192,7 @@ function DOCS() {
         <p className="text-[#667781] text-sm mb-6">Everything you need to send WhatsApp campaigns, manage conversations, and grow your business.</p>
         <Callout type="success">You can be sending your first WhatsApp campaign in under 15 minutes. Follow the steps in this guide.</Callout>
         <DocH2>What is Waptrix?</DocH2>
-        <DocP>Waptrix is a WhatsApp Business API platform built for Indian businesses. It lets you send bulk messages to thousands of contacts, manage all incoming conversations in one inbox, build automated reply rules, and track delivery and read rates — all from one dashboard.</DocP>
+        <DocP>Waptrix is a WhatsApp Business API platform built for Indian businesses. It lets you send broadcast messages to thousands of contacts, manage all incoming conversations in one inbox, build automated reply rules, and track delivery and read rates — all from one dashboard.</DocP>
         <DocH2>How It Works</DocH2>
         <DocP>Waptrix connects to the official Meta WhatsApp Business API. This means:</DocP>
         <DocUl items={[
@@ -254,7 +254,7 @@ function DOCS() {
     "gs-first-message": (
       <div>
         <h1 className="text-2xl font-extrabold text-[#111B21] mb-2">Send Your First Message</h1>
-        <DocP>Before you can send a bulk campaign, you need at least one approved template. Here's the fastest path to your first message:</DocP>
+        <DocP>Before you can send a broadcast campaign, you need at least one approved template. Here's the fastest path to your first message:</DocP>
         <Step n={1} title="Create a template">Go to Templates → New Template. Choose the Marketing category. Write a simple body like: "Hi &#123;&#123;1&#125;&#125;, thanks for connecting with us! Reply to this message anytime." Click Submit to Meta.</Step>
         <Step n={2} title="Wait for approval">Meta usually approves Marketing templates within 1–24 hours. You'll get an email when it's approved.</Step>
         <Step n={3} title="Add a contact">Go to Contacts → Add Contact. Enter a name and a WhatsApp number (with country code, e.g., 919876543210).</Step>

@@ -6,18 +6,18 @@ import { POSTS, TAG_COLORS } from "./posts";
 export const metadata: Metadata = {
   title: "Blog | WhatsApp Marketing Tips & Guides — Waptrix",
   description:
-    "Actionable WhatsApp marketing guides, bulk messaging tips, and Business API tutorials for Indian businesses. Learn how to grow with WhatsApp.",
+    "Actionable WhatsApp marketing guides, WhatsApp marketing tips, and Business API tutorials for Indian businesses. Learn how to grow with WhatsApp.",
   alternates: { canonical: "https://waptrix.in/blog" },
   openGraph: {
     title: "Blog | WhatsApp Marketing Tips & Guides — Waptrix",
     description:
-      "Actionable WhatsApp marketing guides, bulk messaging tips, and Business API tutorials for Indian businesses.",
+      "Actionable WhatsApp marketing guides, WhatsApp marketing tips, and Business API tutorials for Indian businesses.",
     url: "https://waptrix.in/blog",
     images: [{ url: "/featured.png", width: 1200, height: 630, alt: "Waptrix Blog" }],
   },
   twitter: {
     title: "Blog | WhatsApp Marketing Tips & Guides — Waptrix",
-    description: "Actionable WhatsApp marketing guides, bulk messaging tips, and Business API tutorials for Indian businesses.",
+    description: "Actionable WhatsApp marketing guides, WhatsApp marketing tips, and Business API tutorials for Indian businesses.",
     images: ["/featured.png"],
   },
 };

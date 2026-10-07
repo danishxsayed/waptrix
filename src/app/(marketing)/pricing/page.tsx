@@ -23,7 +23,7 @@ const PRICING: Record<Cycle, { planId: string; price: number; perMonth: number; 
 const FEATURES = [
   "Unlimited WhatsApp conversations",
   "Up to 10 team members",
-  "Bulk campaigns to unlimited contacts",
+  "broadcast campaigns to unlimited contacts",
   "Message templates (Meta-approved)",
   "Smart unified inbox",
   "Real-time analytics dashboard",

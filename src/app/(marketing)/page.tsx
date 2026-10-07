@@ -8,18 +8,18 @@ import {
 export const metadata: Metadata = {
   title: "Waptrix | WhatsApp Business Marketing Platform for India",
   description:
-    "Send bulk WhatsApp campaigns, manage conversations, automate replies, and track every message — all in one platform. Built for Indian businesses.",
+    "Send targeted WhatsApp campaigns, manage conversations, automate replies, and track every message — all in one platform. Built for Indian businesses.",
   alternates: { canonical: "https://waptrix.in" },
   openGraph: {
     title: "Waptrix | WhatsApp Business Marketing Platform",
     description:
-      "Send bulk WhatsApp campaigns, manage conversations, automate replies, and track every message — all in one platform.",
+      "Send targeted WhatsApp campaigns, manage conversations, automate replies, and track every message — all in one platform.",
     url: "https://waptrix.in",
     images: [{ url: "/featured.png", width: 1200, height: 630, alt: "Waptrix — WhatsApp Business Marketing Platform" }],
   },
   twitter: {
     title: "Waptrix | WhatsApp Business Marketing Platform",
-    description: "Send bulk WhatsApp campaigns, manage conversations, automate replies — all in one platform.",
+    description: "Send targeted WhatsApp campaigns, manage conversations, automate replies — all in one platform.",
     images: ["/featured.png"],
   },
 };
@@ -36,7 +36,7 @@ function Hero() {
               Reach every customer on WhatsApp.
             </h1>
             <p className="text-lg text-[#667781] mb-10 leading-relaxed max-w-md">
-              Send bulk campaigns, manage inbound conversations, automate responses, and track every message all in one platform.
+              Send broadcast campaigns, manage inbound conversations, automate responses, and track every message all in one platform.
             </p>
             <div className="flex flex-wrap gap-4">
               <Link
@@ -156,7 +156,7 @@ function FloatingTextSection() {
       {/* Scattered profile circles + bubbles */}
       <div className="absolute inset-0 pointer-events-none select-none">
         {[
-          { img: "/waptrix-profiles/1.png", r: 48, x: "8%",  y: "12%", alt: "Indian retailer using WhatsApp bulk messaging software" },
+          { img: "/waptrix-profiles/1.png", r: 48, x: "8%",  y: "12%", alt: "Indian retailer using WhatsApp marketing software" },
           { img: "/waptrix-profiles/2.png", r: 40, x: "82%", y: "8%",  alt: "Business owner using WhatsApp broadcast tool India" },
           { img: "/waptrix-profiles/3.png", r: 44, x: "5%",  y: "72%", alt: "E-commerce seller running WhatsApp marketing campaign" },
           { img: "/waptrix-profiles/4.png", r: 36, x: "88%", y: "68%", alt: "Customer support agent on Waptrix WhatsApp API platform" },
@@ -320,7 +320,7 @@ function InboxMockup() {
 /* ── Features grid ───────────────────────────────────────────────────────────── */
 function Features() {
   const feats = [
-    { icon: Send, title: "Bulk Campaigns", desc: "Reach thousands with personalised WhatsApp messages in one click." },
+    { icon: Send, title: "broadcast campaigns", desc: "Reach thousands with personalised WhatsApp messages in one click." },
     { icon: Inbox, title: "Unified Inbox", desc: "All conversations in one place. Assign, reply, and resolve." },
     { icon: Bot, title: "Automation", desc: "Keyword triggers, auto-replies, and drip sequences. 24/7." },
     { icon: FileText, title: "Template Manager", desc: "Create Meta-approved templates with images, variables, and buttons." },
@@ -336,7 +336,7 @@ function Features() {
         <div className="text-center mb-16">
           <p className="text-xs font-bold text-[#25D366] uppercase tracking-widest mb-3">Everything you need</p>
           <h2 className="text-4xl md:text-5xl font-extrabold text-[#111B21] tracking-tight">One platform for all of WhatsApp</h2>
-          <p className="text-[#667781] mt-4 max-w-xl mx-auto">Stop managing conversations in your phone. Waptrix is the <strong>bulk WhatsApp marketing software</strong> that brings campaigns, inbox, automation, and analytics into one browser dashboard.</p>
+          <p className="text-[#667781] mt-4 max-w-xl mx-auto">Stop managing conversations in your phone. Waptrix is the <strong>WhatsApp marketing software</strong> that brings campaigns, inbox, automation, and analytics into one browser dashboard.</p>
         </div>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {feats.map((f) => (
@@ -511,7 +511,7 @@ const jsonLd = {
         worstRating: "1",
       },
       description:
-        "WhatsApp Business Marketing Platform for India — send bulk campaigns, manage conversations, and automate replies using the official WhatsApp Business API.",
+        "WhatsApp Business Marketing Platform for India — send broadcast campaigns, manage conversations, and automate replies using the official WhatsApp Business API.",
       screenshot: "https://waptrix.in/featured.png",
       featureList: [
         "Bulk WhatsApp Campaigns",
@@ -548,7 +548,7 @@ const jsonLd = {
           name: "What is Waptrix?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Waptrix is an official WhatsApp Business API provider in India that lets businesses send bulk WhatsApp campaigns, manage customer conversations in a unified inbox, automate replies, and track delivery analytics — all from one dashboard.",
+            text: "Waptrix is an official WhatsApp Business API provider in India that lets businesses send targeted WhatsApp campaigns, manage customer conversations in a unified inbox, automate replies, and track delivery analytics — all from one dashboard.",
           },
         },
         {
@@ -556,7 +556,7 @@ const jsonLd = {
           name: "How much does WhatsApp API pricing cost with Waptrix?",
           acceptedAnswer: {
             "@type": "Answer",
-            text: "Waptrix costs ₹1,999 per month (or less on quarterly/annual plans) with all features included — bulk campaigns, inbox, automation, templates, and analytics. No hidden fees.",
+            text: "Waptrix costs ₹1,999 per month (or less on quarterly/annual plans) with all features included — broadcast campaigns, inbox, automation, templates, and analytics. No hidden fees.",
           },
         },
         {
