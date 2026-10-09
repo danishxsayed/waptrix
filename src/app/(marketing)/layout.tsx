@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import Script from "next/script";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client"; // still used for sign-out
@@ -70,6 +70,142 @@ function OfferPopup() {
   );
 }
 
+// ── Offer bar ────────────────────────────────────────────────────────────────
+const OFFER_DURATION_SECS = 24 * 60 * 60; // 24 h — resets automatically when done
+const pad = (n: number) => String(n).padStart(2, "0");
+
+function OfferBar({ onHeightChange }: { onHeightChange: (h: number) => void }) {
+  const [dismissed, setDismissed] = useState(true); // hidden until client-side check
+  const [secs, setSecs]           = useState(OFFER_DURATION_SECS);
+  const barRef                    = useRef<HTMLDivElement>(null);
+
+  // Notify parent of height whenever visibility changes
+  const notifyHeight = useCallback((visible: boolean) => {
+    if (!visible) { onHeightChange(0); return; }
+    // Use requestAnimationFrame so the DOM has painted
+    requestAnimationFrame(() => {
+      onHeightChange(barRef.current?.offsetHeight ?? 0);
+    });
+  }, [onHeightChange]);
+
+  useEffect(() => {
+    // Stay hidden if user dismissed during this browser session
+    if (sessionStorage.getItem("offerBarDismissed") === "1") return;
+
+    // Get or initialise the countdown end timestamp
+    let endTime = parseInt(localStorage.getItem("offerBarEnd") || "0", 10);
+    const now   = Math.floor(Date.now() / 1000);
+    if (!endTime || endTime <= now) {
+      endTime = now + OFFER_DURATION_SECS;
+      localStorage.setItem("offerBarEnd", String(endTime));
+    }
+
+    setSecs(Math.max(0, endTime - now));
+    setDismissed(false);
+    notifyHeight(true);
+
+    const interval = setInterval(() => {
+      const remaining = parseInt(localStorage.getItem("offerBarEnd") || "0", 10) - Math.floor(Date.now() / 1000);
+      if (remaining <= 0) {
+        // Timer finished → reset for another 24 h automatically
+        const newEnd = Math.floor(Date.now() / 1000) + OFFER_DURATION_SECS;
+        localStorage.setItem("offerBarEnd", String(newEnd));
+        setSecs(OFFER_DURATION_SECS);
+      } else {
+        setSecs(remaining);
+      }
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line
+
+  const dismiss = () => {
+    sessionStorage.setItem("offerBarDismissed", "1");
+    setDismissed(true);
+    onHeightChange(0);
+  };
+
+  if (dismissed) return null;
+
+  const h = Math.floor(secs / 3600);
+  const m = Math.floor((secs % 3600) / 60);
+  const s = secs % 60;
+
+  return (
+    <div
+      ref={barRef}
+      className="fixed top-0 left-0 right-0 z-[60] bg-[#075E54] text-white"
+    >
+      {/* Desktop layout */}
+      <div className="hidden sm:flex items-center justify-center gap-3 px-4 py-2.5 text-sm relative">
+        <span className="bg-[#25D366] text-[#111B21] text-[11px] font-bold px-2.5 py-1 rounded-full flex-shrink-0">
+          Launch offer
+        </span>
+        <span className="text-white/90">
+          Get <span className="font-bold text-white">20% off</span> your first 3 months — resets in
+        </span>
+        {/* Countdown */}
+        <div className="flex items-center gap-1 bg-white/10 rounded-lg px-3 py-1 font-mono text-sm font-semibold tabular-nums flex-shrink-0">
+          <span>{pad(h)}</span>
+          <span className="text-white/50">:</span>
+          <span>{pad(m)}</span>
+          <span className="text-white/50">:</span>
+          <span>{pad(s)}</span>
+        </div>
+        <Link
+          href="/signup"
+          className="bg-[#25D366] hover:bg-[#1ebe5d] text-[#111B21] font-bold text-xs px-4 py-1.5 rounded-full transition-colors flex-shrink-0"
+        >
+          Claim offer →
+        </Link>
+        <button
+          onClick={dismiss}
+          aria-label="Dismiss offer"
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors p-1"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
+
+      {/* Mobile layout — 2 lines */}
+      <div className="sm:hidden px-4 py-2 relative">
+        <div className="flex items-center justify-between gap-2 mb-1.5">
+          <div className="flex items-center gap-2">
+            <span className="bg-[#25D366] text-[#111B21] text-[10px] font-bold px-2 py-0.5 rounded-full">
+              Launch offer
+            </span>
+            <span className="text-white/90 text-xs font-medium">20% off first 3 months</span>
+          </div>
+          <button
+            onClick={dismiss}
+            aria-label="Dismiss offer"
+            className="text-white/50 hover:text-white transition-colors flex-shrink-0 p-0.5"
+          >
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2">
+          {/* Mini countdown */}
+          <div className="flex items-center gap-1 bg-white/10 rounded-md px-2 py-1 font-mono text-xs font-semibold tabular-nums">
+            <span>{pad(h)}</span>
+            <span className="text-white/40">:</span>
+            <span>{pad(m)}</span>
+            <span className="text-white/40">:</span>
+            <span>{pad(s)}</span>
+          </div>
+          <span className="text-white/60 text-[11px]">left</span>
+          <Link
+            href="/signup"
+            className="ml-auto bg-[#25D366] hover:bg-[#1ebe5d] text-[#111B21] font-bold text-[11px] px-3 py-1.5 rounded-full transition-colors"
+          >
+            Claim →
+          </Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const NAV_LINKS = [
   { label: "Features",  href: "/#features" },
   { label: "Pricing",   href: "/pricing" },
@@ -109,7 +245,7 @@ function appUrl(path: string) {
   return `${protocol}//${h}${p}${path}`;
 }
 
-function Navbar() {
+function Navbar({ topOffset = 0 }: { topOffset?: number }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [sessionUser, setSessionUser] = useState<{ name: string; email: string } | null>(null);
@@ -139,7 +275,7 @@ function Navbar() {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 z-50 bg-white border-b border-[#E9EDEF]">
+    <header className="fixed left-0 right-0 z-50 bg-white border-b border-[#E9EDEF]" style={{ top: topOffset }}>
       <div className="max-w-7xl mx-auto px-6 h-[68px] flex items-center justify-between gap-8">
         {/* Logo */}
         <Link href="/" className="flex items-center gap-2.5 flex-shrink-0">
@@ -317,6 +453,8 @@ function Footer() {
 }
 
 export default function MarketingLayout({ children }: { children: React.ReactNode }) {
+  const [barHeight, setBarHeight] = useState(0);
+
   return (
     <div className="min-h-screen bg-[#EDE8DE] flex flex-col">
       {/* Google Analytics */}
@@ -334,8 +472,9 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       </Script>
 
       <OfferPopup />
-      <Navbar />
-      <main className="flex-1 pt-[68px]">{children}</main>
+      <OfferBar onHeightChange={setBarHeight} />
+      <Navbar topOffset={barHeight} />
+      <main className="flex-1" style={{ paddingTop: barHeight + 68 }}>{children}</main>
       <Footer />
     </div>
   );
