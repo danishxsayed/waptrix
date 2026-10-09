@@ -8,9 +8,9 @@ import { createClient } from "@/lib/supabase/client";
 
 type Cycle = "monthly" | "quarterly" | "yearly";
 
-const CYCLES: { id: Cycle; label: string; badge?: string }[] = [
+const CYCLES: { id: Cycle; label: string; badge?: string; popular?: boolean }[] = [
   { id: "monthly",   label: "Monthly" },
-  { id: "quarterly", label: "Quarterly", badge: "Save 17%" },
+  { id: "quarterly", label: "Quarterly", badge: "Save 17%", popular: true },
   { id: "yearly",    label: "Yearly",    badge: "Save 25%" },
 ];
 
@@ -191,29 +191,36 @@ function PricingContent() {
         <PaymentBanner />
 
         {/* Billing cycle toggle */}
-        <div className="flex justify-center mb-10">
+        <div className="flex justify-center mb-10 mt-5">
           <div className="flex bg-white border border-[#E9EDEF] rounded-2xl p-1.5 gap-1 shadow-sm">
             {CYCLES.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => { setCycle(c.id); setPayError(""); }}
-                className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
-                  cycle === c.id
-                    ? "bg-[#25D366] text-[#111B21] shadow-md"
-                    : "text-[#667781] hover:text-[#111B21]"
-                }`}
-              >
-                {c.label}
-                {c.badge && (
-                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                    cycle === c.id
-                      ? "bg-[#111B21]/10 text-[#111B21]"
-                      : "bg-[#25D366]/15 text-[#25D366]"
-                  }`}>
-                    {c.badge}
+              <div key={c.id} className="relative flex flex-col items-center">
+                {/* Most popular label above the button */}
+                {c.popular && (
+                  <span className="absolute -top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[10px] font-bold bg-[#25D366] text-[#111B21] px-2 py-0.5 rounded-full">
+                    Most popular
                   </span>
                 )}
-              </button>
+                <button
+                  onClick={() => { setCycle(c.id); setPayError(""); }}
+                  className={`relative flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                    cycle === c.id
+                      ? "bg-[#25D366] text-[#111B21] shadow-md"
+                      : "text-[#667781] hover:text-[#111B21]"
+                  }`}
+                >
+                  {c.label}
+                  {c.badge && (
+                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
+                      cycle === c.id
+                        ? "bg-[#111B21]/10 text-[#111B21]"
+                        : "bg-[#25D366]/15 text-[#25D366]"
+                    }`}>
+                      {c.badge}
+                    </span>
+                  )}
+                </button>
+              </div>
             ))}
           </div>
         </div>

@@ -20,7 +20,8 @@ const PLAN_OPTIONS = [
     price:    "₹1,666",
     per:      "/month",
     billing:  "₹4,998 billed every 3 months",
-    badge:    "Save 17%",
+    badge:    "Most popular",
+    saveBadge: "Save 17%",
   },
   {
     id:       "pro_yearly",
@@ -203,9 +204,15 @@ function PlanModal({ onClose }: { onClose: () => void }) {
                 {selected === p.id && <div className="w-2 h-2 rounded-full bg-[#25D366]" />}
               </div>
               <div className="flex-1">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-semibold text-sm text-[#111B21]">Pro — {p.label}</span>
-                  {p.badge && (
+                  {p.badge === "Most popular" && (
+                    <span className="text-[10px] font-bold bg-[#25D366] text-[#111B21] px-2 py-0.5 rounded-full">{p.badge}</span>
+                  )}
+                  {"saveBadge" in p && p.saveBadge && (
+                    <span className="text-[10px] font-bold bg-[#D9FDD3] text-[#075E54] px-2 py-0.5 rounded-full border border-[#25D366]/20">{p.saveBadge}</span>
+                  )}
+                  {p.badge && p.badge !== "Most popular" && (
                     <span className="text-[10px] font-bold bg-[#D9FDD3] text-[#075E54] px-2 py-0.5 rounded-full border border-[#25D366]/20">{p.badge}</span>
                   )}
                 </div>
