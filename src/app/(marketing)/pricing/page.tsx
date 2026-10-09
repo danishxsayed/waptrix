@@ -176,26 +176,6 @@ function PricingContent() {
     <section className="py-20 px-6 bg-[#EDE8DE] min-h-screen">
       <div className="max-w-4xl mx-auto">
 
-        {/* Independence Day Banner */}
-        <div className="relative overflow-hidden rounded-3xl mb-10 bg-gradient-to-r from-[#FF9933] via-white to-[#138808] p-px">
-          <div className="bg-[#111B21] rounded-3xl px-6 py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="text-3xl">🎉</span>
-              <div>
-                <p className="text-white font-extrabold text-base leading-tight">
-                  Independence Day Launch Offer
-                </p>
-                <p className="text-[#667781] text-xs mt-0.5">
-                  Launching on 15 August 🇮🇳. Start free, no credit card needed
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-[10px] font-bold text-[#111B21] bg-[#FF9933] px-3 py-1.5 rounded-full">🇮🇳 15 AUG</span>
-              <span className="text-[10px] font-bold text-[#111B21] bg-[#25D366] px-3 py-1.5 rounded-full">7-Day Free Trial</span>
-            </div>
-          </div>
-        </div>
 
         {/* Header */}
         <div className="text-center mb-12">
