@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import Script from "next/script";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { Menu, X, LayoutDashboard, LogOut, ChevronDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/client"; // still used for sign-out
@@ -79,14 +79,16 @@ function OfferBar({ onHeightChange }: { onHeightChange: (h: number) => void }) {
   const [secs, setSecs]           = useState(OFFER_DURATION_SECS);
   const barRef                    = useRef<HTMLDivElement>(null);
 
-  // Notify parent of height whenever visibility changes
-  const notifyHeight = useCallback((visible: boolean) => {
-    if (!visible) { onHeightChange(0); return; }
-    // Use requestAnimationFrame so the DOM has painted
-    requestAnimationFrame(() => {
-      onHeightChange(barRef.current?.offsetHeight ?? 0);
-    });
-  }, [onHeightChange]);
+  // ResizeObserver keeps the parent offset in sync whenever the bar changes height
+  // (handles mobile 2-line layout, window resize, etc.)
+  useEffect(() => {
+    if (dismissed || !barRef.current) return;
+    const el = barRef.current;
+    onHeightChange(el.offsetHeight);
+    const ro = new ResizeObserver(() => onHeightChange(el.offsetHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [dismissed, onHeightChange]);
 
   useEffect(() => {
     // Stay hidden if user dismissed during this browser session
@@ -102,7 +104,6 @@ function OfferBar({ onHeightChange }: { onHeightChange: (h: number) => void }) {
 
     setSecs(Math.max(0, endTime - now));
     setDismissed(false);
-    notifyHeight(true);
 
     const interval = setInterval(() => {
       const remaining = parseInt(localStorage.getItem("offerBarEnd") || "0", 10) - Math.floor(Date.now() / 1000);
