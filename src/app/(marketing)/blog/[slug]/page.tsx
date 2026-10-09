@@ -299,7 +299,7 @@ export default async function BlogPostPage({ params }: Props) {
                 ← All Posts
               </Link>
               <Link
-                href="/pricing"
+                href="/signup"
                 className="bg-[#25D366] text-white text-sm font-semibold px-4 py-2 rounded-full hover:bg-[#1ebe5d] transition-colors"
               >
                 Start Free
@@ -358,7 +358,7 @@ export default async function BlogPostPage({ params }: Props) {
               Join thousands of Indian businesses using Waptrix to send campaigns, automate messages, and manage customer conversations.
             </p>
             <Link
-              href="/pricing"
+              href="/signup"
               className="inline-block bg-[#25D366] text-white font-bold px-8 py-3 rounded-full hover:bg-[#1ebe5d] transition-colors text-lg"
             >
               Start Free Trial →

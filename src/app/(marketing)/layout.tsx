@@ -216,7 +216,7 @@ function Navbar() {
                 Log In <span className="text-xs">›</span>
               </Link>
               <Link
-                href="/pricing"
+                href="/signup"
                 className="flex items-center gap-1 bg-[#25D366] text-[#111B21] text-sm font-bold px-5 py-2 rounded-full hover:bg-[#128C7E] hover:text-white transition-all"
               >
                 Get Started <span className="text-xs">›</span>
@@ -263,7 +263,7 @@ function Navbar() {
             ) : (
               <>
                 <Link href="/login" onClick={() => setOpen(false)} className="text-center border-2 border-[#111B21] text-[#111B21] font-bold py-2.5 rounded-full text-sm">Log In</Link>
-                <Link href="/pricing" onClick={() => setOpen(false)} className="text-center bg-[#25D366] text-[#111B21] font-bold py-2.5 rounded-full text-sm">Get Started</Link>
+                <Link href="/signup" onClick={() => setOpen(false)} className="text-center bg-[#25D366] text-[#111B21] font-bold py-2.5 rounded-full text-sm">Get Started</Link>
               </>
             )}
           </div>
