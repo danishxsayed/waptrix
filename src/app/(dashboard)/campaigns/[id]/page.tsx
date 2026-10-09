@@ -67,8 +67,6 @@ interface Log {
   created_at: string;
   replied_at: string | null;
   error?: string;
-  error_message?: string;
-  error_detail?: string;
   contact?: { name?: string } | null;
 }
 
@@ -308,7 +306,7 @@ export default function CampaignDetailPage() {
           ? new Date(log.sent_at).toLocaleString()
           : new Date(log.created_at).toLocaleString();
         const repliedAt = log.replied_at ? new Date(log.replied_at).toLocaleString() : "";
-        const error = (log.error || log.error_message || log.error_detail || "").replace(/,/g, " ").replace(/\n/g, " ");
+        const error = (log.error || "").replace(/,/g, " ").replace(/\n/g, " ");
         return [name, phone, status, replied, `"${sentAt}"`, `"${repliedAt}"`, `"${error}"`].join(",");
       }),
     ];
@@ -606,7 +604,7 @@ export default function CampaignDetailPage() {
               <tbody className="divide-y divide-border/30">
                 {filteredLogs.map((log) => {
                   const hasFailed = (log.status || "").toLowerCase() === "failed";
-                  const errorMsg = log.error || log.error_message || log.error_detail;
+                  const errorMsg = log.error;
                   const isExpanded = expandedLogId === log.id;
                   const contactName = log.contact?.name;
                   return (

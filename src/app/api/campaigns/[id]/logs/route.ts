@@ -44,7 +44,7 @@ export async function GET(
     // Avoid Supabase FK join (contact_id has no FK constraint) — enrich names manually
     const { data, error } = await db
       .from('message_logs')
-      .select('id, campaign_id, contact_id, phone, status, meta_msg_id, sent_at, created_at, replied_at, error, error_message, error_detail, tenant_id')
+      .select('id, campaign_id, contact_id, phone, status, meta_msg_id, sent_at, created_at, replied_at, error, tenant_id')
       .eq('campaign_id', id)
       .order('created_at', { ascending: false })
       .limit(1000);
