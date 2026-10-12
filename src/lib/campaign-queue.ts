@@ -106,6 +106,14 @@ export async function enqueueCampaignBatches(campaignId: string): Promise<void> 
     return;
   }
 
+  // Guard: if campaign is already past the queued stage, bail out to prevent double-send.
+  // 'queued' is the only safe entry state (set by trigger/campaigns routes before calling us).
+  // 'sending' or 'sent' means batches are already in flight or done.
+  if (campaign.status === 'sending' || campaign.status === 'sent') {
+    console.warn(`enqueueCampaignBatches: campaign ${campaignId} already in status '${campaign.status}' — skipping to prevent double-send`);
+    return;
+  }
+
   // 2. Fetch contacts — always invalidate cache first so a new upload
   //    (or a re-run of the same segment) always gets the current DB rows,
   //    not a stale cached list from a previous campaign on the same segment.

@@ -681,7 +681,7 @@ interface InboxFilters {
   campaignRepliedOnly: boolean; // when true + campaignId set, show only contacts who replied
 }
 const DEFAULT_FILTERS: InboxFilters = {
-  chatStatus: 'all', readStatus: 'all', replyStatus: 'all',
+  chatStatus: 'all', readStatus: 'all', replyStatus: 'replied',
   tags: [], lastMsgFrom: '', lastMsgTo: '', campaignId: '',
   campaignRepliedOnly: false,
 };

@@ -1,5 +1,16 @@
 # Implementation History
 
+## [2026-10-12] - Campaign Queue Reliability, Detail Pagination & Onboarding Enforcement
+- **Campaign Trigger & Double-Send Prevention**:
+  - `src/app/api/campaigns/[id]/trigger/route.ts`: Wrapped `enqueueCampaignBatches()` in `waitUntil()` from `@vercel/functions` so QStash trigger receives an immediate 200 response, avoiding trigger retries and timeouts.
+  - `src/lib/campaign-queue.ts`: Added state guard in `enqueueCampaignBatches()` to bail out if campaign status is already `'sending'` or `'sent'`, eliminating accidental double-sending.
+- **Campaign Detail Page Pagination**:
+  - `src/app/(dashboard)/campaigns/[id]/page.tsx`: Added pagination (`LOGS_PER_PAGE = 50`) with "Load more" button for message delivery logs, resetting page offset when search or status filters change.
+- **Inbox Default Filter**:
+  - `src/components/inbox/InboxPanel.tsx`: Changed default `replyStatus` filter to `'replied'` so users see actionable conversation threads first.
+- **Middleware Onboarding Redirection**:
+  - `src/middleware.ts`: Fetched `onboarding_done` and redirected non-team-member tenants to `/onboarding` if onboarding is incomplete.
+
 ## [2026-10-06] - HTML-based Cookie Redirect in Auth Callback & Signup Route Updates
 - **Auth Callback HTML Redirect**:
   - Refactored `src/app/auth/callback/route.ts` to use `htmlRedirect()` returning HTTP 200 HTML with `window.location.replace` script instead of HTTP 302/307 redirects, ensuring Set-Cookie headers are reliably flushed to the browser before navigation.

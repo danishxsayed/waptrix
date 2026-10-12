@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
  */
 
 import { NextResponse } from 'next/server';
+import { waitUntil } from '@vercel/functions';
 import { enqueueCampaignBatches } from '@/lib/campaign-queue';
 import { createClient } from '@supabase/supabase-js';
 
@@ -44,10 +45,16 @@ export async function POST(
       return NextResponse.json({ message: `Campaign already in status: ${campaign.status}` });
     }
 
-    // Mark as queued then hand off to enqueueCampaignBatches
+    // Mark as queued then hand off to enqueueCampaignBatches.
+    // Use waitUntil so the response is returned immediately (prevents QStash
+    // from timing out and retrying the trigger if enqueueCampaignBatches is slow).
     await db.from('campaigns').update({ status: 'queued' }).eq('id', campaignId);
 
-    await enqueueCampaignBatches(campaignId);
+    waitUntil(
+      enqueueCampaignBatches(campaignId).catch((err) =>
+        console.error(`[campaign/trigger] enqueueCampaignBatches failed for ${campaignId}:`, err.message)
+      )
+    );
 
     return NextResponse.json({ message: 'Campaign launched', campaignId });
   } catch (err: any) {

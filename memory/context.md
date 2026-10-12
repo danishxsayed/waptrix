@@ -118,6 +118,12 @@ Waptrix is a professional SaaS platform for WhatsApp Bulk Messaging, built with 
   - Built an interactive Checkout Modal inside the `/pricing` marketing page (`src/app/(marketing)/pricing/page.tsx`) utilizing Razorpay Checkout JS SDK (`https://checkout.razorpay.com/v1/checkout.js`) to collect customer details, process payments, and display order success/failure feedback banners.
 
 ## Recent Session Progress
+- **Campaign Reliability, Logs Pagination & Onboarding Enforcement (2026-10-12)**:
+  - Non-blocking campaign trigger queueing with `waitUntil` to prevent QStash webhook retry timeouts.
+  - Guarded against duplicate campaign dispatching in `enqueueCampaignBatches`.
+  - Added logs pagination (50 items/page) to campaign detail view with "Load more".
+  - Enforced onboarding redirect in `middleware.ts` for users with `onboarding_done = false`.
+  - Set default inbox filter to `replied` for prioritized responses.
 - **Client-Side Email Confirm Page & Onboarding Status API (2026-10-06)**:
   - Created `/auth/confirm` client page to handle OTP and PKCE verification in the browser, establishing session cookies client-side then routing to `/onboarding` or `/dashboard` via `/api/onboarding/status`.
   - Created `/api/onboarding/status` route returning `onboarding_done` for the authenticated user.

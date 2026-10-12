@@ -84,9 +84,14 @@ export default function CampaignDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [logFilter, setLogFilter] = useState<"all" | "sent" | "delivered" | "read" | "replied" | "ignored" | "failed">("all");
   const [logSearch, setLogSearch] = useState("");
+
+  const setLogFilterAndReset = (f: typeof logFilter) => { setLogFilter(f); setLogsPage(1); };
+  const setLogSearchAndReset = (s: string) => { setLogSearch(s); setLogsPage(1); };
   const [expandedLogId, setExpandedLogId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [logsError, setLogsError] = useState("");
+  const [logsPage, setLogsPage] = useState(1);
+  const LOGS_PER_PAGE = 50;
 
   const fetchCampaign = useCallback(async () => {
     try {
@@ -277,6 +282,9 @@ export default function CampaignDetailPage() {
       (log.contact?.name || "").toLowerCase().includes(logSearch.toLowerCase());
     return matchesFilter && matchesSearch;
   });
+
+  const paginatedLogs = filteredLogs.slice(0, logsPage * LOGS_PER_PAGE);
+  const hasMoreLogs = paginatedLogs.length < filteredLogs.length;
 
   const logCounts = {
     all: logs.length,
@@ -525,11 +533,11 @@ export default function CampaignDetailPage() {
                 type="text"
                 placeholder="Search name or phone…"
                 value={logSearch}
-                onChange={(e) => setLogSearch(e.target.value)}
+                onChange={(e) => setLogSearchAndReset(e.target.value)}
                 className="input-field text-xs pl-3 pr-8 py-1.5 w-44"
               />
               {logSearch && (
-                <button onClick={() => setLogSearch("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
+                <button onClick={() => setLogSearchAndReset("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary">
                   <X className="w-3 h-3" />
                 </button>
               )}
@@ -552,7 +560,7 @@ export default function CampaignDetailPage() {
           {(["all", "sent", "delivered", "read", "replied", "ignored", "failed"] as const).map((f) => (
             <button
               key={f}
-              onClick={() => setLogFilter(f)}
+              onClick={() => setLogFilterAndReset(f)}
               className={`px-3 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all border
                 ${logFilter === f
                   ? "bg-jade/10 border-jade/30 text-jade"
@@ -602,7 +610,7 @@ export default function CampaignDetailPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/30">
-                {filteredLogs.map((log) => {
+                {paginatedLogs.map((log) => {
                   const hasFailed = (log.status || "").toLowerCase() === "failed";
                   const errorMsg = log.error;
                   const isExpanded = expandedLogId === log.id;
@@ -680,6 +688,18 @@ export default function CampaignDetailPage() {
                 })}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {/* Load more */}
+        {hasMoreLogs && (
+          <div className="flex justify-center pt-2">
+            <button
+              onClick={() => setLogsPage(p => p + 1)}
+              className="px-5 py-2 rounded-xl border border-border bg-surface text-xs font-bold text-text-muted hover:text-text-primary hover:bg-card transition-all"
+            >
+              Load more ({filteredLogs.length - paginatedLogs.length} remaining)
+            </button>
           </div>
         )}
       </div>

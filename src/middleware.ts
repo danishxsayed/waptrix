@@ -137,7 +137,7 @@ export async function middleware(request: NextRequest) {
               .maybeSingle(),
             serviceDb
               .from('tenants')
-              .select('plan, trial_ends_at, plan_expires_at')
+              .select('plan, trial_ends_at, plan_expires_at, onboarding_done')
               .eq('id', userId)
               .maybeSingle(),
           ]),
@@ -173,6 +173,13 @@ export async function middleware(request: NextRequest) {
         })
 
         if (tenant) {
+          // Enforce onboarding — team members skip it (owner already completed it)
+          if (!tenant.onboarding_done && !isTeamMember && pathname !== '/onboarding') {
+            const url = request.nextUrl.clone()
+            url.pathname = '/onboarding'
+            return NextResponse.redirect(url)
+          }
+
           const now = new Date()
           const isPro = tenant.plan === 'pro' && tenant.plan_expires_at && new Date(tenant.plan_expires_at) > now
           const inTrial = tenant.plan === 'trial' && tenant.trial_ends_at && new Date(tenant.trial_ends_at) > now
