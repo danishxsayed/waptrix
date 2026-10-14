@@ -408,11 +408,11 @@ export default function CampaignWizard({
   };
 
   const selectedTemplate = templates.find(t => t.id === formData.template_id);
-  const isAllContacts = formData.segment_id === 'all';
+  const isAllContacts = formData.segment_id === 'all' || formData.segment_id === '';
   const selectedSegment = isAllContacts ? null : segments.find(s => s.id === formData.segment_id);
-  const segmentLabel = isAllContacts ? `All Contacts (${allContactsCount ?? '…'})` : (selectedSegment?.name || '—');
+  const segmentLabel = formData.segment_id === '' ? 'All Contacts' : isAllContacts ? `All Contacts (${allContactsCount ?? '…'})` : (selectedSegment?.name || '—');
   const audienceLabel = formData.tag_filter.length > 0
-    ? `${segmentLabel} + ${formData.tag_filter.length} tag${formData.tag_filter.length > 1 ? 's' : ''}`
+    ? `${segmentLabel} · Tags: ${formData.tag_filter.join(', ')}`
     : segmentLabel;
   const variables: string[] = selectedTemplate ? (selectedTemplate.body.match(/{{\d+}}/g) || []) : [];
 
@@ -424,7 +424,7 @@ export default function CampaignWizard({
   // Step validation
   const canNext: Record<number, boolean> = {
     1: formData.name.trim().length > 0,
-    2: formData.segment_id !== "",
+    2: formData.segment_id !== "" || formData.tag_filter.length > 0,
     3: formData.template_id !== "",
     4: true,
     5: formData.send_now || scheduledAtIsValid(),
@@ -560,14 +560,19 @@ export default function CampaignWizard({
                     ))}
                   </div>
 
-                  {/* ── Tag filter (optional) ──────────────────────── */}
+                  {/* ── Tag filter ──────────────────────────────────── */}
                   {allTags.length > 0 && (
                     <div className="space-y-3 pt-4 border-t border-border">
                       <div className="flex items-start justify-between gap-2">
                         <div>
-                          <p className="text-xs font-bold text-text-muted uppercase tracking-wider">Filter by Tag <span className="font-normal normal-case">(optional)</span></p>
+                          <p className="text-xs font-bold text-text-muted uppercase tracking-wider">
+                            Send to Tag
+                            {formData.segment_id === '' && <span className="font-normal normal-case text-jade ml-1">(you can use this without a segment)</span>}
+                          </p>
                           <p className="text-[11px] text-text-muted mt-0.5">
-                            Only contacts with at least one of the selected tags will receive this campaign.
+                            {formData.segment_id !== ''
+                              ? 'Only contacts with at least one of the selected tags will receive this campaign.'
+                              : 'Select one or more tags to target those contacts directly — no segment needed.'}
                           </p>
                         </div>
                         {formData.tag_filter.length > 0 && (
