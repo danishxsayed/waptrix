@@ -1988,6 +1988,7 @@ export default function ContactsPage() {
   const [selectedContactIdForProfile, setSelectedContactIdForProfile] = useState<string | null>(null);
   const [waSendTarget, setWaSendTarget] = useState<any | null>(null);
   const [activeSegmentFilter, setActiveSegmentFilter] = useState<string>("all");
+  const [showDeleteAllMenu, setShowDeleteAllMenu] = useState(false);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -2884,38 +2885,45 @@ export default function ContactsPage() {
                 </button>
 
                 {/* Delete All in scope (segment / tag / all) */}
-                <div className="relative group/scopedel">
+                <div className="relative">
                   <button
                     disabled={isBulkUpdating}
+                    onClick={() => setShowDeleteAllMenu(v => !v)}
                     className="px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 text-xs font-bold disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                     Delete All ▾
                   </button>
-                  <div className="absolute bottom-full mb-2 right-0 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[200px] hidden group-hover/scopedel:block z-50">
-                    {activeSegmentFilter !== 'all' && (
-                      <button
-                        onClick={() => handleDeleteByScope('segment', activeSegmentFilter)}
-                        className="w-full px-4 py-2 text-left text-xs hover:bg-surface text-rose-400 font-semibold"
-                      >
-                        Delete all in "{segments.find(s => s.id === activeSegmentFilter)?.name ?? 'segment'}"
-                      </button>
-                    )}
-                    {selectedTag && (
-                      <button
-                        onClick={() => handleDeleteByScope('tag', selectedTag)}
-                        className="w-full px-4 py-2 text-left text-xs hover:bg-surface text-rose-400 font-semibold"
-                      >
-                        Delete all with tag "{selectedTag}"
-                      </button>
-                    )}
-                    <button
-                      onClick={() => handleDeleteByScope('all')}
-                      className="w-full px-4 py-2 text-left text-xs hover:bg-surface text-rose-500 font-bold border-t border-border mt-1 pt-2"
-                    >
-                      Delete ALL contacts
-                    </button>
-                  </div>
+                  {showDeleteAllMenu && (
+                    <>
+                      {/* backdrop to close on outside click */}
+                      <div className="fixed inset-0 z-40" onClick={() => setShowDeleteAllMenu(false)} />
+                      <div className="absolute bottom-full mb-2 right-0 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[220px] z-50">
+                        {activeSegmentFilter !== 'all' && (
+                          <button
+                            onClick={() => { setShowDeleteAllMenu(false); handleDeleteByScope('segment', activeSegmentFilter); }}
+                            className="w-full px-4 py-2.5 text-left text-xs hover:bg-surface text-rose-400 font-semibold"
+                          >
+                            Delete all in "{segments.find(s => s.id === activeSegmentFilter)?.name ?? 'segment'}"
+                          </button>
+                        )}
+                        {selectedTag && (
+                          <button
+                            onClick={() => { setShowDeleteAllMenu(false); handleDeleteByScope('tag', selectedTag); }}
+                            className="w-full px-4 py-2.5 text-left text-xs hover:bg-surface text-rose-400 font-semibold"
+                          >
+                            Delete all with tag "{selectedTag}"
+                          </button>
+                        )}
+                        <button
+                          onClick={() => { setShowDeleteAllMenu(false); handleDeleteByScope('all'); }}
+                          className="w-full px-4 py-2.5 text-left text-xs hover:bg-surface text-rose-500 font-bold border-t border-border"
+                        >
+                          Delete ALL contacts
+                        </button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </>
             )}
