@@ -124,11 +124,14 @@ export async function DELETE(request: Request) {
 
     const tenantId = await getEffectiveTenantId(user.id);
     const { searchParams } = new URL(request.url);
-    const id = searchParams.get('id');
-    const idsParam = searchParams.get('ids');
+    const id        = searchParams.get('id');
+    const idsParam  = searchParams.get('ids');
+    const segmentId = searchParams.get('segment_id'); // delete all in segment
+    const tag       = searchParams.get('tag');         // delete all with tag
+    const deleteAll = searchParams.get('all');         // delete all contacts
 
-    if (!id && !idsParam) {
-      return NextResponse.json({ error: 'Contact ID or IDs required' }, { status: 400 });
+    if (!id && !idsParam && !segmentId && !tag && !deleteAll) {
+      return NextResponse.json({ error: 'Contact ID, IDs, segment_id, tag, or all=true required' }, { status: 400 });
     }
 
     const db = serviceDb();
@@ -139,6 +142,13 @@ export async function DELETE(request: Request) {
     } else if (idsParam) {
       const ids = idsParam.split(',').map(x => x.trim()).filter(Boolean);
       query = query.in('id', ids);
+    } else if (segmentId) {
+      query = query.eq('segment_id', segmentId);
+    } else if (tag) {
+      // Tags are stored as comma-separated in custom2 column
+      query = query.ilike('custom2', `%${tag}%`);
+    } else if (deleteAll === 'true') {
+      // Delete all contacts for this tenant — no additional filter needed
     }
 
     const { error } = await query;

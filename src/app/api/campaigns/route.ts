@@ -143,10 +143,11 @@ export async function POST(req: Request) {
 
     if (!name)       return NextResponse.json({ error: 'Campaign name is required' },    { status: 400 });
     if (!templateId) return NextResponse.json({ error: 'Template is required' },         { status: 400 });
-    // When no segment is selected but tags are provided, target all contacts filtered by tags
-    const effectiveSegmentId = segmentId || (tagFilter ? 'all' : null);
-    if (!effectiveSegmentId) return NextResponse.json({ error: 'Segment/audience is required' }, { status: 400 });
-    // 'all' is a valid special value meaning "All Contacts" — no segment lookup needed
+    // segment_id is a UUID column — store null for "All Contacts" (null = all, uuid = specific segment)
+    // 'all' string from the frontend is mapped to null here before DB insert
+    const effectiveSegmentId = (!segmentId || segmentId === 'all') ? null : segmentId;
+    const hasAudience = effectiveSegmentId !== null || tagFilter !== null;
+    if (!hasAudience) return NextResponse.json({ error: 'Segment/audience is required' }, { status: 400 });
 
     const { variable_mapping, send_now, scheduled_at } = body;
 

@@ -2056,6 +2056,32 @@ export default function ContactsPage() {
     }
   };
 
+  // Delete ALL contacts matching a scope: segment, tag, or everything
+  const handleDeleteByScope = async (scope: 'segment' | 'tag' | 'all', value?: string) => {
+    const label = scope === 'segment'
+      ? `all contacts in segment "${segments.find(s => s.id === value)?.name ?? value}"`
+      : scope === 'tag'
+      ? `all contacts with tag "${value}"`
+      : 'ALL contacts';
+    if (!confirm(`Are you sure you want to permanently delete ${label}? This cannot be undone.`)) return;
+    setIsBulkUpdating(true);
+    try {
+      const params = scope === 'segment'
+        ? `segment_id=${value}`
+        : scope === 'tag'
+        ? `tag=${encodeURIComponent(value!)}`
+        : 'all=true';
+      await axios.delete(`/api/contacts?${params}`);
+      showToast(`Deleted ${label} successfully!`);
+      setSelectedIds([]);
+      fetchContacts();
+    } catch (err: any) {
+      showToast(err.response?.data?.error || "Delete failed.", "error");
+    } finally {
+      setIsBulkUpdating(false);
+    }
+  };
+
   // Fix contacts that were imported with the incorrect opted_in=false default
   // (they have opted_in=false but no opted_out_at, meaning they never actually opted out)
   const [isFixingOptedIn, setIsFixingOptedIn] = useState(false);
@@ -2847,14 +2873,51 @@ export default function ContactsPage() {
 
             {/* Bulk Delete — hidden for agents */}
             {!isAgent && (
-              <button
-                onClick={handleBulkDelete}
-                disabled={isBulkUpdating}
-                className="px-3 py-1.5 rounded-lg border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/20 text-rose-500 hover:text-rose-400 text-xs font-bold disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Delete
-              </button>
+              <>
+                <button
+                  onClick={handleBulkDelete}
+                  disabled={isBulkUpdating}
+                  className="px-3 py-1.5 rounded-lg border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/20 text-rose-500 hover:text-rose-400 text-xs font-bold disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  Delete Selected
+                </button>
+
+                {/* Delete All in scope (segment / tag / all) */}
+                <div className="relative group/scopedel">
+                  <button
+                    disabled={isBulkUpdating}
+                    className="px-3 py-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 hover:bg-rose-500/25 text-rose-400 text-xs font-bold disabled:opacity-40 transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    Delete All ▾
+                  </button>
+                  <div className="absolute bottom-full mb-2 right-0 bg-card border border-border rounded-xl shadow-xl py-1 min-w-[200px] hidden group-hover/scopedel:block z-50">
+                    {activeSegmentFilter !== 'all' && (
+                      <button
+                        onClick={() => handleDeleteByScope('segment', activeSegmentFilter)}
+                        className="w-full px-4 py-2 text-left text-xs hover:bg-surface text-rose-400 font-semibold"
+                      >
+                        Delete all in "{segments.find(s => s.id === activeSegmentFilter)?.name ?? 'segment'}"
+                      </button>
+                    )}
+                    {selectedTag && (
+                      <button
+                        onClick={() => handleDeleteByScope('tag', selectedTag)}
+                        className="w-full px-4 py-2 text-left text-xs hover:bg-surface text-rose-400 font-semibold"
+                      >
+                        Delete all with tag "{selectedTag}"
+                      </button>
+                    )}
+                    <button
+                      onClick={() => handleDeleteByScope('all')}
+                      className="w-full px-4 py-2 text-left text-xs hover:bg-surface text-rose-500 font-bold border-t border-border mt-1 pt-2"
+                    >
+                      Delete ALL contacts
+                    </button>
+                  </div>
+                </div>
+              </>
             )}
 
             {/* Clear Selection */}
